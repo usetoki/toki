@@ -31,7 +31,10 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - if: runner.os == 'Windows'
-        uses: ilammy/setup-nasm@v1
+        shell: pwsh
+        run: |
+          choco install nasm --no-progress -y
+          "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Append
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -40,7 +43,7 @@ jobs:
       - name: Build addon
         shell: bash
         run: npx napi build --platform --release --target "$BUILD_TARGET" --output-dir bindings --dts index.d.ts
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: bindings-${{ matrix.target }}
           path: bindings/*.node
@@ -62,7 +65,7 @@ jobs:
       - run: npm ci
       # Regenerates bindings/ (loader + types) for tsc, and compiles dist/.
       - run: npm run build
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Stage prebuilt binaries into platform packages

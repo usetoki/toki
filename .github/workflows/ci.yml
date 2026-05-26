@@ -46,7 +46,10 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - if: runner.os == 'Windows'
-        uses: ilammy/setup-nasm@v1
+        shell: pwsh
+        run: |
+          choco install nasm --no-progress -y
+          "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Append
       - run: npm ci
       - run: npm run build
       - run: npm test
