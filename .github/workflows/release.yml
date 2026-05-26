@@ -25,12 +25,14 @@ jobs:
     env:
       BUILD_TARGET: ${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      - if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -38,7 +40,7 @@ jobs:
       - name: Build addon
         shell: bash
         run: npx napi build --platform --release --target "$BUILD_TARGET" --output-dir bindings --dts index.d.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: bindings-${{ matrix.target }}
           path: bindings/*.node
@@ -49,10 +51,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -60,7 +62,7 @@ jobs:
       - run: npm ci
       # Regenerates bindings/ (loader + types) for tsc, and compiles dist/.
       - run: npm run build
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
       - name: Stage prebuilt binaries into platform packages

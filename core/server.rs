@@ -710,7 +710,13 @@ pub fn listen(
     let active = Arc::new(AtomicUsize::new(0));
 
     if let Some(unix_path) = config.unix_path.clone() {
+        #[cfg(unix)]
         return spawn_unix(unix_path, config, state, signal, shutdown, active);
+        #[cfg(not(unix))]
+        return Err(Error::new(
+            Status::GenericFailure,
+            format!("Unix-domain sockets are not supported on this platform: {unix_path}"),
+        ));
     }
 
     // Bind TCP synchronously so the port and any bind error are known before
@@ -759,6 +765,7 @@ pub fn listen(
 
 /// Spawn the runtime thread for a Unix-domain socket, bound inside the runtime;
 /// the handle reports port `0`.
+#[cfg(unix)]
 fn spawn_unix(
     unix_path: String,
     config: ResolvedConfig,
@@ -892,6 +899,7 @@ async fn accept_tcp(
 
 /// Accept Unix-domain connections until shutdown, then drain. Mirrors
 /// [`accept_tcp`] without the TCP-only `TCP_NODELAY` and TLS.
+#[cfg(unix)]
 async fn accept_unix(
     listener: tokio::net::UnixListener,
     state: Arc<ServerState>,
