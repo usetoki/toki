@@ -64,7 +64,7 @@
     "example": "tsx examples/01-basics.ts",
     "test": "node --import tsx --test \"__test__/**/*.test.ts\"",
     "artifacts": "napi artifacts --output-dir bindings --npm-dir npm",
-    "prepublishOnly": "napi prepublish -t npm --npm-dir npm"
+    "prepublishOnly": "napi prepublish -t npm --npm-dir npm --no-gh-release"
   },
   "optionalDependencies": {
     "@usetoki/toki-darwin-arm64": "0.1.0",
