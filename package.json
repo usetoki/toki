@@ -1,0 +1,77 @@
+{
+  "name": "@usetoki/toki",
+  "version": "0.1.0",
+  "description": "The fastest HTTP framework for Node.js and Bun.",
+  "license": "MIT",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "keywords": [
+    "http",
+    "framework",
+    "server",
+    "web",
+    "api",
+    "router",
+    "rust",
+    "napi",
+    "native",
+    "fast",
+    "bun"
+  ],
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.1"
+  },
+  "napi": {
+    "binaryName": "toki",
+    "targets": [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc"
+    ]
+  },
+  "files": [
+    "dist",
+    "bindings/index.js",
+    "bindings/index.d.ts"
+  ],
+  "scripts": {
+    "build": "npm run build:native && npm run build:ts",
+    "build:native": "napi build --platform --release --output-dir bindings --dts index.d.ts",
+    "build:debug": "napi build --platform --output-dir bindings --dts index.d.ts && npm run build:ts",
+    "build:ts": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "lint": "npm run lint:rust && npm run typecheck && npm run format:check",
+    "lint:rust": "cargo fmt --check && cargo clippy --lib -- -D warnings",
+    "format": "prettier --write \"{ts,examples,__test__}/**/*.ts\"",
+    "format:check": "prettier --check \"{ts,examples,__test__}/**/*.ts\"",
+    "example": "tsx examples/01-basics.ts",
+    "test": "node --import tsx --test \"__test__/**/*.test.ts\"",
+    "artifacts": "napi artifacts --output-dir bindings --npm-dir npm",
+    "prepublishOnly": "napi prepublish -t npm --npm-dir npm"
+  },
+  "optionalDependencies": {
+    "@usetoki/toki-darwin-arm64": "0.1.0",
+    "@usetoki/toki-darwin-x64": "0.1.0",
+    "@usetoki/toki-linux-arm64-gnu": "0.1.0",
+    "@usetoki/toki-linux-x64-gnu": "0.1.0",
+    "@usetoki/toki-win32-x64-msvc": "0.1.0"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3",
+    "@types/node": "^22",
+    "prettier": "^3",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

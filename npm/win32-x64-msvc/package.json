@@ -1,0 +1,21 @@
+{
+  "name": "@usetoki/toki-win32-x64-msvc",
+  "version": "0.1.0",
+  "description": "The fastest HTTP framework for Node.js and Bun.",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "license": "MIT",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "toki.win32-x64-msvc.node",
+  "files": [
+    "toki.win32-x64-msvc.node"
+  ],
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.1"
+  }
+}

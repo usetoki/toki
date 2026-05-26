@@ -1,0 +1,6 @@
+dist
+bindings
+target
+node_modules
+npm
+*.node

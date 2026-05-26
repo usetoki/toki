@@ -1,0 +1,21 @@
+{
+  "name": "@usetoki/toki-darwin-x64",
+  "version": "0.1.0",
+  "description": "The fastest HTTP framework for Node.js and Bun.",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "license": "MIT",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "toki.darwin-x64.node",
+  "files": [
+    "toki.darwin-x64.node"
+  ],
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.1"
+  }
+}

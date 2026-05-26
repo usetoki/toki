@@ -1,0 +1,24 @@
+{
+  "name": "@usetoki/toki-linux-arm64-gnu",
+  "version": "0.1.0",
+  "description": "The fastest HTTP framework for Node.js and Bun.",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "toki.linux-arm64-gnu.node",
+  "files": [
+    "toki.linux-arm64-gnu.node"
+  ],
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.1"
+  }
+}

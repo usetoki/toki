@@ -1,0 +1,19 @@
+# Rust
+/target
+
+# Node
+/node_modules
+/dist
+
+# Generated Node-API bindings (rebuilt by `npm run build`, shipped via npm `files`)
+/bindings
+
+# Native addon binaries
+*.node
+
+# Logs / env / OS
+*.log
+npm-debug.log*
+.env
+.env.*
+.DS_Store

@@ -1,0 +1,39 @@
+[package]
+name = "toki"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT"
+description = "The fastest HTTP framework for Node.js and Bun."
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "core/lib.rs"
+
+[dependencies]
+napi = { version = "3.9", features = ["napi4"] }
+napi-derive = "3.5"
+tokio = { version = "1.52", features = ["net", "rt", "rt-multi-thread", "sync", "io-util", "macros", "time", "fs"] }
+tokio-rustls = "0.26"
+rustls-pemfile = "2.2"
+httparse = "1.10"
+bytes = "1.11"
+multer = "3.1"
+futures-util = "0.3"
+form_urlencoded = "1.2"
+matchit = "0.9"
+getrandom = "0.3"
+percent-encoding = "2.3"
+mime_guess = "2.0"
+flate2 = "1.1"
+brotli = "8.0"
+
+[build-dependencies]
+napi-build = "2.3"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = "symbols"
