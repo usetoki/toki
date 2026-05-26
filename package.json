@@ -4,6 +4,12 @@
   "description": "The fastest HTTP framework for Node.js and Bun.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usetoki/toki.git"
+  },
+  "homepage": "https://github.com/usetoki/toki#readme",
+  "bugs": "https://github.com/usetoki/toki/issues",
   "keywords": [
     "http",
     "framework",

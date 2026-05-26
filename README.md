@@ -1,6 +1,10 @@
-# 🌀 Toki
+<p align="center">
+  <img src="assets/toki-logo.png" alt="Toki" width="280">
+</p>
 
-**The fastest HTTP framework for Node.js and Bun.** ⚡
+<p align="center">
+  <strong>The fastest HTTP framework for Node.js and Bun.</strong> ⚡
+</p>
 
 Toki gives you a clean, fully-typed TypeScript API on top of a native HTTP engine
 written in Rust. Routing, parsing, uploads, static files, and compression all run
