@@ -13,6 +13,19 @@
   align-items: center;
   height: 100%;
   gap: 24px;
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+/* Match the width of the page below so the logo and actions line up with the
+   content edges: the 1120px landing, the wider 1320px docs layout. */
+.innerHome {
+  max-width: var(--container);
+}
+
+.innerDocs {
+  max-width: 1320px;
 }
 
 .brand {

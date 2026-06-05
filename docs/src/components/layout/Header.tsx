@@ -16,7 +16,7 @@ export function Header(): ReactElement {
 
   return (
     <header className={styles.header}>
-      <div className={cn("container", styles.inner)}>
+      <div className={cn(styles.inner, onHome ? styles.innerHome : styles.innerDocs)}>
         <Link to="/" className={styles.brand} aria-label="toki — home">
           <Logo />
         </Link>
