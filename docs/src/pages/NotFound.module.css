@@ -1,0 +1,32 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 120px 24px;
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: 3.5rem;
+  font-weight: 720;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.title {
+  font-size: 1.6rem;
+}
+
+.text {
+  color: var(--text-muted);
+}
+
+.link {
+  margin-top: 8px;
+  color: var(--accent);
+  font-weight: 600;
+}

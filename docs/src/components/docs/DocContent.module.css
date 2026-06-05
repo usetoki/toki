@@ -1,0 +1,143 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.content > * + * {
+  margin-top: 18px;
+}
+
+.h2 {
+  position: relative;
+  scroll-margin-top: calc(var(--header-h) + 24px);
+  font-size: 1.45rem;
+  margin-top: 44px !important;
+  padding-top: 4px;
+}
+
+.content > .h2:first-child {
+  margin-top: 0 !important;
+}
+
+.anchor {
+  position: absolute;
+  left: -1.1em;
+  color: var(--text-faint);
+  opacity: 0;
+  font-weight: 400;
+  transition: opacity var(--transition);
+}
+
+.h2:hover .anchor {
+  opacity: 1;
+}
+
+.anchor:hover {
+  color: var(--accent);
+}
+
+.p {
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.inlineCode {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent-strong);
+}
+
+.inlineLink {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
+.inlineLink:hover {
+  color: var(--accent-strong);
+}
+
+.code {
+  margin-block: 4px;
+}
+
+.ul,
+.ol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 22px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.ul li::marker {
+  color: var(--accent);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--surface-2);
+  font-weight: 650;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.table td {
+  color: var(--text-muted);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.callout {
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.note {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tip {
+  border-left-color: #1aa67a;
+  background: color-mix(in srgb, #1aa67a 8%, transparent);
+}
+
+.warning {
+  border-left-color: #e0902f;
+  background: color-mix(in srgb, #e0902f 9%, transparent);
+}

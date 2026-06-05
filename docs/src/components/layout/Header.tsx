@@ -1,4 +1,6 @@
 import type { ReactElement } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { FIRST_DOC_SLUG } from "../../content/docs/registry";
 import { GITHUB_URL, NAV_ITEMS, SECTION_IDS } from "../../data/nav";
 import { useScrollSpy } from "../../hooks/useScrollSpy";
 import { cn } from "../../lib/cn";
@@ -8,28 +10,38 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "./Header.module.css";
 
 export function Header(): ReactElement {
+  const location = useLocation();
+  const onHome = location.pathname === "/";
   const activeId = useScrollSpy(SECTION_IDS);
 
   return (
     <header className={styles.header}>
       <div className={cn("container", styles.inner)}>
-        <a href="#top" className={styles.brand} aria-label="toki — home">
+        <Link to="/" className={styles.brand} aria-label="toki — home">
           <Logo />
-        </a>
+        </Link>
 
-        <nav className={styles.nav} aria-label="Primary">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              className={cn(styles.link, activeId === item.id && styles.active)}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
+        {onHome ? (
+          <nav className={styles.nav} aria-label="Sections">
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className={cn(styles.link, activeId === item.id && styles.active)}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
 
         <div className={styles.actions}>
+          <Link
+            to={`/docs/${FIRST_DOC_SLUG}`}
+            className={cn(styles.docsLink, !onHome && styles.docsActive)}
+          >
+            Docs
+          </Link>
           <ThemeToggle />
           <a
             className={styles.github}

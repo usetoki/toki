@@ -1,0 +1,51 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 8px 8px 40px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupTitle {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding-left: 12px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.link {
+  display: block;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  transition:
+    color var(--transition),
+    background-color var(--transition);
+}
+
+.link:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}

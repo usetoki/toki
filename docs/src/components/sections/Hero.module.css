@@ -69,8 +69,19 @@
   gap: 24px;
 }
 
+/* The PNG carries a dark navy wordmark. A soft halo keeps it legible: a dark
+   shadow on the light theme, a light (white) glow on the dark theme. */
 .logo {
-  filter: drop-shadow(0 12px 30px color-mix(in srgb, var(--accent) 30%, transparent));
+  display: block;
+  filter: drop-shadow(0 16px 34px rgba(16, 24, 46, 0.28));
+}
+
+/* Thin dark wordmark on a dark page: stack tight white drop-shadows to trace a crisp
+   outline around every glyph, plus a wider glow. This makes "toki" legible. */
+[data-theme="dark"] .logo {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.85))
+    drop-shadow(0 0 14px rgba(255, 255, 255, 0.55)) drop-shadow(0 0 34px rgba(255, 255, 255, 0.4));
 }
 
 .preview > :last-child {
