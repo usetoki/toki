@@ -86,18 +86,29 @@ jobs:
           done
           npm version "$version" --no-git-tag-version --allow-same-version
 
-      # Publishes are idempotent: a version already on npm is skipped (npm versions
-      # are immutable), so a half-finished release can be safely re-run on its tag.
+      # Publishes are idempotent (a version already on npm is skipped — npm versions
+      # are immutable) and retried: the registry can 409 ("packument not yet saved")
+      # when new scoped packages are published back-to-back, so retry with backoff
+      # and space the publishes out. A half-finished release re-runs cleanly on its tag.
       - name: Publish platform packages
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
+          publish() {
+            for attempt in 1 2 3 4 5; do
+              if (cd "$1" && npm publish --access public); then return 0; fi
+              echo "publish failed (attempt ${attempt}/5) — retrying in 20s"
+              sleep 20
+            done
+            return 1
+          }
           for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msvc; do
             pkg="@usetoki/toki-${triple}"
             if npm view "${pkg}@${version}" version >/dev/null 2>&1; then
               echo "${pkg}@${version} already published — skipping"
             else
-              (cd "npm/${triple}" && npm publish --access public)
+              publish "npm/${triple}"
+              sleep 10 # let the registry settle before the next new package
             fi
           done
         env:
@@ -109,9 +120,14 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           if npm view "@usetoki/toki@${version}" version >/dev/null 2>&1; then
             echo "@usetoki/toki@${version} already published — skipping"
-          else
-            npm publish --access public
+            exit 0
           fi
+          for attempt in 1 2 3 4 5; do
+            if npm publish --access public; then exit 0; fi
+            echo "publish failed (attempt ${attempt}/5) — retrying in 20s"
+            sleep 20
+          done
+          exit 1
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
