@@ -5,6 +5,7 @@
 # Node
 /node_modules
 /dist
+plugins/*/dist
 
 # Native addon binary (rebuilt by `npm run build`, shipped via npm `files`)
 *.node

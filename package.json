@@ -37,16 +37,21 @@
   "files": [
     "dist"
   ],
+  "workspaces": [
+    "plugins/*"
+  ],
   "scripts": {
     "build": "npm run build:native && npm run build:ts",
     "build:native": "zig build -Doptimize=ReleaseFast",
     "build:debug": "zig build",
     "build:ts": "tsc -p tsconfig.build.json",
+    "build:plugins": "npm run build --workspaces --if-present",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "zig fmt --check src build.zig && npm run typecheck && npm run format:check",
-    "format": "zig fmt src build.zig && prettier --write \"{ts,examples,__test__}/**/*.ts\"",
-    "format:check": "prettier --check \"{ts,examples,__test__}/**/*.ts\"",
-    "test": "zig build test && node --test --test-concurrency=1 --test-force-exit __test__/*.test.ts"
+    "format": "zig fmt src build.zig && prettier --write \"{ts,examples,__test__}/**/*.ts\" \"plugins/*/{src,__test__}/**/*.ts\"",
+    "format:check": "prettier --check \"{ts,examples,__test__}/**/*.ts\" \"plugins/*/{src,__test__}/**/*.ts\"",
+    "test": "zig build test && node --test --test-concurrency=1 --test-force-exit __test__/*.test.ts",
+    "test:plugins": "npm run test --workspaces --if-present"
   },
   "optionalDependencies": {
     "@usetoki/toki-darwin-arm64": "0.2.0",
