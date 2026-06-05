@@ -6,9 +6,12 @@
 //! every uv handle/req, so a handle pointer == the address of our wrapper — we
 //! recover the wrapper by plain cast, never by touching a field.
 
-// 16-byte-aligned, padded over real sizes (tcp 264, write 192).
-pub const tcp_size = 320;
-pub const write_size = 256;
+// 16-byte-aligned storage for opaque uv handles/reqs. Sized generously above the
+// real structs on every platform — Windows is the largest (its handles carry
+// OVERLAPPED I/O fields), so unix probes (tcp 264, write 192) undershoot it.
+// Over-sizing is free correctness; libuv only touches sizeof(real) bytes.
+pub const tcp_size = 1024;
+pub const write_size = 512;
 
 // uv_buf_t, unix layout: base then len (win32 reverses these).
 pub const Buf = extern struct {
@@ -35,7 +38,7 @@ pub const CloseCb = *const fn (handle: *anyopaque) callconv(.c) void;
 
 pub const TimerCb = *const fn (handle: *anyopaque) callconv(.c) void;
 
-pub const timer_size = 160; // real uv_timer_t ~152, padded.
+pub const timer_size = 256; // generous over the real uv_timer_t (unix ~152, Windows larger).
 
 pub extern fn uv_tcp_init(loop: *anyopaque, handle: *anyopaque) c_int;
 pub extern fn uv_tcp_bind(handle: *anyopaque, addr: *const anyopaque, flags: c_uint) c_int;

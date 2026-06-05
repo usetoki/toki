@@ -16,6 +16,8 @@ env:
   # Node version whose Windows import library we link against. N-API is ABI-stable,
   # so one node.lib serves every supported Node.
   NODE_LIB_VERSION: "22.11.0"
+  # Run JS actions (e.g. setup-zig@v2) on Node 24 — Node 20 is being retired.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:

@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { createApp, reply } from "../dist/index.js";
-
-const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 const root = mkdtempSync(join(tmpdir(), "toki-static-"));
 const BIG = 1024 * 1024;
+const MIME_FILES = ["a.woff2", "b.wasm", "c.svg", "d.mp4", "e.json", "f.pdf", "g.webp", "h.xyz"];
 
 before(() => {
   mkdirSync(join(root, "assets"), { recursive: true });
@@ -25,6 +23,10 @@ before(() => {
   writeFileSync(join(root, "empty.txt"), "");
   writeFileSync(join(root, "big.bin"), Buffer.alloc(BIG, 0x41));
   writeFileSync(join(root, "oversized.bin"), Buffer.alloc(64 * 1024, 0x42));
+
+  // one file per extension to check MIME-by-extension; content is irrelevant
+  mkdirSync(join(root, "mime"));
+  for (const name of MIME_FILES) writeFileSync(join(root, "mime", name), "x");
 });
 
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -37,7 +39,7 @@ app.static("/", root);
 app.static("/cdn", join(root, "assets"), { cacheControl: "public, max-age=600, immutable" });
 app.static("/raw", join(root, "noindex"), { index: false });
 app.static("/capped", root, { maxFileBytes: 1024 });
-app.static("/mime", join(fixtures, "mime"));
+app.static("/mime", join(root, "mime"));
 
 test("serves a file with content-type, cache-control, etag, and exact body", async () => {
   const r = await app.inject({ url: "/assets/style.css" });

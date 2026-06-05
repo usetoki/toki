@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { brotliDecompressSync, gunzipSync } from "node:zlib";
 import { compression, createApp, reply } from "../dist/index.js";
 
@@ -13,13 +13,13 @@ const decode = (encoding: string | undefined, raw: Buffer): string => {
   return raw.toString("utf8");
 };
 
-const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
-
 const CSS = "a{color:red}\n".repeat(400);
-writeFileSync(join(fixtures, "assets", "big.css"), CSS);
+const root = mkdtempSync(join(tmpdir(), "toki-compress-"));
+mkdirSync(join(root, "assets"));
+writeFileSync(join(root, "assets", "big.css"), CSS);
 
 const app = createApp({ logger: false });
-app.static("/", fixtures);
+app.static("/", root);
 app.addHook("onResponse", compression({ threshold: 100 }));
 app.get("/json", () => reply.json({ data: "x".repeat(5000) }));
 app.get("/html", () => reply.html(`<main>${"y".repeat(5000)}</main>`));
@@ -34,7 +34,10 @@ let handle: { close(): void };
 before(() => {
   handle = app.listen(0, { host: "127.0.0.1" });
 });
-after(() => handle.close());
+after(() => {
+  handle.close();
+  rmSync(root, { recursive: true, force: true });
+});
 
 test("static: brotli wins when offered, wire shrinks, content intact", async () => {
   const r = await app.inject({
