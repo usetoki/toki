@@ -72,9 +72,16 @@ rateLimit({
 
 ## Stores
 
-The default `MemoryStore` is an in-process fixed window that evicts expired keys on a
-periodic sweep. Share one store across limiters for a common pool, or implement the
-`Store` interface (`hit(key, windowMs)`) against Redis to limit across instances.
+A store is where the counters live. The default `MemoryStore` is per-process; use a
+shared store to limit across many instances behind a load balancer. Built in:
+
+| Store | Backend | Notes |
+| --- | --- | --- |
+| `MemoryStore` | in-process | default; fixed window, sweeps expired keys |
+| `RedisStore` | Redis · KeyDB · Valkey · Dragonfly · Upstash | atomic Lua, one round trip, shared counters |
+| `MemcachedStore` | memcached | `add`+`incr` window; `Retry-After` is approximate (no TTL read) |
+
+Share one store across limiters for a common pool:
 
 ```ts
 import { MemoryStore } from "@usetoki/toki-ratelimiter";
@@ -82,4 +89,70 @@ import { MemoryStore } from "@usetoki/toki-ratelimiter";
 const store = new MemoryStore();
 app.get("/a", { preHandler: rateLimit({ max: 10, windowMs: 1000, store }) }, handlerA);
 app.get("/b", { preHandler: rateLimit({ max: 10, windowMs: 1000, store }) }, handlerB); // shared pool
+```
+
+The clients are **not** dependencies — bring your own and pass it in.
+
+### Redis / KeyDB / Valkey
+
+All speak the Redis protocol, so the same store covers them. `RedisStore` runs an
+atomic Lua script (`INCR` + `PEXPIRE` + `PTTL`) — one race-free round trip.
+
+```ts
+import Redis from "ioredis";
+import { RedisStore } from "@usetoki/toki-ratelimiter";
+
+const client = new Redis(process.env.REDIS_URL); // or new Redis({ host: "keydb", port: 6379 })
+const store = new RedisStore({ client, prefix: "rl:" });
+
+app.get("/api", { preHandler: rateLimit({ max: 100, windowMs: 60_000, store }) }, handler);
+```
+
+ioredis matches the expected client shape directly. **node-redis (v4)** has a different
+`eval` signature, so wrap it:
+
+```ts
+import { createClient } from "redis";
+const redis = createClient({ url: process.env.REDIS_URL });
+await redis.connect();
+
+const store = new RedisStore({
+  client: {
+    eval: (script, numKeys, ...args) =>
+      redis.eval(script, { keys: args.slice(0, numKeys), arguments: args.slice(numKeys).map(String) }),
+  },
+});
+```
+
+### Memcached
+
+memcached can't report a key's remaining TTL, so `Retry-After` is the full window
+length (an upper bound). Modern **memjs** (promise-based) wraps cleanly:
+
+```ts
+import { Client } from "memjs";
+import { MemcachedStore } from "@usetoki/toki-ratelimiter";
+
+const mc = Client.create(process.env.MEMCACHED_SERVERS);
+const store = new MemcachedStore({
+  client: {
+    add: (key, value, ttl) => mc.add(key, value, { expires: ttl }),
+    incr: async (key, amount) => (await mc.increment(key, amount)).value ?? null,
+  },
+});
+```
+
+### Custom store
+
+Implement `Store` — a single `hit(key, windowMs)` returning `{ count, resetAt }` (sync
+or async) — to back the limiter with anything (SQL, DynamoDB, a sliding-window log).
+
+```ts
+import type { Store, StoreHit } from "@usetoki/toki-ratelimiter";
+
+class MyStore implements Store {
+  async hit(key: string, windowMs: number): Promise<StoreHit> {
+    // ... count this hit, return the running total + window reset (epoch ms)
+  }
+}
 ```
