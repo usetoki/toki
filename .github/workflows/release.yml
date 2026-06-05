@@ -1,0 +1,65 @@
+name: Release
+
+# On a v* tag: cross-compile the addon for every platform (Zig builds them all
+# from one Linux host) and attach the binaries to the GitHub release.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  ZIG_VERSION: 0.16.0
+  # Node version whose Windows import library we link against. N-API is ABI-stable,
+  # so one node.lib serves every supported Node.
+  NODE_LIB_VERSION: "22.11.0"
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: darwin-arm64, target: aarch64-macos }
+          - { name: darwin-x64, target: x86_64-macos }
+          - { name: linux-x64, target: x86_64-linux-gnu }
+          - { name: linux-arm64, target: aarch64-linux-gnu }
+          - { name: win32-x64, target: x86_64-windows, windows: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Cross-compile addon
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.windows }}" ]; then
+            curl -sSLo node.lib "https://nodejs.org/dist/v${NODE_LIB_VERSION}/win-x64/node.lib"
+            zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }} -Dnode-lib="$PWD/node.lib"
+          else
+            zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}
+          fi
+          mv zig-out/toki.node "toki-${{ matrix.name }}.node"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toki-${{ matrix.name }}
+          path: toki-${{ matrix.name }}.node
+          if-no-files-found: error
+
+  release:
+    name: Attach binaries to the release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.node

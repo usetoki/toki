@@ -1,0 +1,22 @@
+# Zig
+/zig-out
+/.zig-cache
+
+# Node
+/node_modules
+/dist
+
+# Native addon binary (rebuilt by `npm run build`, shipped via npm `files`)
+*.node
+
+# Test fixtures generated at runtime
+/__test__/fixtures/big.bin
+/__test__/fixtures/assets/big.css
+/__test__/fixtures/mime/
+
+# Logs / env / OS
+*.log
+npm-debug.log*
+.env
+.env.*
+.DS_Store

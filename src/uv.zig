@@ -1,0 +1,58 @@
+//! Hand-declared libuv extern surface. Targets Node 24's bundled libuv (1.52.1);
+//! symbols resolve against the host at load.
+//!
+//! Handles/reqs are opaque: allocated as raw byte blocks sized above the real C
+//! structs (probed: uv_tcp_t=264, uv_write_t=192). `data` is the first field of
+//! every uv handle/req, so a handle pointer == the address of our wrapper — we
+//! recover the wrapper by plain cast, never by touching a field.
+
+// 16-byte-aligned, padded over real sizes (tcp 264, write 192).
+pub const tcp_size = 320;
+pub const write_size = 256;
+
+// uv_buf_t, unix layout: base then len (win32 reverses these).
+pub const Buf = extern struct {
+    base: [*c]u8,
+    len: usize,
+};
+
+// sockaddr_in, macOS/BSD layout: sin_len leads (no len field on Linux).
+pub const SockaddrIn = extern struct {
+    len: u8,
+    family: u8,
+    port: u16, // network byte order
+    addr: u32, // network byte order
+    zero: [8]u8,
+};
+
+pub const AF_INET: u8 = 2;
+
+pub const ConnectionCb = *const fn (server: *anyopaque, status: c_int) callconv(.c) void;
+pub const AllocCb = *const fn (handle: *anyopaque, suggested: usize, buf: *Buf) callconv(.c) void;
+pub const ReadCb = *const fn (stream: *anyopaque, nread: isize, buf: *const Buf) callconv(.c) void;
+pub const WriteCb = *const fn (req: *anyopaque, status: c_int) callconv(.c) void;
+pub const CloseCb = *const fn (handle: *anyopaque) callconv(.c) void;
+
+pub const TimerCb = *const fn (handle: *anyopaque) callconv(.c) void;
+
+pub const timer_size = 160; // real uv_timer_t ~152, padded.
+
+pub extern fn uv_tcp_init(loop: *anyopaque, handle: *anyopaque) c_int;
+pub extern fn uv_tcp_bind(handle: *anyopaque, addr: *const anyopaque, flags: c_uint) c_int;
+pub extern fn uv_ip4_addr(ip: [*c]const u8, port: c_int, addr: *anyopaque) c_int;
+pub extern fn uv_tcp_getpeername(handle: *anyopaque, name: *anyopaque, namelen: *c_int) c_int;
+pub extern fn uv_tcp_getsockname(handle: *anyopaque, name: *anyopaque, namelen: *c_int) c_int;
+pub extern fn uv_ip_name(addr: *const anyopaque, dst: [*c]u8, size: usize) c_int;
+pub extern fn uv_now(loop: *anyopaque) u64;
+pub extern fn uv_timer_init(loop: *anyopaque, handle: *anyopaque) c_int;
+pub extern fn uv_timer_start(handle: *anyopaque, cb: TimerCb, timeout: u64, repeat: u64) c_int;
+pub extern fn uv_listen(stream: *anyopaque, backlog: c_int, cb: ConnectionCb) c_int;
+pub extern fn uv_accept(server: *anyopaque, client: *anyopaque) c_int;
+pub extern fn uv_read_start(stream: *anyopaque, alloc_cb: AllocCb, read_cb: ReadCb) c_int;
+pub extern fn uv_read_stop(stream: *anyopaque) c_int;
+pub extern fn uv_write(req: *anyopaque, stream: *anyopaque, bufs: [*]const Buf, nbufs: c_uint, cb: WriteCb) c_int;
+// non-blocking, no req/alloc/cb: returns bytes written or negative err (UV_EAGAIN).
+pub extern fn uv_try_write(stream: *anyopaque, bufs: [*]const Buf, nbufs: c_uint) c_int;
+pub extern fn uv_tcp_nodelay(handle: *anyopaque, enable: c_int) c_int;
+pub extern fn uv_close(handle: *anyopaque, cb: ?CloseCb) void;
+pub extern fn uv_strerror(err: c_int) [*c]const u8;

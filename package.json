@@ -1,0 +1,57 @@
+{
+  "name": "@usetoki/toki",
+  "version": "0.1.0",
+  "description": "A blazing-fast HTTP framework for Node.js with a native engine written in Zig.",
+  "license": "MIT",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usetoki/toki.git"
+  },
+  "homepage": "https://github.com/usetoki/toki#readme",
+  "bugs": "https://github.com/usetoki/toki/issues",
+  "keywords": [
+    "http",
+    "framework",
+    "server",
+    "web",
+    "api",
+    "router",
+    "zig",
+    "napi",
+    "native",
+    "fast"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "zig-out/toki.node"
+  ],
+  "scripts": {
+    "build": "npm run build:native && npm run build:ts",
+    "build:native": "zig build -Doptimize=ReleaseFast",
+    "build:debug": "zig build",
+    "build:ts": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "zig fmt --check src build.zig && npm run typecheck && npm run format:check",
+    "format": "zig fmt src build.zig && prettier --write \"{ts,examples,__test__}/**/*.ts\"",
+    "format:check": "prettier --check \"{ts,examples,__test__}/**/*.ts\"",
+    "test": "zig build test && node --test --test-concurrency=1 --test-force-exit \"__test__/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "prettier": "^3",
+    "typescript": "^5"
+  }
+}
