@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/usetoki/toki.git"
   },
-  "homepage": "https://github.com/usetoki/toki#readme",
+  "homepage": "https://usetoki.github.io/toki/",
   "bugs": "https://github.com/usetoki/toki/issues",
   "keywords": [
     "http",

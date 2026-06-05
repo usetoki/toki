@@ -11,6 +11,7 @@
 .inner {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   height: 100%;
   gap: 24px;
   width: 100%;
@@ -36,7 +37,6 @@
 .nav {
   display: none;
   gap: 4px;
-  margin-inline: auto;
 }
 
 .link {
@@ -63,7 +63,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
 }
 
 .docsLink {
@@ -107,8 +106,5 @@
 @media (min-width: 820px) {
   .nav {
     display: flex;
-  }
-  .actions {
-    margin-left: 0;
   }
 }

@@ -1,13 +1,11 @@
 name: Docs
 
 # Builds the docs/ site (Vite + React) and publishes it to GitHub Pages.
+# Runs only on a new version tag (or a manual dispatch), not on every push.
 # One-time setup: repo Settings -> Pages -> Source: "GitHub Actions".
 on:
   push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - ".github/workflows/docs.yml"
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:

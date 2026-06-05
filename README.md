@@ -7,6 +7,10 @@
 </p>
 
 <p align="center">
+  <a href="https://usetoki.github.io/toki/"><strong>📖 Documentation</strong></a>
+</p>
+
+<p align="center">
   A clean, fully-typed TypeScript API on top of a native HTTP engine written in
   <strong>Zig</strong>. Parsing, routing, static files, and compression run in native
   code; your handlers stay in JavaScript.
@@ -50,6 +54,8 @@ npm install @usetoki/toki
 
 Or build from source — see [Build from source](#-build-from-source). You'll need
 [Zig](https://ziglang.org) 0.16.0 and Node.js 20+.
+
+Full guides and the API reference live at **[usetoki.github.io/toki](https://usetoki.github.io/toki/)**.
 
 ## 📖 Features at a glance
 
