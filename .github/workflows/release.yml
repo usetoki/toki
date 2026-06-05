@@ -1,7 +1,8 @@
 name: Release
 
-# On a v* tag: cross-compile the addon for every platform (Zig builds them all
-# from one Linux host) and attach the binaries to the GitHub release.
+# On a v* tag: cross-compile the addon for every platform (Zig builds them all from
+# one Linux host), publish each per-platform package plus the main package to npm,
+# and attach the binaries to the GitHub release. Needs the NPM_TOKEN secret.
 
 on:
   push:
@@ -18,17 +19,17 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.name }}
+    name: Build ${{ matrix.triple }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: darwin-arm64, target: aarch64-macos }
-          - { name: darwin-x64, target: x86_64-macos }
-          - { name: linux-x64, target: x86_64-linux-gnu }
-          - { name: linux-arm64, target: aarch64-linux-gnu }
-          - { name: win32-x64, target: x86_64-windows, windows: true }
+          - { triple: darwin-arm64, target: aarch64-macos }
+          - { triple: darwin-x64, target: x86_64-macos }
+          - { triple: linux-x64-gnu, target: x86_64-linux-gnu }
+          - { triple: linux-arm64-gnu, target: aarch64-linux-gnu }
+          - { triple: win32-x64-msvc, target: x86_64-windows, windows: true }
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
@@ -44,22 +45,60 @@ jobs:
           else
             zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}
           fi
-          mv zig-out/toki.node "toki-${{ matrix.name }}.node"
+          mv zig-out/toki.node "toki.${{ matrix.triple }}.node"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: toki-${{ matrix.name }}
-          path: toki-${{ matrix.name }}.node
+          name: toki-${{ matrix.triple }}
+          path: toki.${{ matrix.triple }}.node
           if-no-files-found: error
 
-  release:
-    name: Attach binaries to the release
+  publish:
+    name: Publish to npm
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run build:ts # compile dist/ (the loader)
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - uses: softprops/action-gh-release@v2
+
+      - name: Stage binaries + sync versions to the tag
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msvc; do
+            cp "artifacts/toki-${triple}/toki.${triple}.node" "npm/${triple}/"
+            (cd "npm/${triple}" && npm version "$version" --no-git-tag-version --allow-same-version)
+            npm pkg set "optionalDependencies.@usetoki/toki-${triple}=${version}"
+          done
+          npm version "$version" --no-git-tag-version --allow-same-version
+
+      - name: Publish platform packages
+        shell: bash
+        run: |
+          for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msvc; do
+            (cd "npm/${triple}" && npm publish --access public)
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish main package
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Attach binaries to the GitHub release
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*.node

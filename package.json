@@ -35,8 +35,7 @@
     "node": ">=20"
   },
   "files": [
-    "dist",
-    "zig-out/toki.node"
+    "dist"
   ],
   "scripts": {
     "build": "npm run build:native && npm run build:ts",
@@ -48,6 +47,13 @@
     "format": "zig fmt src build.zig && prettier --write \"{ts,examples,__test__}/**/*.ts\"",
     "format:check": "prettier --check \"{ts,examples,__test__}/**/*.ts\"",
     "test": "zig build test && node --test --test-concurrency=1 --test-force-exit \"__test__/**/*.test.ts\""
+  },
+  "optionalDependencies": {
+    "@usetoki/toki-darwin-arm64": "0.1.0",
+    "@usetoki/toki-darwin-x64": "0.1.0",
+    "@usetoki/toki-linux-x64-gnu": "0.1.0",
+    "@usetoki/toki-linux-arm64-gnu": "0.1.0",
+    "@usetoki/toki-win32-x64-msvc": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^24",

@@ -94,4 +94,35 @@ interface Native {
   close(): void;
 }
 
-export const native: Native = require(join(root, "zig-out", "toki.node")) as Native;
+// process.platform/arch → the package + filename suffix the release builds publish.
+function nativeTriple(): string {
+  const { platform, arch } = process;
+  if (platform === "win32") return `win32-${arch}-msvc`;
+  if (platform === "linux") return `linux-${arch}-gnu`;
+  return `${platform}-${arch}`;
+}
+
+// Local source build (zig-out) first, then a binary bundled beside the loader, then
+// the per-platform npm package installed as an optional dependency.
+function loadNative(): Native {
+  const triple = nativeTriple();
+  const attempts: Array<readonly [string, () => unknown]> = [
+    ["zig-out/toki.node", () => require(join(root, "zig-out", "toki.node"))],
+    [`toki.${triple}.node`, () => require(join(root, `toki.${triple}.node`))],
+    [`@usetoki/toki-${triple}`, () => require(`@usetoki/toki-${triple}`)],
+  ];
+  const errors: string[] = [];
+  for (const [name, load] of attempts) {
+    try {
+      return load() as Native;
+    } catch (error) {
+      errors.push(`  ${name}: ${(error as Error).message}`);
+    }
+  }
+  throw new Error(
+    `toki: no native binary for ${process.platform}-${process.arch}. Tried:\n${errors.join("\n")}\n` +
+      "Use a supported platform, or build from source with `npm run build`.",
+  );
+}
+
+export const native: Native = loadNative();
