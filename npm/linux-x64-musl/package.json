@@ -1,7 +1,7 @@
 {
-  "name": "@usetoki/toki-linux-arm64-gnu",
+  "name": "@usetoki/toki-linux-x64-musl",
   "version": "0.1.2",
-  "description": "Prebuilt aarch64-unknown-linux-gnu binary for toki.",
+  "description": "Prebuilt x86_64-unknown-linux-musl binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
@@ -9,10 +9,10 @@
     "url": "git+https://github.com/usetoki/toki.git"
   },
   "os": ["linux"],
-  "cpu": ["arm64"],
-  "libc": ["glibc"],
-  "main": "toki.linux-arm64-gnu.node",
-  "files": ["toki.linux-arm64-gnu.node"],
+  "cpu": ["x64"],
+  "libc": ["musl"],
+  "main": "toki.linux-x64-musl.node",
+  "files": ["toki.linux-x64-musl.node"],
   "engines": {
     "node": ">=20"
   }

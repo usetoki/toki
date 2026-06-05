@@ -1,7 +1,7 @@
 {
-  "name": "@usetoki/toki-linux-arm64-gnu",
+  "name": "@usetoki/toki-linux-arm-gnueabihf",
   "version": "0.1.2",
-  "description": "Prebuilt aarch64-unknown-linux-gnu binary for toki.",
+  "description": "Prebuilt armv7-unknown-linux-gnueabihf binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
@@ -9,10 +9,10 @@
     "url": "git+https://github.com/usetoki/toki.git"
   },
   "os": ["linux"],
-  "cpu": ["arm64"],
+  "cpu": ["arm"],
   "libc": ["glibc"],
-  "main": "toki.linux-arm64-gnu.node",
-  "files": ["toki.linux-arm64-gnu.node"],
+  "main": "toki.linux-arm-gnueabihf.node",
+  "files": ["toki.linux-arm-gnueabihf.node"],
   "engines": {
     "node": ">=20"
   }

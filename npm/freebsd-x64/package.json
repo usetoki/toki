@@ -1,17 +1,17 @@
 {
-  "name": "@usetoki/toki-win32-x64-msvc",
+  "name": "@usetoki/toki-freebsd-x64",
   "version": "0.1.2",
-  "description": "Prebuilt x86_64-pc-windows-msvc binary for toki.",
+  "description": "Prebuilt x86_64-unknown-freebsd binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/usetoki/toki.git"
   },
-  "os": ["win32"],
+  "os": ["freebsd"],
   "cpu": ["x64"],
-  "main": "toki.win32-x64-msvc.node",
-  "files": ["toki.win32-x64-msvc.node"],
+  "main": "toki.freebsd-x64.node",
+  "files": ["toki.freebsd-x64.node"],
   "engines": {
     "node": ">=20"
   }

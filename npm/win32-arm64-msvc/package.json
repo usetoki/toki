@@ -1,18 +1,17 @@
 {
-  "name": "@usetoki/toki-linux-arm64-gnu",
+  "name": "@usetoki/toki-win32-arm64-msvc",
   "version": "0.1.2",
-  "description": "Prebuilt aarch64-unknown-linux-gnu binary for toki.",
+  "description": "Prebuilt aarch64-pc-windows-msvc binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/usetoki/toki.git"
   },
-  "os": ["linux"],
+  "os": ["win32"],
   "cpu": ["arm64"],
-  "libc": ["glibc"],
-  "main": "toki.linux-arm64-gnu.node",
-  "files": ["toki.linux-arm64-gnu.node"],
+  "main": "toki.win32-arm64-msvc.node",
+  "files": ["toki.win32-arm64-msvc.node"],
   "engines": {
     "node": ">=20"
   }

@@ -219,7 +219,7 @@ inline fn put(dest: []u8, bytes: []const u8) usize {
 }
 
 // decimal v into dest, returns digit count
-fn writeUint(dest: []u8, v: usize) usize {
+fn writeUint(dest: []u8, v: u64) usize {
     if (v == 0) {
         dest[0] = '0';
         return 1;

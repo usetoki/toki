@@ -2,5 +2,4 @@
 
 Prebuilt **x86_64-pc-windows-msvc** binary for [`@usetoki/toki`](https://www.npmjs.com/package/@usetoki/toki).
 
-You don't install this directly — it's an optional dependency of `@usetoki/toki`,
-pulled in automatically on matching platforms.
+Installed automatically as an optional dependency of `@usetoki/toki` on matching platforms — don't install it directly.

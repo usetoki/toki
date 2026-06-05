@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-darwin-x64",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Prebuilt x86_64-apple-darwin binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
@@ -8,16 +8,10 @@
     "type": "git",
     "url": "git+https://github.com/usetoki/toki.git"
   },
-  "os": [
-    "darwin"
-  ],
-  "cpu": [
-    "x64"
-  ],
+  "os": ["darwin"],
+  "cpu": ["x64"],
   "main": "toki.darwin-x64.node",
-  "files": [
-    "toki.darwin-x64.node"
-  ],
+  "files": ["toki.darwin-x64.node"],
   "engines": {
     "node": ">=20"
   }

@@ -94,11 +94,36 @@ interface Native {
   close(): void;
 }
 
+// Detects musl libc (Alpine) so Linux picks the right package. glibc exposes
+// glibcVersionRuntime in the process report; musl does not.
+function isMusl(): boolean {
+  if (process.platform !== "linux") return false;
+  try {
+    const report = process.report?.getReport?.() as
+      | { header?: { glibcVersionRuntime?: unknown }; sharedObjects?: unknown[] }
+      | undefined;
+    if (report?.header?.glibcVersionRuntime) return false;
+    if (Array.isArray(report?.sharedObjects)) {
+      return report.sharedObjects.some(
+        (o) => typeof o === "string" && (o.includes("libc.musl-") || o.includes("ld-musl-")),
+      );
+    }
+  } catch {
+    // fall through to glibc default
+  }
+  return false;
+}
+
 // process.platform/arch → the package + filename suffix the release builds publish.
 function nativeTriple(): string {
   const { platform, arch } = process;
   if (platform === "win32") return `win32-${arch}-msvc`;
-  if (platform === "linux") return `linux-${arch}-gnu`;
+  if (platform === "darwin") return `darwin-${arch}`;
+  if (platform === "freebsd") return `freebsd-${arch}`;
+  if (platform === "linux") {
+    if (arch === "arm") return "linux-arm-gnueabihf";
+    return `linux-${arch}-${isMusl() ? "musl" : "gnu"}`;
+  }
   return `${platform}-${arch}`;
 }
 

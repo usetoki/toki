@@ -1,7 +1,7 @@
 {
-  "name": "@usetoki/toki-win32-x64-msvc",
+  "name": "@usetoki/toki-win32-ia32-msvc",
   "version": "0.1.2",
-  "description": "Prebuilt x86_64-pc-windows-msvc binary for toki.",
+  "description": "Prebuilt i686-pc-windows-msvc binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
@@ -9,9 +9,9 @@
     "url": "git+https://github.com/usetoki/toki.git"
   },
   "os": ["win32"],
-  "cpu": ["x64"],
-  "main": "toki.win32-x64-msvc.node",
-  "files": ["toki.win32-x64-msvc.node"],
+  "cpu": ["ia32"],
+  "main": "toki.win32-ia32-msvc.node",
+  "files": ["toki.win32-ia32-msvc.node"],
   "engines": {
     "node": ">=20"
   }

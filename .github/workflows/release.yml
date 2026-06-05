@@ -31,7 +31,13 @@ jobs:
           - { triple: darwin-x64, target: x86_64-macos }
           - { triple: linux-x64-gnu, target: x86_64-linux-gnu }
           - { triple: linux-arm64-gnu, target: aarch64-linux-gnu }
-          - { triple: win32-x64-msvc, target: x86_64-windows, windows: true }
+          - { triple: linux-x64-musl, target: x86_64-linux-musl }
+          - { triple: linux-arm64-musl, target: aarch64-linux-musl }
+          - { triple: linux-arm-gnueabihf, target: arm-linux-gnueabihf }
+          - { triple: freebsd-x64, target: x86_64-freebsd }
+          - { triple: win32-x64-msvc, target: x86_64-windows, winArch: x64 }
+          - { triple: win32-arm64-msvc, target: aarch64-windows, winArch: arm64 }
+          - { triple: win32-ia32-msvc, target: x86-windows, winArch: x86 }
     steps:
       - uses: actions/checkout@v5
       - uses: mlugg/setup-zig@v2
@@ -41,8 +47,8 @@ jobs:
       - name: Cross-compile addon
         shell: bash
         run: |
-          if [ -n "${{ matrix.windows }}" ]; then
-            curl -sSLo node.lib "https://nodejs.org/dist/v${NODE_LIB_VERSION}/win-x64/node.lib"
+          if [ -n "${{ matrix.winArch }}" ]; then
+            curl -sSLo node.lib "https://nodejs.org/dist/v${NODE_LIB_VERSION}/win-${{ matrix.winArch }}/node.lib"
             zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }} -Dnode-lib="$PWD/node.lib"
           else
             zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}
@@ -79,7 +85,7 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msvc; do
+          for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu linux-x64-musl linux-arm64-musl linux-arm-gnueabihf freebsd-x64 win32-x64-msvc win32-arm64-msvc win32-ia32-msvc; do
             cp "artifacts/toki-${triple}/toki.${triple}.node" "npm/${triple}/"
             (cd "npm/${triple}" && npm version "$version" --no-git-tag-version --allow-same-version)
             npm pkg set "optionalDependencies.@usetoki/toki-${triple}=${version}"
@@ -102,7 +108,7 @@ jobs:
             done
             return 1
           }
-          for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msvc; do
+          for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu linux-x64-musl linux-arm64-musl linux-arm-gnueabihf freebsd-x64 win32-x64-msvc win32-arm64-msvc win32-ia32-msvc; do
             pkg="@usetoki/toki-${triple}"
             if npm view "${pkg}@${version}" version >/dev/null 2>&1; then
               echo "${pkg}@${version} already published — skipping"
