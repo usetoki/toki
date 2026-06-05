@@ -2,7 +2,7 @@
 
 Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-06-05
 
 ### Added
 

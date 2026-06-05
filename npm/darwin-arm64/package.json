@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-darwin-arm64",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Prebuilt aarch64-apple-darwin binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

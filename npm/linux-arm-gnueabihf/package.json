@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-linux-arm-gnueabihf",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Prebuilt armv7-unknown-linux-gnueabihf binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

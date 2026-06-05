@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-win32-ia32-msvc",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Prebuilt i686-pc-windows-msvc binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
