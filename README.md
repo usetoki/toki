@@ -43,6 +43,7 @@ console.log("listening on http://127.0.0.1:3000");
 - 🗜️ **Compression** — gzip + brotli, negotiated per `Accept-Encoding`, off the event loop.
 - 🌊 **Streaming** — `reply.stream` over chunked transfer encoding, with native backpressure.
 - 🔭 **WebSockets** — full RFC 6455 in native code: framing, masking, fragmentation, ping/pong, close codes, subprotocols, and a per-IP message-size guard.
+- 🔒 **Direct HTTPS** — terminate TLS 1.2/1.3 in the native engine (AEAD ciphers, ALPN, SNI; RSA + EC keys), no reverse proxy required.
 - 🛡️ **Hardened** — schema validation, JWT, a native per-IP rate limiter, slowloris guard, configurable limits.
 - 🧪 **Testable** — `app.inject()` runs a real request in-process, no port needed.
 
@@ -131,6 +132,27 @@ app.listen(3000, { host: "0.0.0.0", maxBodyBytes: 5_000_000 });
 `createApp({ logger, requestTimeoutMs })` configures the app; `app.listen` returns a
 handle whose `close()` shuts the server down gracefully.
 
+## 🔒 HTTPS
+
+Pass a PEM certificate chain and private key to terminate TLS directly in the engine —
+no reverse proxy. TLS 1.2 and 1.3, AEAD ciphers only (AES-GCM, ChaCha20-Poly1305), with
+ALPN and SNI. RSA and EC keys both work.
+
+```ts
+import { readFileSync } from "node:fs";
+
+app.listen(443, {
+  tls: {
+    cert: readFileSync("fullchain.pem"), // leaf first, then any intermediates
+    key: readFileSync("privkey.pem"),
+  },
+});
+```
+
+`cert` and `key` take a PEM string or a `Buffer`/`Uint8Array`. WebSockets (`wss://`),
+streaming, and static files all ride over TLS unchanged. ALPN advertises `http/1.1`;
+HTTP/2 is not offered (put it behind a reverse proxy if you need it).
+
 ## 🔭 WebSockets
 
 `app.ws(path, handler)` registers a WebSocket endpoint. The handler runs once per
@@ -214,9 +236,9 @@ streaming, and graceful shutdown.
 
 ## Scope
 
-Toki speaks HTTP/1.1. TLS and HTTP/2 are intentionally out of scope — terminate them
-at a reverse proxy (nginx, Caddy), the standard production setup for Node. WebSockets
-are not included.
+Toki speaks HTTP/1.1, with optional direct TLS (HTTPS) termination in the engine.
+HTTP/2 is intentionally out of scope — put it behind a reverse proxy (nginx, Caddy) if
+you need it.
 
 ## License
 

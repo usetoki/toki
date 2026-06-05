@@ -223,10 +223,9 @@ pub fn resetConn(conn: *Conn) void {
 /// move head + partial body into a heap buffer sized to the whole request, so a
 /// body larger than the inline buffer can keep arriving
 pub fn growForBody(conn: *Conn, total: usize) bool {
-    // a TLS connection decrypts whole records straight into this buffer; the decrypt
-    // needs a destination at least the size of the record's ciphertext, so leave one
-    // record of slack past the request — otherwise the final, partial record has no
-    // room and the connection would be dropped mid-body.
+    // a TLS conn decrypts whole records into this buffer, and the decrypt needs room for
+    // a record's ciphertext — so leave one record of slack past the request, else the
+    // final partial record won't fit and the conn would drop mid-body.
     const cap = if (conn.tls != null) total +| tlsmod.in_size else total;
     const grown = alloc.alloc(u8, cap) catch return false;
     @memcpy(grown[0..conn.filled], conn.read_buf[0..conn.filled]);

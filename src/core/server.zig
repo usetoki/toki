@@ -263,7 +263,9 @@ fn onSweep(handle: *anyopaque) callconv(.c) void {
         var node = eng.conn_list;
         while (node) |conn| {
             const next = conn.next; // grab before closeConn unlinks conn
-            if (!conn.closing and !conn.awaiting and conn.filled > 0 and now - conn.last_read > eng.header_timeout_ms) {
+            // partial plaintext request, or buffered TLS bytes mid-handshake / mid-record
+            const partial = conn.filled > 0 or (if (conn.tls) |st| st.in_len > 0 else false);
+            if (!conn.closing and !conn.awaiting and partial and now - conn.last_read > eng.header_timeout_ms) {
                 loop.closeConn(eng.opaqueOf(&conn.tcp));
             }
             node = next;

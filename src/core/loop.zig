@@ -104,9 +104,8 @@ fn recordPeerIp(conn: *Conn) void {
 fn allocBuf(handle: *anyopaque, suggested: usize, buf: *uv.Buf) callconv(.c) void {
     _ = suggested;
     const conn: *Conn = @ptrCast(@alignCast(handle));
-    // TLS: libuv reads ciphertext into the TLS receive buffer; HTTP reads plaintext
-    // into the connection buffer. Either way hand it the unused tail so a partial
-    // record/request already buffered survives.
+    // TLS reads ciphertext into st.in; plain reads plaintext into the conn buffer.
+    // either way hand libuv the unused tail so a buffered partial survives.
     if (conn.tls) |st| {
         const tail = st.in[st.in_len..];
         buf.* = .{ .base = @ptrCast(tail.ptr), .len = @intCast(tail.len) };
@@ -133,11 +132,10 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
     if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
 }
 
-// Drive a TLS connection: complete the handshake, then decrypt buffered records
-// straight into the plaintext connection buffer and run the normal HTTP/WS pipeline
-// on the result. Records are decrypted in place (the buffer holds a full record), so
-// when an async handler suspends, any not-yet-decrypted records stay encrypted in
-// st.in and are processed on resume — no plaintext is ever stranded.
+// finish the handshake, then decrypt buffered records straight into the plaintext
+// buffer and run the normal HTTP/WS pipeline on them. records decrypt in place, so if
+// an async handler suspends, undecrypted records stay in st.in and are picked up on
+// resume — nothing is stranded.
 fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
     if (!st.established) {
         const h = tlsmod.handshake(st, eng.tls_out[0..]);
@@ -146,21 +144,19 @@ fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
             closeConn(stream);
             return;
         }
-        if (!st.established) return; // waiting for more of the client's handshake
+        if (!st.established) return; // need more of the client's handshake
     }
 
-    while (tlsmod.nextRecordLen(st) != null) {
+    while (tlsmod.recordReady(st)) {
         var active = eng.activeBuf(conn);
         if (active.len - conn.filled < tlsmod.in_size) {
-            // not enough room to decrypt a full record in place — let the pipeline
-            // consume/slide/grow first, then retry.
+            // no room for a full record yet — drain/slide/grow, then retry
             const space_before = active.len - conn.filled;
             if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
-            if (conn.closing or conn.awaiting) return; // remaining records stay encrypted
+            if (conn.closing or conn.awaiting) return; // leftover records stay encrypted
             active = eng.activeBuf(conn);
             if (active.len - conn.filled <= space_before) {
-                // the in-flight request fills the buffer and didn't complete — it's larger
-                // than we'll buffer for a single request. Drop the connection.
+                // buffer full of an incomplete request bigger than we'll hold — drop it
                 closeConn(stream);
                 return;
             }
