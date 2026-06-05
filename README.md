@@ -126,6 +126,7 @@ app.listen(3000, { host: "0.0.0.0", maxBodyBytes: 5_000_000 });
 | `reusePort` | `false` | `SO_REUSEPORT` for kernel-balanced multi-worker scaling (Linux/BSD). |
 | `rateLimit` | — | `{ max, windowMs }` — native per-IP limiter; over-limit requests get a `429` before reaching JS. |
 | `unixPath` | — | Bind a unix-domain socket at this path instead of TCP (the port is ignored). Ideal for a reverse proxy → app on the same host. |
+| `tls` | — | `{ cert, key }` PEM — terminate HTTPS directly (TLS 1.2/1.3); see [HTTPS](#-https). |
 | `maxWsMessageBytes` | 16 MiB | Largest accepted WebSocket message; a larger one is closed with `1009`. |
 | `wsCompression` | `false` | Offer `permessage-deflate` (RFC 7692) when a client requests it. |
 
@@ -231,7 +232,7 @@ node examples/routing.ts
 ```
 
 Browse [`examples/`](./examples) for routing, async handlers, hooks, groups, plugins,
-validation, cookies, static files, forms, CORS, compression, rate limiting, JWT,
+validation, cookies, static files, forms, CORS, compression, rate limiting, JWT, TLS,
 streaming, and graceful shutdown.
 
 ## Scope

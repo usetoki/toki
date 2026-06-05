@@ -8,6 +8,7 @@ import { decoratorsPage } from "./decorators";
 import { errorHandlingPage } from "./error-handling";
 import { helmetPluginPage } from "./plugin-helmet";
 import { hooksPage } from "./hooks";
+import { httpsPage } from "./https";
 import { installationPage } from "./installation";
 import { introductionPage } from "./introduction";
 import { jwtPage } from "./jwt";
@@ -58,6 +59,7 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       streamingPage,
       corsSecurityPage,
       jwtPage,
+      httpsPage,
       rateLimitingPage,
       loggingPage,
       testingPage,
