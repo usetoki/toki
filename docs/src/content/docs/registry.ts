@@ -1,7 +1,9 @@
 import type { DocCategory, DocPage } from "../../types";
 import { applicationPage } from "./application";
+import { authPluginPage } from "./plugin-auth";
 import { bodyParsingPage } from "./body-parsing";
 import { compressionPage } from "./compression";
+import { cookiePluginPage } from "./plugin-cookie";
 import { cookiesPage } from "./cookies";
 import { corsSecurityPage } from "./cors-security";
 import { decoratorsPage } from "./decorators";
@@ -12,11 +14,13 @@ import { httpsPage } from "./https";
 import { installationPage } from "./installation";
 import { introductionPage } from "./introduction";
 import { jwtPage } from "./jwt";
+import { jwtPluginPage } from "./plugin-jwt";
 import { loggingPage } from "./logging";
 import { middlewarePage } from "./middleware";
 import { pluginsOverviewPage } from "./plugins-overview";
 import { pluginsPage } from "./plugins";
 import { rateLimiterPluginPage } from "./plugin-rate-limiter";
+import { sessionsPluginPage } from "./plugin-sessions";
 import { quickStartPage } from "./quick-start";
 import { rateLimitingPage } from "./rate-limiting";
 import { requestPage } from "./request";
@@ -67,7 +71,15 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
   },
   {
     title: "Plugins",
-    pages: [pluginsOverviewPage, helmetPluginPage, rateLimiterPluginPage],
+    pages: [
+      pluginsOverviewPage,
+      helmetPluginPage,
+      rateLimiterPluginPage,
+      cookiePluginPage,
+      sessionsPluginPage,
+      authPluginPage,
+      jwtPluginPage,
+    ],
   },
   {
     title: "Reference",

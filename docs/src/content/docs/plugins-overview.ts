@@ -3,7 +3,7 @@ import type { DocPage } from "../../types";
 export const pluginsOverviewPage: DocPage = {
   slug: "plugins-overview",
   title: "Official plugins",
-  description: "First-party packages that extend toki — secure headers and rate limiting.",
+  description: "First-party packages that extend toki — security, sessions, and auth.",
   blocks: [
     {
       kind: "paragraph",
@@ -21,6 +21,20 @@ export const pluginsOverviewPage: DocPage = {
           "`@usetoki/toki-ratelimiter`",
           "Per-route, per-key rate limiting with pluggable stores (memory, Redis, memcached)",
         ],
+        [
+          "`@usetoki/toki-cookie`",
+          "Signed + encrypted cookies (HMAC + AES-256-GCM) with key rotation",
+        ],
+        [
+          "`@usetoki/toki-session`",
+          "Stateful sessions with a pluggable store (memory, Redis, memcached)",
+        ],
+        [
+          "`@usetoki/toki-secure-session`",
+          "Stateless sessions stored in an encrypted cookie — no store",
+        ],
+        ["`@usetoki/toki-auth`", "Basic / bearer / API-key auth, composed with anyOf / allOf"],
+        ["`@usetoki/toki-jwt`", "Asymmetric JWT (RS/PS/ES/EdDSA) sign + verify with remote JWKS"],
       ],
     },
     {
@@ -28,13 +42,13 @@ export const pluginsOverviewPage: DocPage = {
       snippet: {
         filename: "install.sh",
         language: "bash",
-        code: `npm install @usetoki/toki-helmet @usetoki/toki-ratelimiter`,
+        code: `npm install @usetoki/toki-cookie @usetoki/toki-session @usetoki/toki-auth @usetoki/toki-jwt`,
       },
     },
     {
       kind: "callout",
       tone: "note",
-      text: "Each plugin is a plain middleware — use it app-wide with `app.use`, on a scope or group, or on a single route's `preHandler`. Nothing new to learn beyond the option objects.",
+      text: "Most are plain middleware (`app.use` / a route `preHandler`). The session plugins wire a load + save hook, so you call them on a scope: `session(app, { secret })`.",
     },
   ],
 };

@@ -1,23 +1,23 @@
 {
-  "name": "@usetoki/toki-ratelimiter",
+  "name": "@usetoki/toki-auth",
   "version": "0.1.0",
-  "description": "Flexible per-route, per-key rate limiting for toki — a JS limiter with custom keys and pluggable stores.",
+  "description": "Multi-strategy authentication for toki — basic, bearer, and API key, composed with anyOf/allOf.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/usetoki/toki.git",
-    "directory": "plugins/ratelimiter"
+    "directory": "plugins/auth"
   },
   "homepage": "https://usetoki.github.io/toki/",
   "bugs": "https://github.com/usetoki/toki/issues",
   "keywords": [
     "toki",
-    "rate-limit",
-    "ratelimiter",
-    "throttle",
-    "per-route",
-    "middleware"
+    "auth",
+    "authentication",
+    "basic",
+    "bearer",
+    "api-key"
   ],
   "type": "module",
   "main": "dist/index.js",
@@ -40,7 +40,7 @@
     "test": "node --test --test-concurrency=1 --test-force-exit __test__/*.test.ts"
   },
   "peerDependencies": {
-    "@usetoki/toki": ">=0.2.0"
+    "@usetoki/toki": ">=0.3.0"
   },
   "devDependencies": {
     "@usetoki/toki": "file:../.."

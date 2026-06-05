@@ -1,0 +1,146 @@
+import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
+import { after, test } from "node:test";
+import { createApp, reply, type TokiRequest } from "@usetoki/toki";
+import { createJwksResolver, JwtError, jwtAuth, signJwt, verifyJwt } from "../dist/index.js";
+
+const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const ec = generateKeyPairSync("ec", { namedCurve: "P-256" });
+const ed = generateKeyPairSync("ed25519");
+
+test("RS256, PS256, ES256 and EdDSA all round-trip", async () => {
+  for (const [alg, keys] of [
+    ["RS256", rsa],
+    ["PS256", rsa],
+    ["ES256", ec],
+    ["EdDSA", ed],
+  ] as const) {
+    const token = signJwt({ sub: "user-1" }, keys.privateKey, { algorithm: alg });
+    const payload = await verifyJwt(token, keys.publicKey, { algorithms: [alg] });
+    assert.equal(payload.sub, "user-1", alg);
+  }
+});
+
+test("a tampered signature is rejected", async () => {
+  const token = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256" });
+  await assert.rejects(
+    () => verifyJwt(token.slice(0, -3) + "AAA", ec.publicKey, { algorithms: ["ES256"] }),
+    JwtError,
+  );
+});
+
+test("the wrong public key is rejected", async () => {
+  const other = generateKeyPairSync("ec", { namedCurve: "P-256" });
+  const token = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256" });
+  await assert.rejects(
+    () => verifyJwt(token, other.publicKey, { algorithms: ["ES256"] }),
+    /invalid signature/,
+  );
+});
+
+test("expiry and not-before are enforced with optional tolerance", async () => {
+  const expired = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256", expiresIn: -10 });
+  await assert.rejects(
+    () => verifyJwt(expired, ec.publicKey, { algorithms: ["ES256"] }),
+    /expired/,
+  );
+  const tolerated = await verifyJwt(expired, ec.publicKey, {
+    algorithms: ["ES256"],
+    clockTolerance: 60,
+  });
+  assert.equal(tolerated.sub, "u");
+
+  const future = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256", notBefore: 60 });
+  await assert.rejects(
+    () => verifyJwt(future, ec.publicKey, { algorithms: ["ES256"] }),
+    /not yet valid/,
+  );
+});
+
+test("issuer and audience are checked", async () => {
+  const token = signJwt({}, ec.privateKey, {
+    algorithm: "ES256",
+    issuer: "https://issuer",
+    audience: "api",
+  });
+  assert.ok(
+    await verifyJwt(token, ec.publicKey, {
+      algorithms: ["ES256"],
+      issuer: "https://issuer",
+      audience: "api",
+    }),
+  );
+  await assert.rejects(
+    () => verifyJwt(token, ec.publicKey, { algorithms: ["ES256"], issuer: "https://evil" }),
+    /issuer/,
+  );
+  await assert.rejects(
+    () => verifyJwt(token, ec.publicKey, { algorithms: ["ES256"], audience: "other" }),
+    /audience/,
+  );
+});
+
+test("algorithm confusion is rejected when the token alg is not allowed", async () => {
+  const token = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256" });
+  await assert.rejects(
+    () => verifyJwt(token, ec.publicKey, { algorithms: ["RS256"] }),
+    /not allowed/,
+  );
+});
+
+test("a malformed token is rejected, not crashed", async () => {
+  await assert.rejects(
+    () => verifyJwt("not.a.jwt.token", ec.publicKey, { algorithms: ["ES256"] }),
+    JwtError,
+  );
+  await assert.rejects(
+    () => verifyJwt("only-one-part", ec.publicKey, { algorithms: ["ES256"] }),
+    /malformed/,
+  );
+});
+
+test("a JWKS resolver fetches once, caches, and rejects an unknown kid", async () => {
+  const jwks = { keys: [{ ...ec.publicKey.export({ format: "jwk" }), kid: "key-1", use: "sig" }] };
+  let fetches = 0;
+  const fakeFetch = (async () => {
+    fetches++;
+    return { ok: true, json: async () => jwks } as unknown as Response;
+  }) as typeof fetch;
+
+  const resolver = createJwksResolver({ uri: "https://issuer/jwks", fetch: fakeFetch });
+  const token = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256", keyid: "key-1" });
+  assert.equal((await verifyJwt(token, resolver, { algorithms: ["ES256"] })).sub, "u");
+  await verifyJwt(token, resolver, { algorithms: ["ES256"] });
+  assert.equal(fetches, 1, "second verify uses the cache");
+
+  const wrongKid = signJwt({ sub: "u" }, ec.privateKey, { algorithm: "ES256", keyid: "missing" });
+  await assert.rejects(
+    () => verifyJwt(wrongKid, resolver, { algorithms: ["ES256"] }),
+    /no key for kid/,
+  );
+});
+
+// --- jwtAuth middleware -----------------------------------------------------
+
+const app = createApp({ logger: false });
+app.get(
+  "/protected",
+  { preHandler: jwtAuth({ key: ec.publicKey, algorithms: ["ES256"] }) },
+  (req: TokiRequest) => reply.json(req.user ?? null),
+);
+const handle = app.listen(0, { host: "127.0.0.1" });
+after(() => handle.close());
+
+test("jwtAuth accepts a valid Bearer token and sets req.user", async () => {
+  const token = signJwt({ sub: "alice" }, ec.privateKey, { algorithm: "ES256" });
+  const r = await app.inject({ url: "/protected", headers: { authorization: `Bearer ${token}` } });
+  assert.equal(r.statusCode, 200);
+  assert.equal((r.json() as { sub: string }).sub, "alice");
+});
+
+test("jwtAuth rejects missing and invalid tokens with 401", async () => {
+  assert.equal((await app.inject({ url: "/protected" })).statusCode, 401);
+  const bad = await app.inject({ url: "/protected", headers: { authorization: "Bearer garbage" } });
+  assert.equal(bad.statusCode, 401);
+  assert.equal(bad.headers["www-authenticate"], "Bearer");
+});
