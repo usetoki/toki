@@ -142,3 +142,22 @@ test("MemcachedStore stores JSON with a second TTL and round-trips", async () =>
   await s.destroy("k");
   assert.equal(await s.get("k"), null);
 });
+
+test("MemoryStore expires entries by TTL", async () => {
+  const s = new MemoryStore();
+  s.set("k", { a: 1 }, 5); // 5ms
+  assert.deepEqual(s.get("k"), { a: 1 });
+  await new Promise((r) => setTimeout(r, 25));
+  assert.equal(s.get("k"), null);
+  s.close();
+});
+
+test("MemoryStore touch slides the TTL", async () => {
+  const s = new MemoryStore();
+  s.set("k", { a: 1 }, 30);
+  await new Promise((r) => setTimeout(r, 10));
+  s.touch("k", 100);
+  await new Promise((r) => setTimeout(r, 40)); // past the original 30ms, within the touched 100ms
+  assert.deepEqual(s.get("k"), { a: 1 });
+  s.close();
+});

@@ -20,6 +20,10 @@ app.get("/count", (req) => {
   req.session.set("n", n);
   return reply.json({ n });
 });
+app.get("/big", (req) => {
+  req.session.set("blob", "x".repeat(5000)); // over the ~4KB cookie limit
+  return reply.text("ok");
+});
 
 const handle = app.listen(0, { host: "127.0.0.1" });
 after(() => handle.close());
@@ -75,4 +79,9 @@ test("session state accumulates across requests", async () => {
   assert.deepEqual(b.json(), { n: 2 });
   const c = await app.inject({ url: "/count", headers: { cookie: sessionCookie(b) } });
   assert.deepEqual(c.json(), { n: 3 });
+});
+
+test("a session larger than the cookie limit is rejected", async () => {
+  const r = await app.inject({ url: "/big" });
+  assert.equal(r.statusCode, 500);
 });
