@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-linux-x64-gnu",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prebuilt x86_64-unknown-linux-gnu binary for toki.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
@@ -8,10 +8,16 @@
     "type": "git",
     "url": "git+https://github.com/usetoki/toki.git"
   },
-  "os": ["linux"],
-  "cpu": ["x64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "main": "toki.linux-x64-gnu.node",
-  "files": ["toki.linux-x64-gnu.node"],
+  "files": [
+    "toki.linux-x64-gnu.node"
+  ],
   "engines": {
     "node": ">=20"
   }

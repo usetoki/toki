@@ -86,17 +86,32 @@ jobs:
           done
           npm version "$version" --no-git-tag-version --allow-same-version
 
+      # Publishes are idempotent: a version already on npm is skipped (npm versions
+      # are immutable), so a half-finished release can be safely re-run on its tag.
       - name: Publish platform packages
         shell: bash
         run: |
+          version="${GITHUB_REF_NAME#v}"
           for triple in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msvc; do
-            (cd "npm/${triple}" && npm publish --access public)
+            pkg="@usetoki/toki-${triple}"
+            if npm view "${pkg}@${version}" version >/dev/null 2>&1; then
+              echo "${pkg}@${version} already published — skipping"
+            else
+              (cd "npm/${triple}" && npm publish --access public)
+            fi
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish main package
-        run: npm publish --access public
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if npm view "@usetoki/toki@${version}" version >/dev/null 2>&1; then
+            echo "@usetoki/toki@${version} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
