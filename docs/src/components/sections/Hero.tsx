@@ -41,7 +41,7 @@ export function Hero(): ReactElement {
         <div className={styles.preview}>
           <img
             className={styles.logo}
-            src="/toki/toki-logo.png"
+            src={`${import.meta.env.BASE_URL}toki-logo.png`}
             alt="toki"
             width={150}
             height={150}

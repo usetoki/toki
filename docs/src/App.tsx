@@ -7,9 +7,12 @@ import { DocsPage } from "./pages/DocsPage";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
 
+// Vite's base: "/toki" in production, "" (root) in dev — BASE_URL is "/toki/" or "/".
+const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export function App(): ReactElement {
   return (
-    <BrowserRouter basename="/toki">
+    <BrowserRouter basename={basename}>
       <Header />
       <Routes>
         <Route path="/" element={<Home />} />
