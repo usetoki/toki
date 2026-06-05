@@ -43,6 +43,6 @@
     "@usetoki/toki": ">=0.2.0"
   },
   "devDependencies": {
-    "@usetoki/toki": "file:../.."
+    "@usetoki/toki": "^0.2.0"
   }
 }

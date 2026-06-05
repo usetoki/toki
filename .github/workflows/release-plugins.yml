@@ -1,0 +1,60 @@
+name: Release plugins
+
+# On a plugins-v* tag (or a manual dispatch): build and publish the official plugins
+# (@usetoki/toki-helmet, @usetoki/toki-ratelimiter) to npm at the version in each
+# package.json. Pure TypeScript — no native build needed. Needs the NPM_TOKEN secret.
+
+on:
+  push:
+    tags: ["plugins-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish plugins to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm install --no-audit --no-fund
+      - run: npm run build:ts # core dist/ — the types the plugins compile against
+      - run: npm run build:plugins # compile each plugin to its own dist/
+
+      # Idempotent + retried, mirroring the core release: a version already on npm is
+      # skipped (npm versions are immutable), and the registry can 409 right after a
+      # new scoped package, so retry with backoff. Re-runs cleanly on the same tag.
+      - name: Publish each plugin
+        shell: bash
+        run: |
+          publish() {
+            local dir="$1" name version
+            name="$(node -p "require('./${dir}/package.json').name")"
+            version="$(node -p "require('./${dir}/package.json').version")"
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "${name}@${version} already published — skipping"
+              return 0
+            fi
+            for attempt in 1 2 3 4 5; do
+              if (cd "${dir}" && npm publish --access public); then
+                echo "published ${name}@${version}"
+                sleep 10
+                return 0
+              fi
+              echo "publish failed (attempt ${attempt}/5) — retrying in 20s"
+              sleep 20
+            done
+            return 1
+          }
+          for dir in plugins/*/; do
+            publish "${dir%/}"
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
