@@ -6,13 +6,16 @@ import { cookiesPage } from "./cookies";
 import { corsSecurityPage } from "./cors-security";
 import { decoratorsPage } from "./decorators";
 import { errorHandlingPage } from "./error-handling";
+import { helmetPluginPage } from "./plugin-helmet";
 import { hooksPage } from "./hooks";
 import { installationPage } from "./installation";
 import { introductionPage } from "./introduction";
 import { jwtPage } from "./jwt";
 import { loggingPage } from "./logging";
 import { middlewarePage } from "./middleware";
+import { pluginsOverviewPage } from "./plugins-overview";
 import { pluginsPage } from "./plugins";
+import { rateLimiterPluginPage } from "./plugin-rate-limiter";
 import { quickStartPage } from "./quick-start";
 import { rateLimitingPage } from "./rate-limiting";
 import { requestPage } from "./request";
@@ -59,6 +62,10 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       loggingPage,
       testingPage,
     ],
+  },
+  {
+    title: "Plugins",
+    pages: [pluginsOverviewPage, helmetPluginPage, rateLimiterPluginPage],
   },
   {
     title: "Reference",
