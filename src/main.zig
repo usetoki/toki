@@ -4,10 +4,11 @@
 //! loop.zig:   libuv callbacks + per-request pipeline (hot path)
 //! server.zig: listen/close, options, static table, slowloris sweep
 
-const napi = @import("napi.zig");
-const server = @import("server.zig");
-const loop = @import("loop.zig");
-const stream = @import("stream.zig");
+const napi = @import("ffi/napi.zig");
+const server = @import("core/server.zig");
+const loop = @import("core/loop.zig");
+const stream = @import("http/stream.zig");
+const websocket = @import("websocket/session.zig");
 
 export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.c) napi.Value {
     defineFn(env, exports, "listen", &server.listen);
@@ -15,6 +16,10 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "startStream", &stream.startStream);
     defineFn(env, exports, "writeStreamChunk", &stream.writeStreamChunk);
     defineFn(env, exports, "endStream", &stream.endStream);
+    defineFn(env, exports, "wsSend", &websocket.send);
+    defineFn(env, exports, "wsPing", &websocket.ping);
+    defineFn(env, exports, "wsPong", &websocket.pong);
+    defineFn(env, exports, "wsClose", &websocket.closeSocket);
     defineFn(env, exports, "close", &server.closeServer);
     return exports;
 }

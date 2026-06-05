@@ -38,6 +38,7 @@ console.log("listening on http://127.0.0.1:3000");
 - 🗂️ **Static files** — MIME, `ETag` / `304`, `HEAD`, traversal-safe, with pre-computed gzip/brotli.
 - 🗜️ **Compression** — gzip + brotli, negotiated per `Accept-Encoding`, off the event loop.
 - 🌊 **Streaming** — `reply.stream` over chunked transfer encoding, with native backpressure.
+- 🔭 **WebSockets** — full RFC 6455 in native code: framing, masking, fragmentation, ping/pong, close codes, subprotocols, and a per-IP message-size guard.
 - 🛡️ **Hardened** — schema validation, JWT, a native per-IP rate limiter, slowloris guard, configurable limits.
 - 🧪 **Testable** — `app.inject()` runs a real request in-process, no port needed.
 
@@ -118,9 +119,43 @@ app.listen(3000, { host: "0.0.0.0", maxBodyBytes: 5_000_000 });
 | `reusePort` | `false` | `SO_REUSEPORT` for kernel-balanced multi-worker scaling (Linux/BSD). |
 | `rateLimit` | — | `{ max, windowMs }` — native per-IP limiter; over-limit requests get a `429` before reaching JS. |
 | `unixPath` | — | Bind a unix-domain socket at this path instead of TCP (the port is ignored). Ideal for a reverse proxy → app on the same host. |
+| `maxWsMessageBytes` | 16 MiB | Largest accepted WebSocket message; a larger one is closed with `1009`. |
+| `wsCompression` | `false` | Offer `permessage-deflate` (RFC 7692) when a client requests it. |
 
 `createApp({ logger, requestTimeoutMs })` configures the app; `app.listen` returns a
 handle whose `close()` shuts the server down gracefully.
+
+## 🔭 WebSockets
+
+`app.ws(path, handler)` registers a WebSocket endpoint. The handler runs once per
+connection with the live socket and the upgrade request; the framing, masking,
+fragmentation, ping/pong, and close handshake all run in native code, so handlers
+only ever see complete messages.
+
+```ts
+app.ws("/chat", { protocols: ["chat"] }, (socket, req) => {
+  console.log(`connected from ${req.ip} as ${socket.protocol}`);
+
+  socket.on("message", (data, isBinary) => {
+    socket.send(isBinary ? data : `echo: ${data.toString()}`);
+  });
+  socket.on("close", (code, reason) => console.log("closed", code, reason));
+});
+```
+
+- **Send:** `socket.send(string | Uint8Array)` (returns the write backlog in bytes),
+  `socket.ping()`, `socket.pong()`, `socket.close(code?)`.
+- **Events:** `message` `(data, isBinary)`, `close` `(code, reason)`, `ping`, `pong`,
+  and `drain` (fires when a backpressured socket's write queue empties).
+- **State:** `socket.data` is a free-form per-connection bag; `socket.protocol` is the
+  negotiated subprotocol.
+- **Compression:** set `wsCompression: true` in `listen` to offer `permessage-deflate`
+  (RFC 7692). It's negotiated per connection and applied transparently — handlers send
+  and receive plain data.
+- The `Buffer` passed to `message` / `ping` / `pong` is a view over native memory
+  valid only during the call — copy it (`Buffer.from(data)` / `data.toString()`) to keep it.
+
+A plain `GET` to a WebSocket path (no `Upgrade` header) gets `426 Upgrade Required`.
 
 ## 🧭 Native vs JavaScript — the boundary
 
@@ -152,9 +187,13 @@ addon for any platform from one host.
 
 | Folder | What |
 | --- | --- |
-| `src/` | Zig engine (Node-API addon) — parser, router, response, static, streaming, rate limiter. |
-| `ts/` | TypeScript framework layer → `dist/`. |
-| `__test__/` | Tests (`node:test`, run as `.ts`). |
+| `src/core/` | Engine state, the libuv hot path, and server lifecycle (`engine`, `loop`, `server`). |
+| `src/http/` | HTTP layer — `parser`, `router`, `request`, `response`, `static`, `stream`, `mime`. |
+| `src/websocket/` | WebSocket wire format (`frame`) and the session/dispatch layer (`session`). |
+| `src/security/` | The native rate limiter. |
+| `src/ffi/` | Hand-declared N-API and libuv bindings. |
+| `ts/` | TypeScript framework layer (`core/`, `http/`, `websocket/`, `security/`, `native/`) → `dist/`. |
+| `__test__/` | Node test suite (`node:test`, run as `.ts`); Zig unit tests live in `*.test.zig` beside their module. |
 | `examples/` | A runnable, self-checking example per feature. |
 
 ## 🧪 Examples

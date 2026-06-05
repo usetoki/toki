@@ -29,7 +29,17 @@ Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://sem
 - `app.inject()` for in-process testing without binding a public port.
 - Configurable limits and timeouts, a slowloris guard, graceful shutdown, and
   `reusePort` for multi-worker scaling.
+- `HEAD` requests are auto-served from the matching `GET` route (headers + the
+  computed `Content-Length`, body dropped on the wire).
+- Requests with a `Transfer-Encoding` header are rejected with `400` — the engine
+  frames bodies by `Content-Length` only, so accepting chunked would risk a TE-vs-CL
+  request-smuggling desync.
 - Unix-domain socket binding (`unixPath`) for same-host reverse-proxy setups.
+- WebSockets (`app.ws`): full RFC 6455 in native code — handshake, framing, masking,
+  fragmentation, ping/pong, close codes + reason, subprotocol negotiation, UTF-8 and
+  frame validation, a configurable message-size guard, and `message` / `close` / `ping`
+  / `pong` / `drain` events. Optional `permessage-deflate` compression (RFC 7692) via
+  `wsCompression`.
 
 ### Performance
 

@@ -1,28 +1,38 @@
 // Public API surface.
-export { createApp, Scope, Toki } from "./app.js";
-export type { TokiInstance, TokiPlugin } from "./app.js";
-export { RouteGroup } from "./group.js";
-export type { InjectOptions, InjectResponse } from "./inject.js";
-export { TokiRequest } from "./request.js";
-export { reply } from "./response.js";
-export { parseCookies, serializeCookie } from "./cookies.js";
-export type { CookieOptions } from "./cookies.js";
-export { createConsoleLogger, silentLogger } from "./logger.js";
-export { compression, corsHeaders, corsPreflight, securityHeaders } from "./middleware.js";
-export type { CompressionOptions, CorsOptions, SecurityOptions } from "./middleware.js";
-export { serialize, validate } from "./schema.js";
-export type { ErrorMessages, JSONSchema, RouteSchema } from "./schema.js";
-export { JwtError, jwtAuth, signJwt, verifyJwt } from "./jwt.js";
+export { createApp, Toki } from "./core/app.js";
+export { Scope } from "./core/scope.js";
+export type { TokiInstance, TokiPlugin } from "./core/scope.js";
+export { RouteGroup } from "./http/group.js";
+export type { InjectOptions, InjectResponse } from "./http/inject.js";
+export { TokiRequest } from "./http/request.js";
+export { reply } from "./http/response.js";
+export { parseCookies, serializeCookie } from "./http/cookies.js";
+export type { CookieOptions } from "./http/cookies.js";
+export { createConsoleLogger, silentLogger } from "./core/logger.js";
+export { compression, corsHeaders, corsPreflight, securityHeaders } from "./security/middleware.js";
+export type { CompressionOptions, CorsOptions, SecurityOptions } from "./security/middleware.js";
+export { serialize, validate } from "./http/schema.js";
+export type { ErrorMessages, JSONSchema, RouteSchema } from "./http/schema.js";
+export { JwtError, jwtAuth, signJwt, verifyJwt } from "./security/jwt.js";
 export type {
   JwtAlgorithm,
   JwtAuthOptions,
   JwtPayload,
   SignOptions,
   VerifyOptions,
-} from "./jwt.js";
-export type { FormFile, ParsedForm } from "./forms.js";
-export type { StaticOptions } from "./static.js";
-export type { ServerOptions } from "./native.js";
+} from "./security/jwt.js";
+export type { FormFile, ParsedForm } from "./http/forms.js";
+export type { StaticOptions } from "./http/static.js";
+export type { ServerOptions } from "./native/native.js";
+export { TokiWebSocket } from "./websocket/websocket.js";
+export type {
+  BufferListener,
+  CloseListener,
+  DrainListener,
+  MessageListener,
+  WebSocketHandler,
+  WebSocketOptions,
+} from "./websocket/websocket.js";
 export type {
   BodyParser,
   ContentTypeParserEntry,
@@ -45,4 +55,4 @@ export type {
   StreamSource,
   TokiOptions,
   TokiResponse,
-} from "./types.js";
+} from "./core/types.js";

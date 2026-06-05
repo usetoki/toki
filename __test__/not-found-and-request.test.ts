@@ -12,6 +12,13 @@ app.addHook("onRequest", (req) => {
 
 app.get("/here", (req) => reply.json({ ip: req.ip, host: req.hostname, proto: req.protocol }));
 app.get("/id", (req) => reply.json({ id: req.id }));
+app.get("/hdrs", (req) =>
+  reply.json({
+    isHeaders: req.headers instanceof Headers,
+    ua: req.headers.get("user-agent"),
+    count: [...req.headers.keys()].length,
+  }),
+);
 
 app.setErrorHandler((_req, err) => reply.json({ caught: (err as Error).message }, 500));
 
@@ -77,6 +84,22 @@ test("hostname keeps the bracketed IPv6 literal and drops the port", async () =>
 test("a Host header with no port is used as-is", async () => {
   const r = await app.inject({ url: "/here", headers: { host: "api.internal" } });
   assert.equal(r.json<{ host: string }>().host, "api.internal");
+});
+
+test("req.ip stays a stable non-empty loopback value across many requests", async () => {
+  // every TCP request reuses the connection's cached IP string; assert consistency
+  const ips = await Promise.all(
+    Array.from({ length: 8 }, async () => (await app.inject("/here")).json<{ ip: string }>().ip),
+  );
+  assert.ok(ips.every((ip) => ip === ips[0] && ip !== ""));
+});
+
+test("req.headers stays a real Headers with get/iteration", async () => {
+  const r = await app.inject({ url: "/hdrs", headers: { "user-agent": "toki-test", "x-a": "1" } });
+  const b = r.json<{ isHeaders: boolean; ua: string; count: number }>();
+  assert.equal(b.isHeaders, true);
+  assert.equal(b.ua, "toki-test");
+  assert.ok(b.count >= 2);
 });
 
 test("each request carries a distinct, non-empty req.id", async () => {

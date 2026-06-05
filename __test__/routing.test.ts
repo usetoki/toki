@@ -169,10 +169,12 @@ test("OPTIONS on a GET-only route is 405 (no implicit OPTIONS)", async () => {
   assert.equal(r.headers["allow"], "GET");
 });
 
-test("HEAD on a GET-only route is 405 (no implicit HEAD)", async () => {
+test("HEAD on a GET-only route is auto-served from the GET handler", async () => {
   const r = await rawRequest(PORT, "HEAD /");
-  assert.match(r, /^HTTP\/1\.1 405 Method Not Allowed/);
-  assert.match(r, /\r\nAllow: GET\r\n/);
+  const [head] = r.split("\r\n\r\n");
+  assert.match(head!, /^HTTP\/1\.1 200 OK/);
+  assert.match(head!, /\r\nContent-Length: 2\r\n/); // length of "hi"
+  assert.equal(r.split("\r\n\r\n").slice(1).join("\r\n\r\n"), ""); // no body
 });
 
 test("an explicit HEAD handler replies with GET-shaped headers", async () => {

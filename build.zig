@@ -46,12 +46,13 @@ pub fn build(b: *std.Build) void {
     // need a host Node and are covered by the Node test suite instead.
     const test_step = b.step("test", "Run unit tests");
     for ([_][]const u8{
-        "src/parser.zig",
-        "src/response.zig",
-        "src/router.zig",
-        "src/mime.zig",
-        "src/static.zig",
-        "src/ratelimit.zig",
+        "src/http/parser.test.zig",
+        "src/http/response.test.zig",
+        "src/http/router.test.zig",
+        "src/http/mime.test.zig",
+        "src/http/static.test.zig",
+        "src/security/ratelimit.test.zig",
+        "src/websocket/frame.test.zig",
     }) |file| {
         const unit = b.addTest(.{
             .root_module = b.createModule(.{
