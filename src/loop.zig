@@ -41,14 +41,21 @@ pub fn onConnection(server: *anyopaque, status: c_int) callconv(.c) void {
         .next = null,
         .prev = null,
     };
-    _ = uv.uv_tcp_init(eng.loop.?, eng.opaqueOf(&conn.tcp));
+    if (eng.unix_path != null) {
+        _ = uv.uv_pipe_init(eng.loop.?, eng.opaqueOf(&conn.tcp), 0);
+    } else {
+        _ = uv.uv_tcp_init(eng.loop.?, eng.opaqueOf(&conn.tcp));
+    }
     eng.addConn(conn);
     if (uv.uv_accept(server, eng.opaqueOf(&conn.tcp)) != 0) {
         closeConn(eng.opaqueOf(&conn.tcp));
         return;
     }
-    _ = uv.uv_tcp_nodelay(eng.opaqueOf(&conn.tcp), 1); // disable Nagle
-    recordPeerIp(conn);
+    // TCP-only: Nagle off + peer ip. A unix socket has no peer ip (req.ip stays "").
+    if (eng.unix_path == null) {
+        _ = uv.uv_tcp_nodelay(eng.opaqueOf(&conn.tcp), 1);
+        recordPeerIp(conn);
+    }
     armRead(conn);
 }
 

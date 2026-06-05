@@ -41,6 +41,10 @@ pub const not_found_index: u32 = 0xFFFFFFFF;
 pub var host_buf: [256]u8 = .{ '0', '.', '0', '.', '0', '.', '0' } ++ .{0} ** 249;
 /// resolved after bind, so port 0 reports the OS choice
 pub var bound_port: u16 = 0;
+/// when set, the server binds a unix-domain socket at this path instead of TCP.
+pub var unix_path: ?[]const u8 = null;
+/// null-terminated unix socket path storage.
+pub var unix_path_buf: [1024]u8 = undefined;
 
 /// intrusive list of live conns, for the slowloris sweep and graceful close
 pub var conn_list: ?*Conn = null;

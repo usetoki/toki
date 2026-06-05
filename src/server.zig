@@ -2,6 +2,7 @@
 //! hot path is in loop.zig; this just wires it up and tears it down.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const napi = @import("napi.zig");
 const uv = @import("uv.zig");
 const router = @import("router.zig");
@@ -11,6 +12,19 @@ const eng = @import("engine.zig");
 const loop = @import("loop.zig");
 
 const alloc = eng.alloc;
+
+// remove the unix socket file (no-op on Windows, where it's a named pipe, not a file)
+const removeSocketFile = if (builtin.os.tag == .windows)
+    struct {
+        fn run(_: [*c]const u8) void {}
+    }.run
+else
+    struct {
+        extern fn unlink(path: [*c]const u8) c_int;
+        fn run(path: [*c]const u8) void {
+            _ = unlink(path);
+        }
+    }.run;
 
 /// listen(port, methods, paths, dispatch, staticEntries, options)
 pub fn listen(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
@@ -48,25 +62,37 @@ fn portValue(env: napi.Env) napi.Value {
 fn boot(env: napi.Env, port: i32) void {
     eng.env = env;
     _ = napi.napi_get_uv_event_loop(env, &eng.loop);
-    _ = uv.uv_tcp_init(eng.loop.?, eng.opaqueOf(&eng.listen_socket));
 
-    var addr: uv.SockaddrIn = undefined;
-    _ = uv.uv_ip4_addr(&eng.host_buf, port, eng.opaqueOf(&addr));
-    const bind_rc = uv.uv_tcp_bind(eng.opaqueOf(&eng.listen_socket), eng.opaqueOf(&addr), eng.bind_flags);
-    if (bind_rc != 0) {
-        // e.g. UV_TCP_REUSEPORT unsupported on macOS — surface it rather than swallow.
-        _ = napi.napi_throw_error(env, null, uv.uv_strerror(bind_rc));
-        return;
+    if (eng.unix_path != null) {
+        _ = uv.uv_pipe_init(eng.loop.?, eng.opaqueOf(&eng.listen_socket), 0);
+        removeSocketFile(&eng.unix_path_buf); // clear a stale socket file so the bind succeeds
+        const bind_rc = uv.uv_pipe_bind(eng.opaqueOf(&eng.listen_socket), &eng.unix_path_buf);
+        if (bind_rc != 0) {
+            _ = napi.napi_throw_error(env, null, uv.uv_strerror(bind_rc));
+            return;
+        }
+    } else {
+        _ = uv.uv_tcp_init(eng.loop.?, eng.opaqueOf(&eng.listen_socket));
+        var addr: uv.SockaddrIn = undefined;
+        _ = uv.uv_ip4_addr(&eng.host_buf, port, eng.opaqueOf(&addr));
+        const bind_rc = uv.uv_tcp_bind(eng.opaqueOf(&eng.listen_socket), eng.opaqueOf(&addr), eng.bind_flags);
+        if (bind_rc != 0) {
+            // e.g. UV_TCP_REUSEPORT unsupported on macOS — surface it rather than swallow.
+            _ = napi.napi_throw_error(env, null, uv.uv_strerror(bind_rc));
+            return;
+        }
     }
 
     const rc = uv.uv_listen(eng.opaqueOf(&eng.listen_socket), eng.backlog, &loop.onConnection);
     if (rc != 0) _ = napi.napi_throw_error(env, null, uv.uv_strerror(rc));
 
-    // requested port 0 means OS-assigned; read back what we actually got.
-    var bound: uv.SockaddrIn = undefined;
-    var blen: c_int = @sizeOf(uv.SockaddrIn);
-    if (uv.uv_tcp_getsockname(eng.opaqueOf(&eng.listen_socket), eng.opaqueOf(&bound), &blen) == 0) {
-        eng.bound_port = std.mem.bigToNative(u16, bound.port);
+    // requested port 0 means OS-assigned; read back what we actually got (TCP only).
+    if (eng.unix_path == null) {
+        var bound: uv.SockaddrIn = undefined;
+        var blen: c_int = @sizeOf(uv.SockaddrIn);
+        if (uv.uv_tcp_getsockname(eng.opaqueOf(&eng.listen_socket), eng.opaqueOf(&bound), &blen) == 0) {
+            eng.bound_port = std.mem.bigToNative(u16, bound.port);
+        }
     }
 
     // only arm the sweep if a guard needs it
@@ -93,6 +119,17 @@ fn readOptions(env: napi.Env, options: napi.Value) void {
     if (kind == napi.valuetype.string) {
         var copied: usize = 0;
         _ = napi.napi_get_value_string_utf8(env, value, &eng.host_buf, eng.host_buf.len, &copied);
+    }
+
+    // unixPath: bind a unix-domain socket instead of TCP.
+    var upath: napi.Value = undefined;
+    _ = napi.napi_get_named_property(env, options, "unixPath", &upath);
+    var ukind: c_int = 0;
+    _ = napi.napi_typeof(env, upath, &ukind);
+    if (ukind == napi.valuetype.string) {
+        var copied: usize = 0;
+        _ = napi.napi_get_value_string_utf8(env, upath, &eng.unix_path_buf, eng.unix_path_buf.len, &copied);
+        eng.unix_path = eng.unix_path_buf[0..copied];
     }
 }
 
@@ -218,6 +255,7 @@ pub fn closeServer(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Val
         uv.uv_close(eng.opaqueOf(&eng.listen_socket), null);
         if (eng.header_timeout_ms > 0 or ratelimit.enabled()) uv.uv_close(eng.opaqueOf(&eng.sweep_timer), null);
         ratelimit.reset();
+        if (eng.unix_path != null) removeSocketFile(&eng.unix_path_buf); // don't leave the socket file behind
     }
     var node = eng.conn_list;
     while (node) |conn| {

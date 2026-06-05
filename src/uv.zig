@@ -47,6 +47,9 @@ pub const timer_size = 256; // generous over the real uv_timer_t (unix ~152, Win
 pub extern fn uv_tcp_init(loop: *anyopaque, handle: *anyopaque) c_int;
 pub extern fn uv_tcp_bind(handle: *anyopaque, addr: *const anyopaque, flags: c_uint) c_int;
 pub extern fn uv_ip4_addr(ip: [*c]const u8, port: c_int, addr: *anyopaque) c_int;
+// unix-domain socket (named pipe on Windows): same uv_stream API for read/write.
+pub extern fn uv_pipe_init(loop: *anyopaque, handle: *anyopaque, ipc: c_int) c_int;
+pub extern fn uv_pipe_bind(handle: *anyopaque, name: [*c]const u8) c_int;
 pub extern fn uv_tcp_getpeername(handle: *anyopaque, name: *anyopaque, namelen: *c_int) c_int;
 pub extern fn uv_tcp_getsockname(handle: *anyopaque, name: *anyopaque, namelen: *c_int) c_int;
 pub extern fn uv_ip_name(addr: *const anyopaque, dst: [*c]u8, size: usize) c_int;

@@ -29,6 +29,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://sem
 - `app.inject()` for in-process testing without binding a public port.
 - Configurable limits and timeouts, a slowloris guard, graceful shutdown, and
   `reusePort` for multi-worker scaling.
+- Unix-domain socket binding (`unixPath`) for same-host reverse-proxy setups.
 
 ### Performance
 

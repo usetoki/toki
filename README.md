@@ -117,6 +117,7 @@ app.listen(3000, { host: "0.0.0.0", maxBodyBytes: 5_000_000 });
 | `headerTimeoutMs` | 0 | Close a connection stalled mid-request, in ms; `0` disables (slowloris guard). |
 | `reusePort` | `false` | `SO_REUSEPORT` for kernel-balanced multi-worker scaling (Linux/BSD). |
 | `rateLimit` | — | `{ max, windowMs }` — native per-IP limiter; over-limit requests get a `429` before reaching JS. |
+| `unixPath` | — | Bind a unix-domain socket at this path instead of TCP (the port is ignored). Ideal for a reverse proxy → app on the same host. |
 
 `createApp({ logger, requestTimeoutMs })` configures the app; `app.listen` returns a
 handle whose `close()` shuts the server down gracefully.

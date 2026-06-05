@@ -58,6 +58,8 @@ export interface ServerOptions {
   backlog?: number;
   /** `SO_REUSEPORT` so workers can share the port (kernel-balanced; Linux/BSD) */
   reusePort?: boolean;
+  /** bind a unix-domain socket at this path instead of TCP (the port is ignored) */
+  unixPath?: string;
   /** dispatch unmatched routes to JS; set automatically when a not-found handler exists */
   notFound?: boolean;
   /** native per-IP limit: `max` per `windowMs`, over-limit gets a native 429 before JS */
