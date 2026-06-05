@@ -37,6 +37,11 @@ import type {
   TokiOptions,
 } from "./types.js";
 
+// TLS cert/key accepted as PEM text or raw bytes; the native side reads a Buffer.
+function toPem(value: string | Uint8Array): Buffer {
+  return typeof value === "string" ? Buffer.from(value, "utf8") : Buffer.from(value);
+}
+
 // route with lifecycle chains resolved, indexed parallel to the native routes
 interface CompiledRoute {
   readonly handler: Handler;
@@ -176,6 +181,10 @@ export class Toki extends Scope {
       serverOptions.rateLimitMax = options.rateLimit.max;
       serverOptions.rateLimitWindowMs = options.rateLimit.windowMs;
     }
+    if (options.tls) {
+      serverOptions.tlsCert = toPem(options.tls.cert);
+      serverOptions.tlsKey = toPem(options.tls.key);
+    }
     const wsRouteIndices: number[] = [];
     const wsProtocols: string[] = [];
     this.#routes.forEach((route, index) => {
@@ -198,6 +207,7 @@ export class Toki extends Scope {
     );
     this.#listening = true;
     return {
+      port: this.#boundPort,
       close: () => {
         for (const fn of this.#onClose) {
           this.#runLifecycle(fn, "onClose");

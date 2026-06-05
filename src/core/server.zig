@@ -9,6 +9,7 @@ const router = @import("../http/router.zig");
 const static = @import("../http/static.zig");
 const ratelimit = @import("../security/ratelimit.zig");
 const websocket = @import("../websocket/session.zig");
+const tlsmod = @import("../tls/tls.zig");
 const eng = @import("engine.zig");
 const loop = @import("loop.zig");
 
@@ -48,10 +49,30 @@ pub fn listen(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     buildStaticTable(env, argv[4]);
     ratelimit.init(alloc);
     readOptions(env, argv[5]);
+    if (!setupTls(env, argv[5])) return eng.undefinedValue(env); // bad cert/key → threw
     websocket.configure(env, argv[6], argv[7], argv[8], methods.len);
 
     boot(env, port);
     return portValue(env);
+}
+
+// Reads the PEM cert chain + private key (if present) and builds the TLS config so
+// the server terminates HTTPS directly. Returns false after throwing a JS error on a
+// missing key or unparsable PEM; true when TLS is off or configured cleanly. The
+// buffers are valid for this synchronous call — init parses + copies what it keeps.
+fn setupTls(env: napi.Env, options: napi.Value) bool {
+    const cert = readBufferProp(env, options, "tlsCert") orelse return true; // no cert → plain HTTP
+    const key = readBufferProp(env, options, "tlsKey") orelse {
+        _ = napi.napi_throw_error(env, null, "tls: `key` is required alongside `cert`");
+        return false;
+    };
+    tlsmod.init(alloc, cert, key) catch |e| {
+        var msg: [128]u8 = undefined;
+        const text = std.fmt.bufPrintZ(&msg, "tls: {s}", .{@errorName(e)}) catch "tls: setup failed";
+        _ = napi.napi_throw_error(env, null, text.ptr);
+        return false;
+    };
+    return true;
 }
 
 fn portValue(env: napi.Env) napi.Value {

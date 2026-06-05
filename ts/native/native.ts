@@ -73,6 +73,15 @@ export interface ServerOptions {
   maxWsMessageBytes?: number;
   /** offer permessage-deflate (RFC 7692) when a client requests it */
   wsCompression?: boolean;
+  /**
+   * Terminate HTTPS directly (no reverse proxy). PEM cert chain (leaf first) +
+   * private key — RSA or EC. AEAD suites only, TLS 1.2 + 1.3.
+   */
+  tls?: { cert: string | Uint8Array; key: string | Uint8Array };
+  /** @internal flattened cert PEM from {@link ServerOptions.tls} */
+  tlsCert?: Uint8Array;
+  /** @internal flattened key PEM from {@link ServerOptions.tls} */
+  tlsKey?: Uint8Array;
 }
 
 /**

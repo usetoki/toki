@@ -7,12 +7,14 @@ const uv = @import("../ffi/uv.zig");
 const router = @import("../http/router.zig");
 const request = @import("../http/request.zig");
 const static = @import("../http/static.zig");
+const tlsmod = @import("../tls/tls.zig");
 
 pub const alloc = std.heap.c_allocator;
 
 /// inline per-conn buffer: head (capped here) + small bodies. small so idle
-/// keep-alive conns stay cheap.
-pub const read_buf_size = 16 * 1024;
+/// keep-alive conns stay cheap. Sized to hold one full TLS record (16 KiB plaintext
+/// + framing/AEAD overhead) so HTTPS decrypts straight into it, zero-copy.
+pub const read_buf_size = 17 * 1024;
 /// bodies above the inline buffer spill to a heap buffer sized to the request,
 /// freed when it completes.
 pub const default_max_body = 1024 * 1024;
@@ -76,6 +78,9 @@ pub var ws_compression: bool = false;
 /// reused scratch; single thread → safe statics, zero per-request alloc
 pub var cork: [cork_size]u8 = undefined;
 pub var headers_scratch: [read_buf_size]u8 = undefined;
+/// TLS ciphertext scratch: a handshake reply flight, or one batch of encrypted
+/// application-data records. Reused per write (single thread → sequential).
+pub var tls_out: [tlsmod.out_size]u8 = undefined;
 /// route-match scratch (params + percent-decode buffer); resolve fills it, the
 /// dispatcher copies params into V8 before the next request reuses it
 pub var route_scratch: router.Scratch = .{};
@@ -129,6 +134,10 @@ pub const Conn = struct {
     ws_deflate: bool,
     /// the in-progress fragmented message carried RSV1 (was compressed)
     ws_msg_compressed: bool,
+    /// TLS state when this connection is HTTPS; null for plaintext. Reads are
+    /// decrypted into the buffers above, writes encrypted, transparently to the
+    /// HTTP/WS layers.
+    tls: ?*tlsmod.State,
     next: ?*Conn,
     prev: ?*Conn,
 };
@@ -214,7 +223,12 @@ pub fn resetConn(conn: *Conn) void {
 /// move head + partial body into a heap buffer sized to the whole request, so a
 /// body larger than the inline buffer can keep arriving
 pub fn growForBody(conn: *Conn, total: usize) bool {
-    const grown = alloc.alloc(u8, total) catch return false;
+    // a TLS connection decrypts whole records straight into this buffer; the decrypt
+    // needs a destination at least the size of the record's ciphertext, so leave one
+    // record of slack past the request — otherwise the final, partial record has no
+    // room and the connection would be dropped mid-body.
+    const cap = if (conn.tls != null) total +| tlsmod.in_size else total;
+    const grown = alloc.alloc(u8, cap) catch return false;
     @memcpy(grown[0..conn.filled], conn.read_buf[0..conn.filled]);
     conn.overflow = grown;
     return true;

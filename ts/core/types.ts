@@ -117,5 +117,7 @@ export interface TokiOptions {
 
 /** Returned by `listen`; `close()` stops the server. */
 export interface ListenHandle {
+  /** the port the server bound to — resolves `0` to the OS-assigned port */
+  readonly port: number;
   close(): void;
 }

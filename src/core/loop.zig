@@ -11,6 +11,7 @@ const request = @import("../http/request.zig");
 const static = @import("../http/static.zig");
 const ratelimit = @import("../security/ratelimit.zig");
 const websocket = @import("../websocket/session.zig");
+const tlsmod = @import("../tls/tls.zig");
 const eng = @import("engine.zig");
 
 const alloc = eng.alloc;
@@ -50,6 +51,7 @@ pub fn onConnection(server: *anyopaque, status: c_int) callconv(.c) void {
         .ws_close_reason_len = 0,
         .ws_deflate = false,
         .ws_msg_compressed = false,
+        .tls = null,
         .next = null,
         .prev = null,
     };
@@ -67,6 +69,13 @@ pub fn onConnection(server: *anyopaque, status: c_int) callconv(.c) void {
     if (eng.unix_path == null) {
         _ = uv.uv_tcp_nodelay(eng.opaqueOf(&conn.tcp), 1);
         recordPeerIp(conn);
+    }
+    // HTTPS: every connection starts a TLS handshake before any HTTP is seen.
+    if (tlsmod.enabled()) {
+        conn.tls = tlsmod.newState(alloc) orelse {
+            closeConn(eng.opaqueOf(&conn.tcp));
+            return;
+        };
     }
     armRead(conn);
 }
@@ -95,7 +104,14 @@ fn recordPeerIp(conn: *Conn) void {
 fn allocBuf(handle: *anyopaque, suggested: usize, buf: *uv.Buf) callconv(.c) void {
     _ = suggested;
     const conn: *Conn = @ptrCast(@alignCast(handle));
-    // hand libuv the unused tail so a partial request already in the buffer survives
+    // TLS: libuv reads ciphertext into the TLS receive buffer; HTTP reads plaintext
+    // into the connection buffer. Either way hand it the unused tail so a partial
+    // record/request already buffered survives.
+    if (conn.tls) |st| {
+        const tail = st.in[st.in_len..];
+        buf.* = .{ .base = @ptrCast(tail.ptr), .len = @intCast(tail.len) };
+        return;
+    }
     const active = eng.activeBuf(conn);
     buf.* = .{ .base = @ptrCast(active[conn.filled..].ptr), .len = @intCast(active.len - conn.filled) };
 }
@@ -107,8 +123,62 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
         return;
     }
     const conn: *Conn = @ptrCast(@alignCast(stream));
-    conn.filled += @intCast(nread);
     conn.last_read = uv.uv_now(eng.loop.?);
+    if (conn.tls) |st| {
+        st.in_len += @intCast(nread);
+        tlsDrive(stream, conn, st);
+        return;
+    }
+    conn.filled += @intCast(nread);
+    if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+}
+
+// Drive a TLS connection: complete the handshake, then decrypt buffered records
+// straight into the plaintext connection buffer and run the normal HTTP/WS pipeline
+// on the result. Records are decrypted in place (the buffer holds a full record), so
+// when an async handler suspends, any not-yet-decrypted records stay encrypted in
+// st.in and are processed on resume — no plaintext is ever stranded.
+fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
+    if (!st.established) {
+        const h = tlsmod.handshake(st, eng.tls_out[0..]);
+        if (h.send.len > 0) rawWriteAll(stream, h.send);
+        if (h.failed) {
+            closeConn(stream);
+            return;
+        }
+        if (!st.established) return; // waiting for more of the client's handshake
+    }
+
+    while (tlsmod.nextRecordLen(st) != null) {
+        var active = eng.activeBuf(conn);
+        if (active.len - conn.filled < tlsmod.in_size) {
+            // not enough room to decrypt a full record in place — let the pipeline
+            // consume/slide/grow first, then retry.
+            const space_before = active.len - conn.filled;
+            if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+            if (conn.closing or conn.awaiting) return; // remaining records stay encrypted
+            active = eng.activeBuf(conn);
+            if (active.len - conn.filled <= space_before) {
+                // the in-flight request fills the buffer and didn't complete — it's larger
+                // than we'll buffer for a single request. Drop the connection.
+                closeConn(stream);
+                return;
+            }
+            continue;
+        }
+        const r = tlsmod.readRecord(st, active[conn.filled..]);
+        if (r.failed) {
+            closeConn(stream);
+            return;
+        }
+        conn.filled += r.plain_len;
+        if (r.closed) {
+            if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+            closeConn(stream); // peer's close_notify; our own rides along in closeConn
+            return;
+        }
+    }
+
     if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
 }
 
@@ -374,7 +444,9 @@ pub fn submitResponse(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.
     eng.finishRequest(conn, conn.pending_consume);
     if (conn.pending_keep_alive) {
         armRead(conn);
-        drain(eng.opaqueOf(&conn.tcp), conn); // drain any pipelined remainder
+        // a pipelined remainder is plaintext on a plain conn, but still-encrypted in
+        // st.in on a TLS conn — drive TLS so those records get decrypted + handled.
+        if (conn.tls) |st| tlsDrive(eng.opaqueOf(&conn.tcp), conn, st) else drain(eng.opaqueOf(&conn.tcp), conn);
     } else {
         closeConn(eng.opaqueOf(&conn.tcp));
     }
@@ -396,13 +468,55 @@ fn stopRead(conn: *Conn) void {
 pub fn closeConn(stream: *anyopaque) void {
     const conn: *Conn = @ptrCast(@alignCast(stream));
     if (conn.closing) return;
+    // graceful TLS shutdown: best-effort close_notify before the socket goes away
+    if (conn.tls) |st| {
+        if (st.established and !st.sent_close) {
+            st.sent_close = true;
+            const alert = tlsmod.closeNotify(st, eng.tls_out[0..]);
+            if (alert.len > 0) rawWriteAll(stream, alert);
+        }
+    }
     conn.closing = true;
     uv.uv_close(stream, &onClose);
 }
 
-// fast path: one synchronous uv_try_write, zero heap. only a short write falls
-// back to a queued uv_write of the unsent tail.
+// Every byte the engine sends funnels through here. For a TLS connection the
+// plaintext is encrypted into records first (each ciphertext record then takes the
+// raw path); plaintext connections write straight to the socket.
 pub fn writeAll(stream: *anyopaque, bytes: []const u8) void {
+    const conn: *Conn = @ptrCast(@alignCast(stream));
+    if (conn.tls) |st| {
+        if (st.established) {
+            var rest = bytes;
+            // feed one record's worth of plaintext per round → exactly one TLS record
+            // out, which fits in the single-record output buffer.
+            while (rest.len > 0) {
+                const take = @min(rest.len, tlsmod.max_cleartext);
+                const w = tlsmod.encrypt(st, rest[0..take], eng.tls_out[0..tlsmod.out_record]);
+                if (w.failed) {
+                    closeConn(stream);
+                    return;
+                }
+                rawWriteAll(stream, w.ciphertext);
+                rest = rest[take..];
+            }
+            return;
+        }
+    }
+    rawWriteAll(stream, bytes);
+}
+
+// fast path: one synchronous uv_try_write, zero heap. only a short write falls
+// back to a queued uv_write of the unsent tail. Once anything is queued (socket
+// backpressure), every later write must queue too: uv_try_write bypasses libuv's
+// FIFO write queue, so letting it run ahead of already-queued bytes would reorder
+// the stream — corrupting TLS records (bad MAC) and HTTP framing alike.
+fn rawWriteAll(stream: *anyopaque, bytes: []const u8) void {
+    const conn: *Conn = @ptrCast(@alignCast(stream));
+    if (conn.queued_bytes != 0) {
+        queueTail(stream, bytes);
+        return;
+    }
     var b = uv.Buf{ .base = @ptrCast(@constCast(bytes.ptr)), .len = @intCast(bytes.len) };
     const rc = uv.uv_try_write(stream, @ptrCast(&b), 1);
     const written: usize = if (rc > 0) @intCast(rc) else 0;
@@ -452,6 +566,7 @@ fn onClose(handle: *anyopaque) callconv(.c) void {
     if (conn.awaiting) _ = eng.pending.remove(conn.dispatch_id);
     if (conn.overflow) |buffer| alloc.free(buffer);
     if (conn.ip_ref) |ref| _ = napi.napi_delete_reference(eng.env, ref);
+    if (conn.tls) |st| tlsmod.freeState(st);
     eng.removeConn(conn);
     eng.conn_pool.destroy(conn);
 }
