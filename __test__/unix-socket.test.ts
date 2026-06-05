@@ -13,8 +13,10 @@ app.get("/", () => reply.text("over unix"));
 app.get("/ip", (req) => reply.json({ ip: req.ip }));
 app.post("/echo", (req) => reply.text(req.text()));
 
-const handle = app.listen(0, { unixPath: sock });
-after(() => handle.close());
+// don't even bind on Windows — listening on a unix path there throws (permission
+// denied); the tests below are skipped, so there's nothing to serve anyway.
+const handle = skip ? null : app.listen(0, { unixPath: sock });
+after(() => handle?.close());
 
 function request(
   method: string,
