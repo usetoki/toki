@@ -1,0 +1,39 @@
+.section {
+  padding-block: clamp(56px, 7vw, 96px);
+}
+
+.tabs {
+  margin: 36px 0 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  width: fit-content;
+}
+
+.tab {
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition:
+    color var(--transition),
+    background-color var(--transition);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tabActive {
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+[data-theme="light"] .tabActive {
+  color: #fff;
+}

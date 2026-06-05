@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/toki/toki-logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Toki — a blazing-fast HTTP framework for Node.js. A clean, fully-typed TypeScript API on top of a native HTTP engine written in Zig."
+    />
+    <title>Toki — a blazing-fast HTTP framework for Node.js</title>
+    <!-- set the theme before first paint so there is no flash of the wrong theme -->
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem("toki-theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const theme = stored ?? (prefersDark ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch {
+          /* default stays dark */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

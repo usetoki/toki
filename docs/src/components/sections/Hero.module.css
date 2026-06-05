@@ -1,0 +1,87 @@
+.hero {
+  position: relative;
+  padding-block: clamp(48px, 6vw, 96px);
+  overflow: hidden;
+}
+
+.glow {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 560px;
+  background: radial-gradient(
+    60% 60% at 50% 0%,
+    color-mix(in srgb, var(--accent) 22%, transparent),
+    transparent 70%
+  );
+  filter: blur(20px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 560px;
+}
+
+.title {
+  font-size: clamp(2.3rem, 1.4rem + 4vw, 3.6rem);
+  font-weight: 720;
+  line-height: 1.05;
+}
+
+.grad {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lede {
+  font-size: 1.12rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.install {
+  max-width: 380px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.logo {
+  filter: drop-shadow(0 12px 30px color-mix(in srgb, var(--accent) 30%, transparent));
+}
+
+.preview > :last-child {
+  width: 100%;
+}
+
+@media (min-width: 940px) {
+  .inner {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+  .logo {
+    align-self: flex-end;
+  }
+}

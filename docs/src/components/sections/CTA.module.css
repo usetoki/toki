@@ -1,0 +1,52 @@
+.section {
+  padding-block: clamp(56px, 7vw, 96px);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  padding: clamp(40px, 6vw, 72px) 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.glow {
+  position: absolute;
+  inset: auto -10% -60% -10%;
+  height: 360px;
+  background: radial-gradient(
+    50% 60% at 50% 100%,
+    color-mix(in srgb, var(--accent) 26%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card > :not(.glow) {
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  font-size: clamp(1.7rem, 1.2rem + 2.4vw, 2.6rem);
+}
+
+.text {
+  color: var(--text-muted);
+  font-size: 1.08rem;
+  max-width: 460px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
