@@ -1,0 +1,100 @@
+.section {
+  padding-block: clamp(36px, 5vw, 60px);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 4vw, 40px);
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--accent) 9%, var(--surface)),
+    var(--surface) 62%
+  );
+}
+
+.glow {
+  position: absolute;
+  inset: -50% 35% auto -12%;
+  height: 340px;
+  background: radial-gradient(
+    50% 60% at 30% 0%,
+    color-mix(in srgb, var(--accent) 24%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card > :not(.glow) {
+  position: relative;
+  z-index: 1;
+}
+
+.badge {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border-radius: var(--radius);
+  color: #fff;
+  background: var(--accent-gradient);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  font-size: clamp(1.4rem, 1rem + 1.8vw, 2rem);
+}
+
+.text {
+  color: var(--text-muted);
+  font-size: 1.04rem;
+  max-width: 580px;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.chip {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition:
+    color var(--transition),
+    border-color var(--transition),
+    background-color var(--transition);
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+@media (max-width: 680px) {
+  .card {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+}

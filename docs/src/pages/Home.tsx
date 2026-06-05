@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { Footer } from "../components/layout/Footer";
 import { Boundary } from "../components/sections/Boundary";
 import { CTA } from "../components/sections/CTA";
+import { Docs } from "../components/sections/Docs";
 import { Example } from "../components/sections/Example";
 import { Features } from "../components/sections/Features";
 import { Hero } from "../components/sections/Hero";
@@ -18,6 +19,7 @@ export function Home(): ReactElement {
         <QuickStart />
         <Example />
         <Boundary />
+        <Docs />
         <CTA />
       </main>
       <Footer />
