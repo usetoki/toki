@@ -66,7 +66,7 @@ fn allocBuf(handle: *anyopaque, suggested: usize, buf: *uv.Buf) callconv(.c) voi
     const conn: *Conn = @ptrCast(@alignCast(handle));
     // hand libuv the unused tail so a partial request already in the buffer survives
     const active = eng.activeBuf(conn);
-    buf.* = .{ .base = @ptrCast(active[conn.filled..].ptr), .len = active.len - conn.filled };
+    buf.* = .{ .base = @ptrCast(active[conn.filled..].ptr), .len = @intCast(active.len - conn.filled) };
 }
 
 fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) void {
@@ -339,7 +339,7 @@ pub fn closeConn(stream: *anyopaque) void {
 // fast path: one synchronous uv_try_write, zero heap. only a short write falls
 // back to a queued uv_write of the unsent tail.
 pub fn writeAll(stream: *anyopaque, bytes: []const u8) void {
-    var b = uv.Buf{ .base = @ptrCast(@constCast(bytes.ptr)), .len = bytes.len };
+    var b = uv.Buf{ .base = @ptrCast(@constCast(bytes.ptr)), .len = @intCast(bytes.len) };
     const rc = uv.uv_try_write(stream, @ptrCast(&b), 1);
     const written: usize = if (rc > 0) @intCast(rc) else 0;
     if (written == bytes.len) return;
@@ -358,7 +358,7 @@ fn queueTail(stream: *anyopaque, tail: []const u8) void {
     wr.body = wire;
     wr.conn = conn;
     conn.queued_bytes +|= wire.len;
-    var b = uv.Buf{ .base = @ptrCast(wire.ptr), .len = wire.len };
+    var b = uv.Buf{ .base = @ptrCast(wire.ptr), .len = @intCast(wire.len) };
     if (uv.uv_write(eng.opaqueOf(&wr.req), stream, @ptrCast(&b), 1, &onWrite) != 0) {
         conn.queued_bytes -|= wire.len;
         alloc.free(wr.body);

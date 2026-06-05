@@ -6,6 +6,8 @@
 //! every uv handle/req, so a handle pointer == the address of our wrapper — we
 //! recover the wrapper by plain cast, never by touching a field.
 
+const builtin = @import("builtin");
+
 // 16-byte-aligned storage for opaque uv handles/reqs. Sized generously above the
 // real structs on every platform — Windows is the largest (its handles carry
 // OVERLAPPED I/O fields), so unix probes (tcp 264, write 192) undershoot it.
@@ -13,11 +15,13 @@
 pub const tcp_size = 1024;
 pub const write_size = 512;
 
-// uv_buf_t, unix layout: base then len (win32 reverses these).
-pub const Buf = extern struct {
-    base: [*c]u8,
-    len: usize,
-};
+// uv_buf_t differs by platform: Windows is WSABUF order { ULONG len; char* base },
+// unix is { char* base; size_t len }. Swapping them makes libuv read a garbage
+// length and reset the connection. Named-field init below works for either order.
+pub const Buf = if (builtin.os.tag == .windows)
+    extern struct { len: c_ulong, base: [*c]u8 }
+else
+    extern struct { base: [*c]u8, len: usize };
 
 // sockaddr_in, macOS/BSD layout: sin_len leads (no len field on Linux).
 pub const SockaddrIn = extern struct {
