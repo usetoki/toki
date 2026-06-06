@@ -1,14 +1,23 @@
 import type { DocCategory, DocPage } from "../../types";
 import { applicationPage } from "./application";
 import { authPluginPage } from "./plugin-auth";
+import { autoloadPluginPage } from "./plugin-autoload";
 import { bodyParsingPage } from "./body-parsing";
 import { cachePluginPage } from "./plugin-cache";
+import { circuitBreakerPluginPage } from "./plugin-circuit-breaker";
 import { compressionPage } from "./compression";
 import { cookiePluginPage } from "./plugin-cookie";
 import { csrfPluginPage } from "./plugin-csrf";
 import { envPluginPage } from "./plugin-env";
 import { etagPluginPage } from "./plugin-etag";
+import { idempotencyPluginPage } from "./plugin-idempotency";
 import { ipFilterPluginPage } from "./plugin-ip-filter";
+import { multipartStoragePluginPage } from "./plugin-multipart-storage";
+import { proxyPluginPage } from "./plugin-proxy";
+import { rangePluginPage } from "./plugin-range";
+import { sensiblePluginPage } from "./plugin-sensible";
+import { ssePluginPage } from "./plugin-sse";
+import { viewPluginPage } from "./plugin-view";
 import { cookiesPage } from "./cookies";
 import { corsSecurityPage } from "./cors-security";
 import { decoratorsPage } from "./decorators";
@@ -89,6 +98,15 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       cachePluginPage,
       ipFilterPluginPage,
       envPluginPage,
+      sensiblePluginPage,
+      autoloadPluginPage,
+      viewPluginPage,
+      ssePluginPage,
+      idempotencyPluginPage,
+      multipartStoragePluginPage,
+      rangePluginPage,
+      proxyPluginPage,
+      circuitBreakerPluginPage,
     ],
   },
   {

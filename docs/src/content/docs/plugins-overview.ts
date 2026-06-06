@@ -49,6 +49,21 @@ export const pluginsOverviewPage: DocPage = {
           "`@usetoki/toki-env`",
           "Validate env vars at boot into a typed, frozen config — zero deps",
         ],
+        ["`@usetoki/toki-sensible`", "HTTP errors, RFC 9457 problem+json, and assertions"],
+        ["`@usetoki/toki-autoload`", "Filesystem routing from a directory tree"],
+        ["`@usetoki/toki-view`", "Server-side templates (eta / ejs / handlebars)"],
+        ["`@usetoki/toki-sse`", "Server-Sent Events with heartbeat and Last-Event-ID resume"],
+        [
+          "`@usetoki/toki-idempotency`",
+          "Idempotency-Key dedup / replay over memory, Redis, or memcached",
+        ],
+        [
+          "`@usetoki/toki-multipart-storage`",
+          "Stream multipart uploads to disk, S3, or a custom store",
+        ],
+        ["`@usetoki/toki-range`", "HTTP Range / 206 partial content for buffers or files"],
+        ["`@usetoki/toki-proxy`", "Reverse-proxy gateway with streaming pass-through"],
+        ["`@usetoki/toki-circuit-breaker`", "Per-route circuit breaker, fast-fail 503"],
       ],
     },
     {

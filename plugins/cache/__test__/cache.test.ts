@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { cache, MemoryStore, RedisStore, type RedisClient } from "../dist/index.js";
+import {
+  cache,
+  MemcachedStore,
+  MemoryStore,
+  RedisStore,
+  type MemcachedClient,
+  type RedisClient,
+} from "../dist/index.js";
 
 // in-memory stand-in for Redis, honoring the PX TTL
 class FakeRedis implements RedisClient {
@@ -21,7 +28,26 @@ class FakeRedis implements RedisClient {
   }
 }
 
-const counters = { c: 0, vary: 0, ttl: 0, redis: 0, notFound: 0, priv: 0 };
+class FakeMemcached implements MemcachedClient {
+  readonly #m = new Map<string, { value: string; expiresAt: number }>();
+  async get(key: string): Promise<string | null> {
+    const e = this.#m.get(key);
+    if (!e) return null;
+    if (Date.now() >= e.expiresAt) {
+      this.#m.delete(key);
+      return null;
+    }
+    return e.value;
+  }
+  async set(key: string, value: string, ttlSeconds: number): Promise<void> {
+    this.#m.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+  }
+  async delete(key: string): Promise<void> {
+    this.#m.delete(key);
+  }
+}
+
+const counters = { c: 0, vary: 0, ttl: 0, redis: 0, notFound: 0, priv: 0, mc: 0 };
 const stores: MemoryStore[] = [];
 const owned = (): MemoryStore => {
   const s = new MemoryStore();
@@ -76,6 +102,14 @@ app.register(
     s.get("/go", () => reply.redirect("/dest", 301));
   },
   { prefix: "/h" },
+);
+
+app.register(
+  (s) => {
+    cache(s, { ttl: 60, store: new MemcachedStore({ client: new FakeMemcached() }) });
+    s.get("/data", () => reply.json({ n: ++counters.mc }));
+  },
+  { prefix: "/m" },
 );
 
 const handle = app.listen(0, { host: "127.0.0.1" });
@@ -154,6 +188,14 @@ test("a Redis-backed store drives the cache", async () => {
   const first = await app.inject({ url: "/r/data" });
   assert.equal(xcache(first), "MISS");
   const second = await app.inject({ url: "/r/data" });
+  assert.equal(xcache(second), "HIT");
+  assert.deepEqual(second.json(), first.json());
+});
+
+test("a memcached-backed store drives the cache", async () => {
+  const first = await app.inject({ url: "/m/data" });
+  assert.equal(xcache(first), "MISS");
+  const second = await app.inject({ url: "/m/data" });
   assert.equal(xcache(second), "HIT");
   assert.deepEqual(second.json(), first.json());
 });
