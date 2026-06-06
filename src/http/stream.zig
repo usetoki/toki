@@ -28,7 +28,9 @@ pub fn startStream(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Val
     var hlen: usize = 0;
     _ = napi.napi_get_value_string_utf8(env, argv[2], &eng.headers_scratch, eng.headers_scratch.len, &hlen);
 
-    const n = response.serializeChunkedHead(eng.cork[0..], @intCast(status), eng.headers_scratch[0..hlen]);
+    // honor the inbound Connection: the conn closes after endStream when keep-alive is
+    // off, so the head must say close — otherwise the client reuses a dead socket.
+    const n = response.serializeChunkedHead(eng.cork[0..], @intCast(status), eng.headers_scratch[0..hlen], conn.pending_keep_alive);
     loop.writeAll(eng.opaqueOf(&conn.tcp), eng.cork[0..n]);
     return eng.undefinedValue(env);
 }

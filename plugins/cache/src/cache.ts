@@ -66,7 +66,11 @@ export function cache(instance: TokiInstance, options: CacheOptions): void {
     if (!methods.has(req.method) || !statuses.has(res.status) || bypass(req)) return undefined;
     if (privateResponse(req, res)) return undefined; // the handler marked it private/uncacheable
 
-    const headers = res.headers.filter(([name]) => !SKIP_ON_CACHE.has(name.toLowerCase()));
+    // include handler-staged headers (req.setResponseHeader) — the plugin's own X-Cache/Age
+    // are staged only after this store call, so they aren't captured here.
+    const headers = [...req.stagedResponseHeaders, ...res.headers].filter(
+      ([name]) => !SKIP_ON_CACHE.has(name.toLowerCase()),
+    );
     const now = Date.now();
     try {
       await store.set(

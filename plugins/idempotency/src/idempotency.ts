@@ -79,7 +79,10 @@ export function idempotency(instance: TokiInstance, options: IdempotencyOptions 
       return undefined;
     }
 
-    const headers = res.headers.filter(([name]) => !SKIP_HEADERS.has(name.toLowerCase()));
+    // include handler-staged headers (req.setResponseHeader) so a retry replays them too
+    const headers = [...req.stagedResponseHeaders, ...res.headers].filter(
+      ([name]) => !SKIP_HEADERS.has(name.toLowerCase()),
+    );
     try {
       await store.complete(
         held.key,

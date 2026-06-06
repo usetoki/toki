@@ -80,10 +80,7 @@ export function sse(
 
   return reply.stream(source(), {
     contentType: "text/event-stream",
-    headers: [
-      ["Cache-Control", "no-cache"],
-      ["Connection", "keep-alive"],
-      ...(options.headers ?? []),
-    ],
+    // Connection is hop-by-hop and set by the server — emitting it here just duplicates it.
+    headers: [["Cache-Control", "no-cache"], ...(options.headers ?? [])],
   });
 }

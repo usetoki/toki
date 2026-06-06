@@ -68,6 +68,10 @@ app.register(
       req.setResponseHeader("Cache-Control", "private");
       return reply.json({ n: ++counters.priv });
     });
+    s.get("/staged", (req) => {
+      req.setResponseHeader("X-Custom", "abc");
+      return reply.json({ n: ++counters.c });
+    });
   },
   { prefix: "/c" },
 );
@@ -216,6 +220,16 @@ test("cached extra headers (e.g. a redirect Location) are replayed on a hit", as
   assert.equal(xcache(second), "HIT");
   assert.equal(second.statusCode, 301);
   assert.equal(second.headers["location"], "/dest");
+});
+
+test("handler-staged headers (req.setResponseHeader) are stored and replayed on a hit", async () => {
+  const first = await app.inject({ url: "/c/staged" });
+  assert.equal(xcache(first), "MISS");
+  assert.equal(first.headers["x-custom"], "abc");
+
+  const second = await app.inject({ url: "/c/staged" });
+  assert.equal(xcache(second), "HIT");
+  assert.equal(second.headers["x-custom"], "abc"); // staged header survives the replay
 });
 
 test("MemoryStore eviction is LRU — a read protects an entry", () => {

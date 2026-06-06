@@ -91,6 +91,9 @@ function coerce(schema: JSONSchema, obj: Record<string, unknown>): Record<string
       continue;
     }
     if (sub.type === "number" || sub.type === "integer") {
+      // Number("")===0 and Number("  ")===0 — keep blanks as strings so they fail
+      // number validation instead of silently coercing to 0.
+      if (value.trim() === "") continue;
       const n = Number(value);
       if (!Number.isNaN(n)) out[key] = n;
     } else if (sub.type === "boolean" && (value === "true" || value === "false")) {

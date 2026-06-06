@@ -40,13 +40,13 @@ export class MemcachedStore implements Store {
     const ttl = Math.min(MAX_TTL_SECONDS, Math.max(1, Math.ceil(windowMs / 1000)));
     const resetAt = Date.now() + windowMs;
 
-    // incr is atomic but won't create a key; a miss means the window isn't open yet
-    const current = await this.#client.incr(k, 1);
-    if (current !== null) return { count: current, resetAt };
-
-    // open the window. `add` is atomic, so a racing opener makes ours fail — re-incr then
+    // add-first, not incr-first: `add` is atomic and SETS the TTL, so the window always
+    // expires. (incr-first is unsafe — some memjs builds auto-vivify a missing key to 0
+    // with no TTL, which both miscounts and wedges the window open forever.)
     if (await this.#client.add(k, "1", ttl)) return { count: 1, resetAt };
-    const raced = await this.#client.incr(k, 1);
-    return { count: raced ?? 1, resetAt };
+
+    // key already exists → atomic increment of the open window
+    const current = await this.#client.incr(k, 1);
+    return { count: current ?? 1, resetAt };
   }
 }

@@ -151,3 +151,17 @@ test("a non-finite expiresIn is rejected", () => {
     /finite/,
   );
 });
+
+test("a caller-supplied header.alg can't override the signing algorithm", () => {
+  const token = signJwt({ sub: "u" }, "secret", {
+    algorithm: "HS256",
+    header: { alg: "HS512", kid: "k1" },
+  });
+  const headerSeg = token.split(".")[0]!;
+  const decoded = JSON.parse(Buffer.from(headerSeg, "base64url").toString("utf8")) as {
+    alg: string;
+    kid?: string;
+  };
+  assert.equal(decoded.alg, "HS256"); // authoritative — the signature is HS256
+  assert.equal(decoded.kid, "k1"); // extra header fields still merge
+});

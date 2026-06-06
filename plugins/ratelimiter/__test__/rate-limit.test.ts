@@ -233,6 +233,42 @@ test("a message builder returning nothing falls back to the default 429 body", a
   assert.match(String(blocked.body), /rate limit exceeded/);
 });
 
+test("MemcachedStore uses add-first, never reaching an auto-vivifying incr on a fresh key", async () => {
+  // adversarial client: incr auto-vivifies a missing key to 0 with NO ttl (a known memjs
+  // class of bug). add-first means that path is never hit on a fresh key.
+  const map = new Map<string, { value: number; ttl: number | null }>();
+  const client: MemcachedClient = {
+    async add(key: string, value: string, ttl: number): Promise<boolean> {
+      if (map.has(key)) return false;
+      map.set(key, { value: Number(value), ttl });
+      return true;
+    },
+    async incr(key: string, amount: number): Promise<number | null> {
+      const e = map.get(key);
+      if (e === undefined) {
+        // the bug: create at 0 with no ttl and return 0 (not null)
+        map.set(key, { value: 0, ttl: null });
+        return 0;
+      }
+      e.value += amount;
+      return e.value;
+    },
+  };
+  const store = new MemcachedStore({ client });
+  const k = "user";
+
+  const first = await store.hit(k, 60_000);
+  assert.equal(first.count, 1); // add path ran
+  assert.equal(map.get("trl:" + k)?.value, 1);
+  assert.ok((map.get("trl:" + k)?.ttl ?? 0) > 0, "the window has a real TTL — add set it");
+
+  for (const expected of [2, 3, 4]) {
+    assert.equal((await store.hit(k, 60_000)).count, expected); // incr on an existing key
+  }
+  // the auto-vivifying branch never ran, so the ttl was never wiped
+  assert.ok((map.get("trl:" + k)?.ttl ?? 0) > 0, "ttl stays set — incr never auto-vivified");
+});
+
 test("MemcachedStore caps the TTL below the 30-day epoch threshold", async () => {
   let seenTtl = -1;
   const client: MemcachedClient = {

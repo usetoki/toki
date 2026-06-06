@@ -47,13 +47,22 @@ export interface CorsOptions {
   maxAge?: number;
 }
 
+// reflecting an arbitrary caller's origin while allowing credentials lets any site
+// read authenticated responses. require an explicit allowlist for credentialed CORS.
+function assertOriginConfig(options: CorsOptions): void {
+  if (options.credentials && (options.origin ?? "*") === "*") {
+    throw new Error(
+      "cors: origin '*' cannot be combined with credentials — list the allowed origins explicitly",
+    );
+  }
+}
+
 // returns the ACAO value, or null to omit the header entirely
 function resolveOrigin(requestOrigin: string | null, options: CorsOptions): string | null {
   const allowed = options.origin ?? "*";
   if (allowed === "*") {
-    // a browser rejects `Access-Control-Allow-Origin: *` together with credentials, so
-    // reflect the caller's origin in that case
-    return options.credentials ? requestOrigin : "*";
+    // credentials + "*" is rejected up front in assertOriginConfig, so here it's a plain wildcard
+    return "*";
   }
   if (requestOrigin === null) {
     return null;
@@ -69,6 +78,7 @@ function resolveOrigin(requestOrigin: string | null, options: CorsOptions): stri
 
 /** CORS headers for actual (non-preflight) requests. */
 export function corsHeaders(options: CorsOptions = {}): Middleware {
+  assertOriginConfig(options);
   return (req) => {
     const origin = resolveOrigin(req.headers.get("origin"), options);
     if (origin !== null) {
@@ -77,9 +87,10 @@ export function corsHeaders(options: CorsOptions = {}): Middleware {
         // reflected origin varies per request; caches must key on it
         req.appendResponseHeader("Vary", "Origin");
       }
-    }
-    if (options.credentials) {
-      req.setResponseHeader("Access-Control-Allow-Credentials", "true");
+      // allow-credentials is meaningful only next to an allowed origin
+      if (options.credentials) {
+        req.setResponseHeader("Access-Control-Allow-Credentials", "true");
+      }
     }
     if (options.exposedHeaders?.length) {
       req.setResponseHeader("Access-Control-Expose-Headers", options.exposedHeaders.join(", "));
@@ -89,15 +100,16 @@ export function corsHeaders(options: CorsOptions = {}): Middleware {
 
 /** Answers a CORS preflight `OPTIONS` with `204`. */
 export function corsPreflight(options: CorsOptions = {}): Handler {
+  assertOriginConfig(options);
   return (req) => {
     const origin = resolveOrigin(req.headers.get("origin"), options);
     if (origin !== null) {
       req.setResponseHeader("Access-Control-Allow-Origin", origin);
       // a reflected origin varies per request; a shared cache must key the preflight on it
       if (origin !== "*") req.appendResponseHeader("Vary", "Origin");
-    }
-    if (options.credentials) {
-      req.setResponseHeader("Access-Control-Allow-Credentials", "true");
+      if (options.credentials) {
+        req.setResponseHeader("Access-Control-Allow-Credentials", "true");
+      }
     }
     req.setResponseHeader(
       "Access-Control-Allow-Methods",

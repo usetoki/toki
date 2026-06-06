@@ -20,7 +20,9 @@ export interface SignOptions {
 /** Sign a JWT with a private key (RSA/EC/Ed) or an HMAC secret. */
 export function signJwt(payload: JwtPayload, key: KeyInput, options: SignOptions): string {
   const now = Math.floor(Date.now() / 1000);
-  const header: JwtHeader = { alg: options.algorithm, typ: "JWT", ...options.header };
+  // spread extras first so alg/typ stay authoritative — a caller-supplied header.alg must
+  // not disagree with the algorithm the signature is actually computed with.
+  const header: JwtHeader = { typ: "JWT", ...options.header, alg: options.algorithm };
   if (options.keyid !== undefined) header.kid = options.keyid;
 
   const claims: JwtPayload = { iat: now, ...payload };

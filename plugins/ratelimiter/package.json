@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-ratelimiter",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Flexible per-route, per-key rate limiting for toki — a JS limiter with custom keys and pluggable stores.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

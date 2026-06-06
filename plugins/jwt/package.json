@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-jwt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Asymmetric JWT for toki — RS/PS/ES/EdDSA sign + verify with remote JWKS.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

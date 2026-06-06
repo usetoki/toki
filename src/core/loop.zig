@@ -117,7 +117,12 @@ fn allocBuf(handle: *anyopaque, suggested: usize, buf: *uv.Buf) callconv(.c) voi
 
 fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) void {
     _ = buf;
-    if (nread <= 0) {
+    // nread == 0 is EAGAIN, not EOF: no data right now, the read callback just
+    // fired spuriously. Closing here would cancel any in-flight queued write
+    // (uv_close aborts pending uv_write with UV_ECANCELED), dropping a frame mid
+    // backpressure. Only a negative nread (UV_EOF / error) means the peer is gone.
+    if (nread == 0) return;
+    if (nread < 0) {
         closeConn(stream); // EOF or error
         return;
     }

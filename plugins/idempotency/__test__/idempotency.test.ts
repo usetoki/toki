@@ -85,6 +85,10 @@ app.register(
       return reply.json({ n: ++counters.slow });
     });
     s.post("/fail", () => reply.text(`err ${++counters.fail}`, 500));
+    s.post("/staged", (req) => {
+      req.setResponseHeader("X-Custom", "abc");
+      return reply.json({ id: ++counters.charge });
+    });
     s.get("/safe", () => reply.json({ n: ++counters.safe }));
   },
   { prefix: "/a" },
@@ -202,6 +206,28 @@ test("required: the header is mandatory", async () => {
       .statusCode,
     200,
   );
+});
+
+test("a handler-staged header is captured and replayed on an idempotent retry", async () => {
+  const first = await app.inject({
+    method: "POST",
+    url: "/a/staged",
+    headers: key("staged-k"),
+    payload: { amt: 1 },
+  });
+  assert.equal(first.statusCode, 200);
+  assert.equal(replayed(first), false);
+  assert.equal(first.headers["x-custom"], "abc");
+
+  const retry = await app.inject({
+    method: "POST",
+    url: "/a/staged",
+    headers: key("staged-k"),
+    payload: { amt: 1 },
+  });
+  assert.ok(replayed(retry)); // Idempotent-Replayed: true
+  assert.equal(retry.headers["x-custom"], "abc"); // staged header survives the replay
+  assert.deepEqual(retry.json(), first.json());
 });
 
 test("a Redis-backed store dedups and replays", async () => {

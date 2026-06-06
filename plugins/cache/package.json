@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-cache",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Route response caching for toki — TTL + Vary over an in-memory or Redis store.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

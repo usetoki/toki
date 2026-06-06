@@ -49,7 +49,7 @@ test "render 404" {
 
 test "chunked head + chunk-size lines" {
     var buf: [256]u8 = undefined;
-    const n = serializeChunkedHead(&buf, 200, "Content-Type: text/event-stream\r\n");
+    const n = serializeChunkedHead(&buf, 200, "Content-Type: text/event-stream\r\n", true);
     try std.testing.expectEqualStrings(
         "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n",
         buf[0..n],
@@ -187,11 +187,11 @@ test "serializeHead never appends a body" {
     try std.testing.expect(std.mem.endsWith(u8, buf[0..n], "\r\n\r\n"));
 }
 
-// serializeChunkedHead: always chunked + keep-alive, no Content-Length
+// serializeChunkedHead: chunked, no Content-Length, Connection tracks the request
 
 test "chunkedHead emits Transfer-Encoding not Content-Length" {
     var buf: [256]u8 = undefined;
-    const n = serializeChunkedHead(&buf, 200, "Content-Type: application/json\r\n");
+    const n = serializeChunkedHead(&buf, 200, "Content-Type: application/json\r\n", true);
     try std.testing.expectEqualStrings(
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n",
         buf[0..n],
@@ -201,18 +201,30 @@ test "chunkedHead emits Transfer-Encoding not Content-Length" {
 
 test "chunkedHead empty headers" {
     var buf: [256]u8 = undefined;
-    const n = serializeChunkedHead(&buf, 200, "");
+    const n = serializeChunkedHead(&buf, 200, "", true);
     try std.testing.expectEqualStrings(
         "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n",
         buf[0..n],
     );
 }
 
-test "chunkedHead forces keep-alive even for non-200 status" {
+test "chunkedHead keeps the status across keep-alive states" {
     var buf: [256]u8 = undefined;
-    const n = serializeChunkedHead(&buf, 201, "");
+    const n = serializeChunkedHead(&buf, 201, "", true);
     try std.testing.expectEqualStrings(
         "HTTP/1.1 201 Created\r\nTransfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n",
+        buf[0..n],
+    );
+}
+
+// a streamed response to a Connection: close request must advertise close: the engine
+// tears the socket down after the final chunk, so keep-alive here would poison the
+// client's next request (it reuses a socket the server already closed -> ECONNRESET).
+test "chunkedHead honors Connection: close" {
+    var buf: [256]u8 = undefined;
+    const n = serializeChunkedHead(&buf, 200, "Content-Type: text/event-stream\r\n", false);
+    try std.testing.expectEqualStrings(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
         buf[0..n],
     );
 }

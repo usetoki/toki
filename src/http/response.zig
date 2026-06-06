@@ -52,7 +52,9 @@ pub fn serializeHead(dest: []u8, status: u16, headers: []const u8, content_lengt
 }
 
 /// Head of a Transfer-Encoding: chunked response; chunks follow via writeChunkHeader.
-pub fn serializeChunkedHead(dest: []u8, status: u16, headers: []const u8) usize {
+/// Connection framing tracks the request: a client that asked to close is told close,
+/// so it won't reuse a socket the engine tears down after the final chunk.
+pub fn serializeChunkedHead(dest: []u8, status: u16, headers: []const u8, keep_alive: bool) usize {
     var p: usize = 0;
     p += put(dest[p..], "HTTP/1.1 ");
     p += writeUint(dest[p..], status);
@@ -60,7 +62,9 @@ pub fn serializeChunkedHead(dest: []u8, status: u16, headers: []const u8) usize 
     p += put(dest[p..], reasonPhrase(status));
     p += put(dest[p..], "\r\n");
     p += put(dest[p..], headers);
-    p += put(dest[p..], "Transfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n");
+    p += put(dest[p..], "Transfer-Encoding: chunked\r\nConnection: ");
+    p += put(dest[p..], if (keep_alive) "keep-alive" else "close");
+    p += put(dest[p..], "\r\n\r\n");
     return p;
 }
 

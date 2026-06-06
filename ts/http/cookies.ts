@@ -16,7 +16,9 @@ const COOKIE_NAME = /^[\w!#$%&'*.^`|~+-]+$/;
 
 /** Parses a `Cookie` header into a name → value map. Duplicate names: first wins. */
 export function parseCookies(header: string): Readonly<Record<string, string | undefined>> {
-  const out: Record<string, string | undefined> = {};
+  // null-proto: `name in out` then checks own keys only, so a cookie literally named
+  // "constructor"/"__proto__" is stored normally and can't reach the prototype chain.
+  const out: Record<string, string | undefined> = Object.create(null);
   for (const part of header.split(";")) {
     const eq = part.indexOf("=");
     const name = (eq === -1 ? part : part.slice(0, eq)).trim();

@@ -75,6 +75,9 @@ function check(schema: JSONSchema, value: unknown, path: string, errors: string[
     if (schema.nullable || schema.type === "null") {
       return;
     }
+  } else if (schema.type === "null") {
+    errors.push(messageFor(schema, "type", `${path} must be null`));
+    return;
   }
   if (schema.enum && !schema.enum.some((e) => e === value)) {
     errors.push(
@@ -129,17 +132,17 @@ function checkObject(schema: JSONSchema, value: unknown, path: string, errors: s
       errors.push(requiredMessage(schema, key, `${path}.${key} is required`));
     }
   }
-  if (schema.properties) {
-    for (const [key, sub] of Object.entries(schema.properties)) {
-      if (Object.hasOwn(obj, key)) {
-        check(sub, obj[key], `${path}.${key}`, errors);
-      }
+  const properties = schema.properties ?? {};
+  for (const [key, sub] of Object.entries(properties)) {
+    if (Object.hasOwn(obj, key)) {
+      check(sub, obj[key], `${path}.${key}`, errors);
     }
-    if (schema.additionalProperties === false) {
-      for (const key of Object.keys(obj)) {
-        if (!Object.hasOwn(schema.properties, key)) {
-          errors.push(messageFor(schema, "additionalProperties", `${path}.${key} is not allowed`));
-        }
+  }
+  // enforced even with no declared properties — then every own key is disallowed
+  if (schema.additionalProperties === false) {
+    for (const key of Object.keys(obj)) {
+      if (!Object.hasOwn(properties, key)) {
+        errors.push(messageFor(schema, "additionalProperties", `${path}.${key} is not allowed`));
       }
     }
   }

@@ -186,6 +186,52 @@ app.ws("/chat", { protocols: ["chat"] }, (socket, req) => {
 
 A plain `GET` to a WebSocket path (no `Upgrade` header) gets `426 Upgrade Required`.
 
+## 🔌 Plugins
+
+Official, first-party plugins — each its own `@usetoki/*` package, installed on demand.
+A plugin is just a function you call on the app (or any scope) to extend that scope.
+
+**Auth & security**
+
+| Package | What it does |
+| --- | --- |
+| [`@usetoki/toki-auth`](./plugins/auth) | Multi-strategy auth — basic, bearer, API key, composed with `anyOf`/`allOf`. |
+| [`@usetoki/toki-jwt`](./plugins/jwt) | Asymmetric JWT — RS/PS/ES/EdDSA sign + verify with remote JWKS. |
+| [`@usetoki/toki-csrf`](./plugins/csrf) | CSRF protection — signed double-submit tokens with optional origin checks. |
+| [`@usetoki/toki-helmet`](./plugins/helmet) | Secure response headers — CSP, HSTS, frameguard, and more. |
+| [`@usetoki/toki-ip-filter`](./plugins/ip-filter) | Allow/deny by IP and CIDR (IPv4 + IPv6), dependency-free. |
+| [`@usetoki/toki-ratelimiter`](./plugins/ratelimiter) | Per-route, per-key rate limiting with pluggable stores. |
+
+**Sessions & cookies**
+
+| Package | What it does |
+| --- | --- |
+| [`@usetoki/toki-cookie`](./plugins/cookie) | Signed and encrypted cookies — HMAC + AES-256-GCM with key rotation. |
+| [`@usetoki/toki-session`](./plugins/session) | Stateful sessions — signed id cookie, store (memory, Redis, memcached). |
+| [`@usetoki/toki-secure-session`](./plugins/secure-session) | Stateless encrypted-cookie sessions — no server-side store. |
+
+**HTTP features**
+
+| Package | What it does |
+| --- | --- |
+| [`@usetoki/toki-cache`](./plugins/cache) | Route response caching — TTL + Vary over memory, Redis, or memcached. |
+| [`@usetoki/toki-etag`](./plugins/etag) | Automatic ETag validators and `304 Not Modified`. |
+| [`@usetoki/toki-range`](./plugins/range) | HTTP Range requests and `206 Partial Content` — buffers or files. |
+| [`@usetoki/toki-sse`](./plugins/sse) | Server-Sent Events — heartbeats, event ids, `Last-Event-ID` resume. |
+| [`@usetoki/toki-idempotency`](./plugins/idempotency) | `Idempotency-Key` dedup and replay over memory, Redis, or memcached. |
+| [`@usetoki/toki-multipart-storage`](./plugins/multipart-storage) | Stream multipart uploads to disk, S3, or a custom store. |
+
+**Infrastructure & DX**
+
+| Package | What it does |
+| --- | --- |
+| [`@usetoki/toki-proxy`](./plugins/proxy) | Reverse-proxy gateway — streaming pass-through to an upstream. |
+| [`@usetoki/toki-circuit-breaker`](./plugins/circuit-breaker) | Per-route circuit breaker — fast-fail `503` when a dependency is failing. |
+| [`@usetoki/toki-view`](./plugins/view) | Server-side templates — bring eta, ejs, or handlebars. |
+| [`@usetoki/toki-autoload`](./plugins/autoload) | Filesystem routing — auto-register a directory tree of route modules. |
+| [`@usetoki/toki-env`](./plugins/env) | Validate and coerce env vars at boot into a typed, frozen config. |
+| [`@usetoki/toki-sensible`](./plugins/sensible) | Sensible defaults — HTTP errors, RFC 9457 problem+json, assertions. |
+
 ## 🧭 Native vs JavaScript — the boundary
 
 The shared, heavy logic is native: HTTP parsing, routing, the MIME table, ETag and

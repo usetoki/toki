@@ -29,7 +29,10 @@ pub const Match = union(enum) {
 pub const Scratch = struct {
     allow: [256]u8 = undefined,
     params: [max_params]Param = undefined,
-    decoded: [4096]u8 = undefined,
+    // decoded param/wildcard values accumulate here. percent-decoding never grows the
+    // output, and the whole request head (so the path too) must fit engine.read_buf_size
+    // (17 KiB) — sizing this to match guarantees a long param is never silently truncated.
+    decoded: [17 * 1024]u8 = undefined,
 };
 
 const Segment = union(enum) {

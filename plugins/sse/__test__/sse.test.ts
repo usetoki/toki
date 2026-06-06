@@ -93,3 +93,16 @@ test("newlines in id/event are stripped so a value can't inject frames", async (
   assert.match(res.body, /event: ab\n/);
   assert.doesNotMatch(res.body, /id: 1\n2/);
 });
+
+test("the sse plugin does not emit a Connection header (hop-by-hop, server-managed)", async () => {
+  const res = await app.inject({ url: "/basic" });
+  assert.equal(res.headers["cache-control"], "no-cache"); // the plugin's own header is right
+  const connection = res.headers["connection"];
+  // the plugin emits no Connection header; if the harness sets one it must not be a
+  // duplicated "keep-alive, keep-alive" from the plugin also adding it.
+  if (connection !== undefined) {
+    assert.doesNotMatch(String(connection), /keep-alive\s*,\s*keep-alive/i);
+  } else {
+    assert.equal(connection, undefined);
+  }
+});
