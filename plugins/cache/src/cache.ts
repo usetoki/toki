@@ -68,19 +68,25 @@ export function cache(instance: TokiInstance, options: CacheOptions): void {
 
     const headers = res.headers.filter(([name]) => !SKIP_ON_CACHE.has(name.toLowerCase()));
     const now = Date.now();
-    await store.set(
-      keyOf(req),
-      {
-        status: res.status,
-        contentType: res.contentType,
-        body: typeof res.body === "string" ? encoder.encode(res.body) : res.body,
-        storedAt: now,
-        expiresAt: now + ttlMs,
-        ...(headers.length > 0 ? { headers } : {}),
-        ...(varyHeader !== undefined ? { vary: varyHeader } : {}),
-      },
-      ttlMs,
-    );
+    try {
+      await store.set(
+        keyOf(req),
+        {
+          status: res.status,
+          contentType: res.contentType,
+          body: typeof res.body === "string" ? encoder.encode(res.body) : res.body,
+          storedAt: now,
+          expiresAt: now + ttlMs,
+          ...(headers.length > 0 ? { headers } : {}),
+          ...(varyHeader !== undefined ? { vary: varyHeader } : {}),
+        },
+        ttlMs,
+      );
+    } catch (error) {
+      // caching is best-effort — a store hiccup must not abort an otherwise-good response
+      req.log.error("cache store failed", { error: String(error) });
+      return undefined;
+    }
 
     req.setResponseHeader("X-Cache", "MISS");
     if (varyHeader !== undefined) req.setResponseHeader("Vary", varyHeader);

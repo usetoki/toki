@@ -86,3 +86,8 @@ test("csp directives merge over the defaults", async () => {
   assert.match(csp, /default-src 'self'/);
   assert.match(csp, /object-src 'none'/);
 });
+
+test("an invalid HSTS maxAge is rejected at construction", () => {
+  assert.throws(() => helmet({ hsts: { maxAge: Number.NaN } }), /maxAge/);
+  assert.throws(() => helmet({ hsts: { maxAge: -1 } }), /maxAge/);
+});

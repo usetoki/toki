@@ -67,7 +67,17 @@ export function loadEnv<S extends EnvSchema>(
   }
 
   if (problems.length > 0) throw new EnvError(problems);
-  return Object.freeze(config) as Env<S>;
+  return deepFreeze(config) as Env<S>;
+}
+
+// Object.freeze is shallow — a json() value would stay mutable. Freeze the whole tree so
+// the config is genuinely immutable.
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const inner of Object.values(value)) deepFreeze(inner);
+  }
+  return value;
 }
 
 function label(key: string, desc: string | undefined, problem: string): string {

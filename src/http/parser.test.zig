@@ -470,10 +470,16 @@ test "colon in header value not a delimiter" {
     try std.testing.expectEqualStrings("a:b:c", h.if_none_match.?);
 }
 
-test "duplicate header last wins" {
-    const raw = "GET / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\n";
+test "conflicting Content-Length headers are rejected (smuggling)" {
+    // RFC 9112 §6.3: two differing Content-Length values must be a hard error
+    const raw = "POST / HTTP/1.1\r\nContent-Length: 0\r\nContent-Length: 13\r\n\r\n";
+    try std.testing.expectError(error.BadRequest, parse(raw[0..findHeadEnd(raw, 0).?], 128));
+}
+
+test "identical duplicate Content-Length is accepted" {
+    const raw = "POST / HTTP/1.1\r\nContent-Length: 7\r\nContent-Length: 7\r\n\r\n";
     const h = try parse(raw[0..findHeadEnd(raw, 0).?], 128);
-    try std.testing.expectEqual(@as(usize, 2), h.content_length);
+    try std.testing.expectEqual(@as(usize, 7), h.content_length);
 }
 
 // parse: structural / truncation failures the parser must survive

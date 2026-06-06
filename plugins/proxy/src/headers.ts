@@ -43,7 +43,9 @@ export function requestHeaders(
     trustProxy && forwardedFor ? `${forwardedFor}, ${req.ip}` : req.ip,
   );
   headers.set("x-forwarded-host", req.headers.get("host") ?? "");
-  headers.set("x-forwarded-proto", req.protocol);
+  // req.protocol trusts an inbound X-Forwarded-Proto; at the edge that's spoofable, so
+  // only honor it behind a trusted proxy, otherwise report plain http
+  headers.set("x-forwarded-proto", trustProxy ? req.protocol : "http");
 
   if (add) for (const [name, value] of Object.entries(add)) headers.set(name, value);
   return headers;

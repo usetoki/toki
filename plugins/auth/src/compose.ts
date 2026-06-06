@@ -25,14 +25,15 @@ export function auth(strategies: Strategy | Strategy[], options: AuthOptions = {
     let user: unknown = null;
     for (const strategy of list) {
       const result = await strategy(req);
-      if (result === null) {
+      // a strategy that resolves null OR undefined did not authenticate
+      if (result == null) {
         if (allOf) return fail(req, challenges, reject);
         continue;
       }
       user = result;
       if (!allOf) break; // anyOf: first success wins
     }
-    if (user === null) return fail(req, challenges, reject);
+    if (user == null) return fail(req, challenges, reject);
     req.user = user;
     return undefined;
   };

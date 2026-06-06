@@ -71,7 +71,13 @@ function resolveCsp(option: boolean | CspOptions | undefined): CspDirectives {
 
 function hstsValue(option: boolean | HstsOptions | undefined): string {
   const config: HstsOptions = typeof option === "object" ? option : {};
-  let value = `max-age=${config.maxAge ?? 15552000}`;
+  const age = config.maxAge ?? 15552000;
+  // NaN/Infinity/negative would emit a header browsers silently reject (no HSTS at all);
+  // fail fast at construction (Number.isInteger already rejects NaN and Infinity)
+  if (!Number.isInteger(age) || age < 0) {
+    throw new RangeError(`helmet: hsts.maxAge must be a non-negative integer, got ${age}`);
+  }
+  let value = `max-age=${age}`;
   if (config.includeSubDomains !== false) value += "; includeSubDomains";
   if (config.preload) value += "; preload";
   return value;

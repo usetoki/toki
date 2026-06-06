@@ -39,6 +39,20 @@ class TimeoutError extends Error {}
  * ```
  */
 export function circuitBreaker(handler: Handler, options: CircuitBreakerOptions = {}): Handler {
+  // a NaN/Infinity in any numeric knob silently corrupts the state machine (a comparison
+  // that's always false never opens the breaker), so reject it up front
+  for (const [name, value] of Object.entries({
+    failureThreshold: options.failureThreshold,
+    minimumRequests: options.minimumRequests,
+    windowMs: options.windowMs,
+    resetTimeoutMs: options.resetTimeoutMs,
+    timeoutMs: options.timeoutMs,
+  })) {
+    if (value !== undefined && !Number.isFinite(value)) {
+      throw new TypeError(`circuitBreaker: ${name} must be a finite number`);
+    }
+  }
+
   const breaker = new Breaker({
     failureThreshold: options.failureThreshold ?? 0.5,
     minimumRequests: options.minimumRequests ?? 10,
@@ -49,7 +63,8 @@ export function circuitBreaker(handler: Handler, options: CircuitBreakerOptions 
     onClose: options.onClose,
     onHalfOpen: options.onHalfOpen,
   });
-  const timeoutMs = options.timeoutMs ?? 0;
+  // setTimeout truncates to a 32-bit delay; a larger value would fire immediately
+  const timeoutMs = Math.min(options.timeoutMs ?? 0, 2_147_483_647);
   const status = options.statusCode ?? 503;
   const fallback = options.fallback;
 

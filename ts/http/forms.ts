@@ -40,13 +40,18 @@ const HEADER_END = Buffer.from("\r\n\r\n");
 
 function parseMultipart(body: Uint8Array, boundary: string): ParsedForm {
   const buf = Buffer.from(body.buffer, body.byteOffset, body.byteLength);
-  const delimiter = Buffer.from(`--${boundary}`);
+  const opening = Buffer.from(`--${boundary}`);
+  // A part's data ends at the next CRLF-prefixed boundary. Requiring the leading CRLF means
+  // boundary bytes that appear inside a binary part (with no preceding CRLF) can't false-match.
+  const separator = Buffer.from(`\r\n--${boundary}`);
   const fields: Record<string, string> = {};
   const files: FormFile[] = [];
 
-  let pos = buf.indexOf(delimiter);
-  while (pos !== -1) {
-    pos += delimiter.length;
+  let pos = buf.indexOf(opening);
+  if (pos === -1) return { fields, files };
+  pos += opening.length;
+
+  while (pos < buf.length) {
     // trailing `--` marks the final boundary
     if (buf[pos] === DASH_DASH[0] && buf[pos + 1] === DASH_DASH[1]) {
       break;
@@ -60,12 +65,11 @@ function parseMultipart(body: Uint8Array, boundary: string): ParsedForm {
     }
     const headerText = buf.toString("utf8", pos, headerEnd);
     const dataStart = headerEnd + HEADER_END.length;
-    const next = buf.indexOf(delimiter, dataStart);
+    const next = buf.indexOf(separator, dataStart);
     if (next === -1) {
       break;
     }
-    // data ends just before the CRLF preceding the next delimiter
-    const data = buf.subarray(dataStart, next - CRLF.length);
+    const data = buf.subarray(dataStart, next); // separator owns the trailing CRLF
 
     const name = /name="([^"]*)"/i.exec(headerText)?.[1] ?? "";
     const filename = /filename="([^"]*)"/i.exec(headerText)?.[1];
@@ -76,7 +80,7 @@ function parseMultipart(body: Uint8Array, boundary: string): ParsedForm {
     } else {
       fields[name] = data.toString("utf8");
     }
-    pos = next;
+    pos = next + separator.length;
   }
   return { fields, files };
 }

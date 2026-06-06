@@ -11,7 +11,9 @@ export function basic(
   verify: (username: string, password: string, req: TokiRequest) => VerifyResult,
   options: BasicOptions = {},
 ): Strategy {
-  const challenge = `Basic realm="${options.realm ?? "Restricted"}"`;
+  // strip CR/LF/quote so a realm value can't inject extra response headers or break the quoting
+  const realm = (options.realm ?? "Restricted").replace(/[\r\n"]/g, "");
+  const challenge = `Basic realm="${realm}"`;
   const strategy: Strategy = async (req) => {
     const header = req.headers.get("authorization");
     if (header === null || !header.startsWith("Basic ")) return null;

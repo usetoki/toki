@@ -38,7 +38,9 @@ export const str = validator<string>((raw) => raw);
 
 export const num = validator<number>((raw) => {
   if (!DECIMAL.test(raw)) throw new Error("expected a number");
-  return Number(raw);
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new Error("expected a finite number"); // e.g. "1e999" → Infinity
+  return n;
 });
 
 export const bool = validator<boolean>((raw) => {

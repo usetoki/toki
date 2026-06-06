@@ -151,3 +151,10 @@ test("a fallback is served instead of an error", async () => {
   const b = await app.inject({ url: "/fb" }); // breaker now open → still the fallback
   assert.equal(b.body, "degraded");
 });
+
+test("a NaN config field is rejected", () => {
+  assert.throws(
+    () => circuitBreaker(() => reply.text("x"), { failureThreshold: Number.NaN }),
+    /finite/,
+  );
+});

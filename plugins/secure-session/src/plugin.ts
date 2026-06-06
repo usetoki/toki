@@ -36,7 +36,13 @@ const MAX_COOKIE_BYTES = 4096;
  *  Call it on the app (or any scope) to give `req.session` to that scope's routes. */
 export function secureSession(instance: TokiInstance, options: SecureSessionOptions): void {
   const cookies = createCookies({ secret: options.secret });
-  const ttlMs = (options.maxAge ?? 86400) * 1000;
+  const maxAge = options.maxAge ?? 86400;
+  if (!Number.isFinite(maxAge) || maxAge <= 0) {
+    throw new RangeError(
+      `secure-session: maxAge must be a positive number of seconds, got ${maxAge}`,
+    );
+  }
+  const ttlMs = maxAge * 1000;
   const rolling = options.rolling ?? false;
   const name = options.cookie?.name ?? "session";
 

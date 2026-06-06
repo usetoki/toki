@@ -15,12 +15,16 @@ export function formatEvent(event: SseEvent): string {
   // strip line terminators from single-line fields so a value can't inject extra frames
   if (event.id !== undefined) frame += `id: ${oneLine(event.id)}\n`;
   if (event.event !== undefined) frame += `event: ${oneLine(event.event)}\n`;
-  if (event.retry !== undefined) frame += `retry: ${event.retry}\n`;
+  // retry must be a non-negative integer (ms); a NaN/Infinity/float is spec-invalid, so skip it
+  if (event.retry !== undefined && Number.isInteger(event.retry) && event.retry >= 0) {
+    frame += `retry: ${event.retry}\n`;
+  }
   const data = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
   for (const line of data.split(/\r\n|\r|\n/)) frame += `data: ${line}\n`;
   return `${frame}\n`;
 }
 
+// NUL also terminates a Last-Event-ID on some parsers, so strip it alongside CR/LF
 function oneLine(value: string): string {
-  return value.replace(/[\r\n]/g, "");
+  return value.replace(/[\r\n\0]/g, "");
 }

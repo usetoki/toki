@@ -63,13 +63,20 @@ async function sendFile(
   // a range: read exactly those bytes from the same fd, so Content-Length is correct
   const length = range.end - range.start + 1;
   const buffer = Buffer.alloc(length);
+  let read = 0;
   try {
-    await handle.read(buffer, 0, length, range.start);
+    // a single read() may be short; loop so we never serve zero-padded tail bytes
+    while (read < length) {
+      const { bytesRead } = await handle.read(buffer, read, length - read, range.start + read);
+      if (bytesRead === 0) break; // truncated underneath us — serve what's actually there
+      read += bytesRead;
+    }
   } finally {
     await handle.close();
   }
-  req.setResponseHeader("Content-Range", `bytes ${range.start}-${range.end}/${size}`);
-  return reply.bytes(buffer, contentType, 206);
+  const end = range.start + read - 1;
+  req.setResponseHeader("Content-Range", `bytes ${range.start}-${end}/${size}`);
+  return reply.bytes(buffer.subarray(0, read), contentType, 206);
 }
 
 function rangeOf(req: TokiRequest, size: number): RangeSpec {

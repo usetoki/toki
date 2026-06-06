@@ -75,22 +75,28 @@ export function idempotency(instance: TokiInstance, options: IdempotencyOptions 
 
     // leave server errors retryable; the short lock TTL frees the key either way
     if (res.status >= 500) {
-      await store.release(held.key);
+      await Promise.resolve(store.release(held.key)).catch(() => {});
       return undefined;
     }
 
     const headers = res.headers.filter(([name]) => !SKIP_HEADERS.has(name.toLowerCase()));
-    await store.complete(
-      held.key,
-      {
-        fingerprint: held.fingerprint,
-        status: res.status,
-        contentType: res.contentType,
-        body: typeof res.body === "string" ? encoder.encode(res.body) : res.body,
-        ...(headers.length > 0 ? { headers } : {}),
-      },
-      recordTtlMs,
-    );
+    try {
+      await store.complete(
+        held.key,
+        {
+          fingerprint: held.fingerprint,
+          status: res.status,
+          contentType: res.contentType,
+          body: typeof res.body === "string" ? encoder.encode(res.body) : res.body,
+          ...(headers.length > 0 ? { headers } : {}),
+        },
+        recordTtlMs,
+      );
+    } catch (error) {
+      // don't abort a good response if the store write fails; the lock TTL frees the key
+      req.log.error("idempotency store failed", { error: String(error) });
+      await Promise.resolve(store.release(held.key)).catch(() => {});
+    }
     return undefined;
   });
 }

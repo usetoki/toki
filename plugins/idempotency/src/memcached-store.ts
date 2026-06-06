@@ -1,4 +1,11 @@
+import { createHash } from "node:crypto";
 import type { BeginResult, IdempotencyRecord, IdempotencyStore } from "./store.js";
+
+// an Idempotency-Key is client-controlled and may hold spaces/unicode/be huge; memcached
+// keys forbid that and cap at 250 bytes, so hash into a fixed, always-valid token.
+function memcachedKey(prefix: string, key: string): string {
+  return prefix + createHash("sha1").update(key).digest("base64url");
+}
 
 /** Minimal memcached surface. memjs matches with a thin wrapper; see the README. */
 export interface MemcachedClient {
@@ -39,7 +46,7 @@ export class MemcachedStore implements IdempotencyStore {
   }
 
   async begin(key: string, fingerprint: string, lockTtlMs: number): Promise<BeginResult> {
-    const k = this.#prefix + key;
+    const k = memcachedKey(this.#prefix, key);
     if (await this.#client.add(k, JSON.stringify({ f: fingerprint }), seconds(lockTtlMs))) {
       return { state: "new" };
     }
@@ -75,10 +82,10 @@ export class MemcachedStore implements IdempotencyStore {
         ...(record.headers !== undefined ? { h: record.headers } : {}),
       },
     };
-    await this.#client.set(this.#prefix + key, JSON.stringify(wire), seconds(ttlMs));
+    await this.#client.set(memcachedKey(this.#prefix, key), JSON.stringify(wire), seconds(ttlMs));
   }
 
   async release(key: string): Promise<void> {
-    await this.#client.delete(this.#prefix + key);
+    await this.#client.delete(memcachedKey(this.#prefix, key));
   }
 }

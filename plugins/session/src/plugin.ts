@@ -37,7 +37,12 @@ export interface SessionOptions {
 export function session(instance: TokiInstance, options: SessionOptions): void {
   const cookies = createCookies({ secret: options.secret });
   const store = options.store ?? new MemoryStore();
-  const ttlMs = (options.maxAge ?? 86400) * 1000;
+  const maxAge = options.maxAge ?? 86400;
+  if (!Number.isFinite(maxAge) || maxAge <= 0) {
+    // a zero/negative/NaN ttl produces an invalid store TTL (e.g. Redis PX 0)
+    throw new RangeError(`session: maxAge must be a positive number of seconds, got ${maxAge}`);
+  }
+  const ttlMs = maxAge * 1000;
   const rolling = options.rolling ?? false;
   const name = options.cookie?.name ?? "sid";
 
@@ -63,7 +68,9 @@ export function session(instance: TokiInstance, options: SessionOptions): void {
         }
       }
     }
-    req.session = new StoredSession(id, data);
+    req.session = new StoredSession(id, data, (oldId) => {
+      Promise.resolve(store.destroy(oldId)).catch(() => {});
+    });
   };
 
   const save: ResponseHook = async (req) => {

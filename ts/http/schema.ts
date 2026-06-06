@@ -122,20 +122,22 @@ function checkObject(schema: JSONSchema, value: unknown, path: string, errors: s
     return;
   }
   const obj = value as Record<string, unknown>;
+  // `in` walks the prototype chain, so an inherited key like "constructor"/"toString"
+  // would falsely satisfy required / slip past additionalProperties — use own keys only
   for (const key of schema.required ?? []) {
-    if (!(key in obj)) {
+    if (!Object.hasOwn(obj, key)) {
       errors.push(requiredMessage(schema, key, `${path}.${key} is required`));
     }
   }
   if (schema.properties) {
     for (const [key, sub] of Object.entries(schema.properties)) {
-      if (key in obj) {
+      if (Object.hasOwn(obj, key)) {
         check(sub, obj[key], `${path}.${key}`, errors);
       }
     }
     if (schema.additionalProperties === false) {
       for (const key of Object.keys(obj)) {
-        if (!(key in schema.properties)) {
+        if (!Object.hasOwn(schema.properties, key)) {
           errors.push(messageFor(schema, "additionalProperties", `${path}.${key} is not allowed`));
         }
       }

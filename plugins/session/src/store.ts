@@ -31,11 +31,12 @@ export class MemoryStore implements SessionStore {
       this.#sessions.delete(sid);
       return null;
     }
-    return entry.data;
+    // clone so two concurrent requests for the same session don't share — and mutate — one object
+    return structuredClone(entry.data);
   }
 
   set(sid: string, data: SessionData, ttlMs: number): void {
-    this.#sessions.set(sid, { data, expiresAt: Date.now() + ttlMs });
+    this.#sessions.set(sid, { data: structuredClone(data), expiresAt: Date.now() + ttlMs });
   }
 
   destroy(sid: string): void {

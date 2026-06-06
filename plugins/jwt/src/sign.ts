@@ -24,8 +24,17 @@ export function signJwt(payload: JwtPayload, key: KeyInput, options: SignOptions
   if (options.keyid !== undefined) header.kid = options.keyid;
 
   const claims: JwtPayload = { iat: now, ...payload };
-  if (options.expiresIn !== undefined) claims.exp = now + options.expiresIn;
-  if (options.notBefore !== undefined) claims.nbf = now + options.notBefore;
+  if (options.expiresIn !== undefined) {
+    // a non-finite expiry would serialize to null and produce a token that never expires
+    if (!Number.isFinite(options.expiresIn))
+      throw new TypeError("jwt: expiresIn must be a finite number of seconds");
+    claims.exp = now + options.expiresIn;
+  }
+  if (options.notBefore !== undefined) {
+    if (!Number.isFinite(options.notBefore))
+      throw new TypeError("jwt: notBefore must be a finite number of seconds");
+    claims.nbf = now + options.notBefore;
+  }
   if (options.issuer !== undefined) claims.iss = options.issuer;
   if (options.audience !== undefined) claims.aud = options.audience;
   if (options.subject !== undefined) claims.sub = options.subject;

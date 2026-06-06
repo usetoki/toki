@@ -132,13 +132,18 @@ fn writeAccept(key: []const u8, out: *[28]u8) void {
 
 fn writeHandshake(dest: []u8, accept: *const [28]u8, protocol: []const u8, deflate: bool) usize {
     const head = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ";
+    const ph = "\r\nSec-WebSocket-Protocol: ";
+    const ext = "\r\nSec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover; server_no_context_takeover";
+    const tail = "\r\n\r\n";
     var p: usize = 0;
     @memcpy(dest[p..][0..head.len], head);
     p += head.len;
     @memcpy(dest[p..][0..28], accept);
     p += 28;
-    if (protocol.len > 0) {
-        const ph = "\r\nSec-WebSocket-Protocol: ";
+    // the extension + tail must always fit; only write the (length-bounded) subprotocol
+    // if it does too, never @memcpy past dest
+    const reserve = (if (deflate) ext.len else 0) + tail.len;
+    if (protocol.len > 0 and p + ph.len + protocol.len + reserve <= dest.len) {
         @memcpy(dest[p..][0..ph.len], ph);
         p += ph.len;
         @memcpy(dest[p..][0..protocol.len], protocol);
@@ -146,11 +151,9 @@ fn writeHandshake(dest: []u8, accept: *const [28]u8, protocol: []const u8, defla
     }
     if (deflate) {
         // no context takeover keeps per-message (de)compression stateless on both ends
-        const ext = "\r\nSec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover; server_no_context_takeover";
         @memcpy(dest[p..][0..ext.len], ext);
         p += ext.len;
     }
-    const tail = "\r\n\r\n";
     @memcpy(dest[p..][0..tail.len], tail);
     return p + tail.len;
 }

@@ -188,19 +188,16 @@ export class TokiRequest {
     return this.#form;
   }
 
-  #parsedDone = false;
-  #parsedValue: unknown;
+  #parsePromise?: Promise<unknown>;
 
   /**
    * Body parsed by the matching content-type parser, falling back to built-ins
    * (JSON/text/forms) else raw bytes. Cached; `undefined` when no body. `T` unchecked.
+   * Memoizes the in-flight promise, so concurrent callers collapse onto one parse — a
+   * side-effectful custom parser runs exactly once.
    */
   async parseBody<T = unknown>(): Promise<T> {
-    if (!this.#parsedDone) {
-      this.#parsedValue = await this.#runParse();
-      this.#parsedDone = true;
-    }
-    return this.#parsedValue as T;
+    return (this.#parsePromise ??= Promise.resolve(this.#runParse())) as Promise<T>;
   }
 
   #runParse(): unknown | Promise<unknown> {

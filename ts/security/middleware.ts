@@ -51,7 +51,9 @@ export interface CorsOptions {
 function resolveOrigin(requestOrigin: string | null, options: CorsOptions): string | null {
   const allowed = options.origin ?? "*";
   if (allowed === "*") {
-    return "*";
+    // a browser rejects `Access-Control-Allow-Origin: *` together with credentials, so
+    // reflect the caller's origin in that case
+    return options.credentials ? requestOrigin : "*";
   }
   if (requestOrigin === null) {
     return null;
@@ -91,6 +93,8 @@ export function corsPreflight(options: CorsOptions = {}): Handler {
     const origin = resolveOrigin(req.headers.get("origin"), options);
     if (origin !== null) {
       req.setResponseHeader("Access-Control-Allow-Origin", origin);
+      // a reflected origin varies per request; a shared cache must key the preflight on it
+      if (origin !== "*") req.appendResponseHeader("Vary", "Origin");
     }
     if (options.credentials) {
       req.setResponseHeader("Access-Control-Allow-Credentials", "true");

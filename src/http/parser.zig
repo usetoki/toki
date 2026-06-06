@@ -69,6 +69,7 @@ pub fn parse(buf: []const u8, max_headers: usize) ParseError!ParsedHead {
     const raw_headers = buf[headers_start .. buf.len - 2];
 
     var content_length: usize = 0;
+    var seen_content_length = false;
     var keep_alive = version == 1; // 1.1 defaults to keep-alive, 1.0 to close
     var if_none_match: ?[]const u8 = null;
     var accept_encoding: ?[]const u8 = null;
@@ -88,7 +89,12 @@ pub fn parse(buf: []const u8, max_headers: usize) ParseError!ParsedHead {
         const value = std.mem.trim(u8, hline[colon + 1 ..], " \t");
 
         if (std.ascii.eqlIgnoreCase(name, "content-length")) {
-            content_length = std.fmt.parseInt(usize, value, 10) catch return error.BadRequest;
+            // RFC 9112 §6.3: reject two Content-Length fields with different values — a
+            // front-end and the origin disagreeing on body length is a smuggling desync
+            const n = std.fmt.parseInt(usize, value, 10) catch return error.BadRequest;
+            if (seen_content_length and n != content_length) return error.BadRequest;
+            content_length = n;
+            seen_content_length = true;
         } else if (std.ascii.eqlIgnoreCase(name, "transfer-encoding")) {
             // the engine frames bodies by Content-Length only; accepting a transfer
             // coding it doesn't decode would let the chunk framing be read as body and

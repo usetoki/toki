@@ -11,10 +11,12 @@ export interface ClaimChecks {
 
 /** Validate the time + identity claims, throwing JwtError on any mismatch. */
 export function validateClaims(payload: JwtPayload, checks: ClaimChecks): void {
-  if (typeof payload.exp === "number" && checks.now >= payload.exp + checks.clockTolerance) {
+  // a non-finite tolerance would push exp/nbf to ±Infinity and disable the check entirely
+  const tolerance = Number.isFinite(checks.clockTolerance) ? checks.clockTolerance : 0;
+  if (typeof payload.exp === "number" && checks.now >= payload.exp + tolerance) {
     throw new JwtError("token expired");
   }
-  if (typeof payload.nbf === "number" && checks.now + checks.clockTolerance < payload.nbf) {
+  if (typeof payload.nbf === "number" && checks.now + tolerance < payload.nbf) {
     throw new JwtError("token not yet valid");
   }
   if (checks.issuer !== undefined && !includes(checks.issuer, payload.iss)) {

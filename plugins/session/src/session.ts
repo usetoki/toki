@@ -23,15 +23,22 @@ export class StoredSession implements Session {
   dirty = false;
   destroyed = false;
   #data: SessionData;
+  readonly #onRegenerate: ((oldId: string) => void) | undefined;
 
-  constructor(id: string, data: SessionData | null) {
+  constructor(id: string, data: SessionData | null, onRegenerate?: (oldId: string) => void) {
     this.id = id;
     this.loaded = data !== null;
     this.#data = data ?? {};
+    this.#onRegenerate = onRegenerate;
   }
 
   get<T = unknown>(key: string): T | undefined {
-    return this.#data[key] as T | undefined;
+    const value = this.#data[key];
+    // return a copy of objects, so mutating the result doesn't change stored data without
+    // an explicit set() (which is what marks the session dirty)
+    return (typeof value === "object" && value !== null ? structuredClone(value) : value) as
+      | T
+      | undefined;
   }
 
   set(key: string, value: unknown): this {
@@ -53,7 +60,12 @@ export class StoredSession implements Session {
   }
 
   regenerate(): this {
-    if (this.oldId === null && this.loaded) this.oldId = this.id;
+    if (this.oldId === null && this.loaded) {
+      this.oldId = this.id;
+      // drop the old session eagerly — if the handler then throws, onSend never runs, but
+      // the fixation-prone old id is already gone from the store
+      this.#onRegenerate?.(this.oldId);
+    }
     this.id = newSessionId();
     this.#data = {};
     this.dirty = true;

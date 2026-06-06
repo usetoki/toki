@@ -144,3 +144,10 @@ test("jwtAuth rejects missing and invalid tokens with 401", async () => {
   assert.equal(bad.statusCode, 401);
   assert.equal(bad.headers["www-authenticate"], "Bearer");
 });
+
+test("a non-finite expiresIn is rejected", () => {
+  assert.throws(
+    () => signJwt({}, ec.privateKey, { algorithm: "ES256", expiresIn: Infinity }),
+    /finite/,
+  );
+});

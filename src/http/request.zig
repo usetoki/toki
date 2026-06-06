@@ -118,6 +118,9 @@ fn readStatus(env: napi.Env, obj: napi.Value) u16 {
     if (typeOf(env, v) != napi.valuetype.number) return 200;
     var n: u32 = 200;
     _ = napi.napi_get_value_uint32(env, v, &n);
+    // a value that doesn't fit u16 (NaN/negative wrap to a huge u32, or status > 65535)
+    // would panic on @intCast in debug and silently truncate in release — clamp to 500
+    if (n > 65535) return 500;
     return @intCast(n);
 }
 
