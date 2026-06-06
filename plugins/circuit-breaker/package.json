@@ -1,0 +1,47 @@
+{
+  "name": "@usetoki/toki-circuit-breaker",
+  "version": "0.1.0",
+  "description": "Per-route circuit breaker for toki — fast-fail 503 when a dependency is failing.",
+  "license": "MIT",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usetoki/toki.git",
+    "directory": "plugins/circuit-breaker"
+  },
+  "homepage": "https://usetoki.github.io/toki/",
+  "bugs": "https://github.com/usetoki/toki/issues",
+  "keywords": [
+    "toki",
+    "circuit-breaker",
+    "resilience",
+    "fault-tolerance",
+    "fast-fail"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 --test-force-exit __test__/*.test.ts"
+  },
+  "peerDependencies": {
+    "@usetoki/toki": ">=0.3.0"
+  },
+  "devDependencies": {
+    "@usetoki/toki": "file:../.."
+  }
+}
