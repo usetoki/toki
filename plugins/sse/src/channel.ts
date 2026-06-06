@@ -5,8 +5,15 @@
  */
 export class Channel<T> {
   readonly #queue: T[] = [];
+  readonly #maxQueue: number;
   #pending: ((result: IteratorResult<T>) => void) | null = null;
   #closed = false;
+
+  /** `maxQueue` bounds memory when the consumer is slower than the producer; the oldest
+   *  buffered value is dropped past it. Default 1024. */
+  constructor(maxQueue = 1024) {
+    this.#maxQueue = maxQueue;
+  }
 
   push(value: T): void {
     if (this.#closed) return;
@@ -15,6 +22,7 @@ export class Channel<T> {
       this.#pending = null;
       resolve({ value, done: false });
     } else {
+      if (this.#queue.length >= this.#maxQueue) this.#queue.shift(); // drop oldest, never grow unbounded
       this.#queue.push(value);
     }
   }

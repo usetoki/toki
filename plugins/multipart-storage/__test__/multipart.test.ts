@@ -147,3 +147,36 @@ test("an empty file input is skipped", async () => {
   assert.equal(result.files.length, 0);
   assert.equal(files.length, 0);
 });
+
+test("file data containing the boundary bytes is not truncated", async () => {
+  const { storage, files } = memory();
+  const payload = `AAAA--${BOUNDARY}BBBB`; // the boundary appears inside the data (no CRLF before it)
+  await multipart(request([{ name: "f", filename: "x.bin", value: payload }]), { storage });
+  assert.equal(Buffer.from(files[0]!.data).toString(), payload);
+});
+
+test("the content-type allow-list ignores MIME parameters", async () => {
+  const { storage } = memory();
+  const result = await multipart(
+    request([
+      { name: "f", filename: "a.png", contentType: "image/png; charset=binary", value: "X" },
+    ]),
+    { storage, allowedTypes: ["image/png"] },
+  );
+  assert.equal(result.files.length, 1);
+});
+
+test("enforces the field count limit", async () => {
+  const { storage } = memory();
+  await assert.rejects(
+    () =>
+      multipart(
+        request([
+          { name: "a", value: "1" },
+          { name: "b", value: "2" },
+        ]),
+        { storage, maxFields: 1 },
+      ),
+    (e) => e instanceof MultipartError && e.statusCode === 413,
+  );
+});

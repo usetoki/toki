@@ -10,6 +10,8 @@ export interface MultipartOptions<T> {
   maxFiles?: number;
   /** Maximum bytes per file. Default `10485760` (10 MiB). */
   maxFileBytes?: number;
+  /** Maximum number of non-file fields. Default `1000`. */
+  maxFields?: number;
   /** Permitted content types — an exact (case-insensitive) list or a RegExp. */
   allowedTypes?: string[] | RegExp;
 }
@@ -41,11 +43,15 @@ export async function multipart<T>(
 
   const maxFiles = options.maxFiles ?? 10;
   const maxFileBytes = options.maxFileBytes ?? 10 * 1024 * 1024;
+  const maxFields = options.maxFields ?? 1000;
   const fields: Record<string, string> = {};
   const files: T[] = [];
+  let fieldCount = 0;
 
   for (const part of parts(req.body, boundary)) {
     if (part.filename === null) {
+      if (++fieldCount > maxFields)
+        throw new MultipartError(413, `too many fields (max ${maxFields})`);
       fields[part.name] = Buffer.from(part.data).toString("utf8");
       continue;
     }
@@ -73,6 +79,7 @@ export async function multipart<T>(
 function allowed(contentType: string, types: string[] | RegExp | undefined): boolean {
   if (types === undefined) return true;
   if (types instanceof RegExp) return types.test(contentType);
-  const lower = contentType.toLowerCase();
+  // compare the bare type, ignoring parameters like "; charset=utf-8"
+  const lower = contentType.split(";")[0]!.trim().toLowerCase();
   return types.some((type) => type.toLowerCase() === lower);
 }

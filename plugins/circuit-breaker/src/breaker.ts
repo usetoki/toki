@@ -45,7 +45,7 @@ export class Breaker {
       if (this.config.now() < this.#openUntil) return false;
       this.#state = "half-open";
       this.#probing = true;
-      this.config.onHalfOpen?.();
+      this.#emit(this.config.onHalfOpen);
       return true;
     }
     if (this.#state === "half-open") {
@@ -102,7 +102,7 @@ export class Breaker {
     this.#state = "open";
     this.#openUntil = this.config.now() + this.config.resetTimeoutMs;
     this.#probing = false;
-    this.config.onOpen?.();
+    this.#emit(this.config.onOpen);
   }
 
   #close(): void {
@@ -111,6 +111,16 @@ export class Breaker {
     this.#total = 0;
     this.#probing = false;
     this.#windowEnd = this.config.now() + this.config.windowMs;
-    this.config.onClose?.();
+    this.#emit(this.config.onClose);
+  }
+
+  // a user transition hook must never corrupt the state machine by throwing
+  #emit(hook: (() => void) | undefined): void {
+    if (hook === undefined) return;
+    try {
+      hook();
+    } catch {
+      /* swallow — the breaker's state has already been updated */
+    }
   }
 }

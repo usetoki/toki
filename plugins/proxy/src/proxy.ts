@@ -50,21 +50,20 @@ export function proxy(options: ProxyOptions): Handler {
       : undefined;
     timer?.unref?.();
 
-    const init: RequestInit = {
-      method: req.method,
-      headers: requestHeaders(
-        req,
-        options.headers,
-        options.stripHeaders,
-        options.trustProxy === true,
-      ),
-      signal: controller.signal,
-      redirect: "manual",
-    };
-    if (!BODYLESS.has(req.method) && req.body) init.body = req.body;
-
     let upstream: Response;
     try {
+      const init: RequestInit = {
+        method: req.method,
+        headers: requestHeaders(
+          req,
+          options.headers,
+          options.stripHeaders,
+          options.trustProxy === true,
+        ),
+        signal: controller.signal,
+        redirect: "manual",
+      };
+      if (!BODYLESS.has(req.method) && req.body) init.body = req.body;
       upstream = await doFetch(target, init);
     } catch {
       if (timer) clearTimeout(timer);

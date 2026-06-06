@@ -69,6 +69,7 @@ test("a file range is streamed as 206", async () => {
   assert.equal(partial.statusCode, 206);
   assert.equal(partial.body, "cdef");
   assert.equal(partial.headers["content-range"], "bytes 2-5/10");
+  assert.equal(partial.headers["content-length"], "4"); // a range read carries a real length
 
   const full = await app.inject({ url: "/file" });
   assert.equal(full.statusCode, 200);

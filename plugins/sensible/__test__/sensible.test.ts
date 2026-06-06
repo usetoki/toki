@@ -32,6 +32,15 @@ app.get("/check/:id", (req) => {
   httpAssert(req.params.id === "ok", 400, "bad id");
   return reply.text("passed");
 });
+app.get("/nan", () => {
+  throw { statusCode: NaN, message: "x" };
+});
+app.get("/weird", () => {
+  throw { statusCode: 200, message: "not really an error" };
+});
+app.get("/foreign", () => {
+  throw { statusCode: 429, message: "slow down", headers: { "Retry-After": "7" } };
+});
 
 const handle = app.listen(0, { host: "127.0.0.1" });
 after(() => handle.close());
@@ -108,4 +117,23 @@ test("httpErrors expose status and reason", () => {
   assert.equal(e.title, "Unprocessable Entity");
   assert.equal(e.expose, true);
   assert.equal(httpErrors.badGateway().expose, false);
+});
+
+test("a NaN or out-of-range statusCode becomes a 500, not a garbage status", async () => {
+  assert.equal((await app.inject({ url: "/nan" })).statusCode, 500);
+  assert.equal((await app.inject({ url: "/weird" })).statusCode, 500); // 2xx isn't a valid error status
+});
+
+test("a foreign error's headers and status are honored", async () => {
+  const res = await app.inject({ url: "/foreign" });
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.headers["retry-after"], "7");
+  assert.equal(problem(res).detail, "slow down");
+});
+
+test("isHttpError requires a valid 4xx/5xx status", () => {
+  assert.ok(!isHttpError({ statusCode: Number.NaN }));
+  assert.ok(!isHttpError({ statusCode: 200 }));
+  assert.ok(!isHttpError({ statusCode: 700 }));
+  assert.ok(isHttpError({ statusCode: 503 }));
 });

@@ -56,7 +56,7 @@ export function circuitBreaker(handler: Handler, options: CircuitBreakerOptions 
   return async (req) => {
     if (!breaker.allow()) {
       if (fallback) return fallback(req);
-      req.setResponseHeader("Retry-After", String(breaker.cooldownSeconds()));
+      req.setResponseHeader("Retry-After", String(Math.max(1, breaker.cooldownSeconds())));
       return reply.text("Service Unavailable", status);
     }
     try {

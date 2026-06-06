@@ -74,6 +74,20 @@ test("only one probe is admitted while half-open", () => {
   assert.equal(b.allow(), false); // a concurrent caller is rejected
 });
 
+test("a throwing transition hook does not corrupt the state machine", () => {
+  const b = new Breaker(
+    cfg({
+      minimumRequests: 1,
+      onOpen: () => {
+        throw new Error("hook blew up");
+      },
+    }),
+  );
+  b.allow();
+  b.failure(); // opens, and calls the throwing onOpen
+  assert.equal(b.state, "open"); // state still updated despite the hook throwing
+});
+
 test("the rolling window resets stale counters", () => {
   const c = clock();
   const b = new Breaker(cfg({ minimumRequests: 3, windowMs: 1000 }, c.now));

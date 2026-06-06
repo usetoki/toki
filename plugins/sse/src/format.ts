@@ -12,10 +12,15 @@ export interface SseEvent {
 /** Serialize an event into the `text/event-stream` wire format (a blank line ends it). */
 export function formatEvent(event: SseEvent): string {
   let frame = "";
-  if (event.id !== undefined) frame += `id: ${event.id}\n`;
-  if (event.event !== undefined) frame += `event: ${event.event}\n`;
+  // strip line terminators from single-line fields so a value can't inject extra frames
+  if (event.id !== undefined) frame += `id: ${oneLine(event.id)}\n`;
+  if (event.event !== undefined) frame += `event: ${oneLine(event.event)}\n`;
   if (event.retry !== undefined) frame += `retry: ${event.retry}\n`;
   const data = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
-  for (const line of data.split("\n")) frame += `data: ${line}\n`;
+  for (const line of data.split(/\r\n|\r|\n/)) frame += `data: ${line}\n`;
   return `${frame}\n`;
+}
+
+function oneLine(value: string): string {
+  return value.replace(/[\r\n]/g, "");
 }

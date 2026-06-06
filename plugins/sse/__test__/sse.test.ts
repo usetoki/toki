@@ -38,6 +38,16 @@ app.get("/resume", (req) =>
     { heartbeatMs: 0 },
   ),
 );
+app.get("/inject", (req) =>
+  sse(
+    req,
+    (s) => {
+      s.send({ id: "1\n2", event: "a\nb", data: "ok" });
+      s.close();
+    },
+    { heartbeatMs: 0 },
+  ),
+);
 app.get("/heartbeat", (req) =>
   sse(
     req,
@@ -75,4 +85,11 @@ test("Last-Event-ID is exposed for resume", async () => {
 test("a heartbeat keeps the stream alive", async () => {
   const res = await app.inject({ url: "/heartbeat" });
   assert.match(res.body, /:\n\n/); // at least one heartbeat comment
+});
+
+test("newlines in id/event are stripped so a value can't inject frames", async () => {
+  const res = await app.inject({ url: "/inject" });
+  assert.match(res.body, /id: 12\n/); // "1\n2" collapsed to "12"
+  assert.match(res.body, /event: ab\n/);
+  assert.doesNotMatch(res.body, /id: 1\n2/);
 });

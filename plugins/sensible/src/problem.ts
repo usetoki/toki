@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { ErrorHandler, TokiRequest } from "@usetoki/toki";
-import { HttpError, isHttpError } from "./errors.js";
+import { HttpError, type HttpErrorOptions, isHttpError } from "./errors.js";
 
 const encoder = new TextEncoder();
 
@@ -38,18 +38,51 @@ export function problemJson(options: ProblemOptions = {}): ErrorHandler {
       instance: req.path,
     };
     return reply.bytes(
-      encoder.encode(JSON.stringify(problem)),
+      encoder.encode(serialize(problem, httpError, status, req)),
       "application/problem+json; charset=utf-8",
       status,
     );
   };
 }
 
+// a non-serializable `details` (bigint, circular ref) must not crash the error handler:
+// fall back to the standard members alone.
+function serialize(
+  problem: Record<string, unknown>,
+  httpError: HttpError,
+  status: number,
+  req: TokiRequest,
+): string {
+  try {
+    return JSON.stringify(problem);
+  } catch {
+    return JSON.stringify({
+      type: problem.type,
+      title: httpError.title,
+      status,
+      detail: httpError.expose ? httpError.message : httpError.title,
+      instance: req.path,
+    });
+  }
+}
+
 function toHttpError(error: unknown): HttpError {
   if (error instanceof HttpError) return error;
   if (isHttpError(error)) {
-    const e = error as { statusCode: number; message?: string };
-    return new HttpError(e.statusCode, e.message);
+    const e = error as {
+      statusCode: number;
+      message?: string;
+      headers?: unknown;
+      details?: unknown;
+    };
+    const options: HttpErrorOptions = {};
+    if (e.headers !== null && typeof e.headers === "object") {
+      options.headers = e.headers as Record<string, string>;
+    }
+    if (e.details !== null && typeof e.details === "object") {
+      options.details = e.details as Record<string, unknown>;
+    }
+    return new HttpError(e.statusCode, e.message, options);
   }
   return new HttpError(500); // an unexpected failure — keep its message off the wire
 }

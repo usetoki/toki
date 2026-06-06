@@ -11,6 +11,10 @@ export function routePrefix(relativePath: string): string {
     if (raw === "" || raw === "index") continue;
     parts.push(segment(raw));
   }
+  const catchAll = parts.indexOf("*");
+  if (catchAll !== -1 && catchAll !== parts.length - 1) {
+    throw new Error(`autoload: a [...catch-all] must be the last segment ("${relativePath}")`);
+  }
   return `/${parts.join("/")}`;
 }
 

@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Handler, PluginOptions, RouteMethod, TokiInstance, TokiPlugin } from "@usetoki/toki";
@@ -78,8 +78,18 @@ async function walk(dir: string): Promise<string[]> {
   const out: string[] = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...(await walk(full)));
-    else if (entry.isFile()) out.push(full);
+    if (entry.isDirectory()) {
+      out.push(...(await walk(full)));
+    } else if (entry.isFile()) {
+      out.push(full);
+    } else if (entry.isSymbolicLink()) {
+      // follow a link to a file (a common deploy layout); ignore broken links and linked dirs
+      try {
+        if ((await stat(full)).isFile()) out.push(full);
+      } catch {
+        /* dangling symlink */
+      }
+    }
   }
   return out;
 }

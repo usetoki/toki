@@ -24,6 +24,11 @@ export function requestHeaders(
 ): Headers {
   const headers = new Headers();
   const stripSet = new Set((strip ?? []).map((h) => h.toLowerCase()));
+  // RFC 7230 §6.1: any header named in Connection is itself hop-by-hop — drop it too
+  for (const token of (req.headers.get("connection") ?? "").split(",")) {
+    const name = token.trim().toLowerCase();
+    if (name) stripSet.add(name);
+  }
   for (const [name, value] of req.headers) {
     const lower = name.toLowerCase();
     if (HOP_BY_HOP.has(lower) || stripSet.has(lower)) continue;
