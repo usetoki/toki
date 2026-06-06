@@ -532,6 +532,24 @@ test "an explicit HEAD route takes precedence over the GET fallback" {
     try expectFound(&t, "GET", "/p", 0);
 }
 
+test "a trailing-wildcard route does not 405 other methods" {
+    // mirrors app.cors() registering OPTIONS /* alongside a real route + static files
+    var t = try RouteTable.build(
+        std.testing.allocator,
+        &.{ "OPTIONS", "GET" },
+        &.{ "/*", "/health" },
+    );
+    defer t.deinit();
+    // a GET miss must NOT become a 405 because of the OPTIONS catch-all — it falls through
+    // to not_found, so the engine can still try the static table / the 404 handler.
+    try expectNotFound(&t, "GET", "/missing.txt");
+    // the OPTIONS preflight still resolves to the wildcard route.
+    try expectFound(&t, "OPTIONS", "/anything/here", 0);
+    // a genuine method mismatch on a precise route is still a 405, and the catch-all is
+    // not listed in Allow.
+    try expectAllow(&t, "POST", "/health", "GET");
+}
+
 fn expectFound(t: *const RouteTable, method: []const u8, path: []const u8, index: u32) !void {
     var sc: Scratch = .{};
     switch (t.resolve(method, path, &sc)) {

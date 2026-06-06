@@ -112,6 +112,10 @@ pub const RouteTable = struct {
             if (entry.value_ptr.get(path) != null) n = pushUnique(&allowed, n, entry.key_ptr.*);
         }
         for (self.dynamic) |route| {
+            // a trailing `*` catch-all is a fallback, not a precise resource — it must not
+            // advertise its method for 405 (else e.g. `OPTIONS /*` from cors() turns every
+            // unmatched GET into a 405 and shadows the static-file / not-found fallback).
+            if (endsWithWildcard(route.segments)) continue;
             if (matchPattern(route.segments, path, sc) != null) n = pushUnique(&allowed, n, route.method);
         }
         if (n == 0) return .not_found;
@@ -226,6 +230,10 @@ fn percentDecode(src: []const u8, dest: []u8) []const u8 {
         }
     }
     return dest[0..w];
+}
+
+fn endsWithWildcard(segments: []const Segment) bool {
+    return segments.len > 0 and segments[segments.len - 1] == .wildcard;
 }
 
 fn pushUnique(list: *[16][]const u8, n: usize, value: []const u8) usize {
