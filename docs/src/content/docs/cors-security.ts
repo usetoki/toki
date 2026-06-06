@@ -27,6 +27,11 @@ app.cors({
       kind: "paragraph",
       text: "The lower-level `corsHeaders(options)` (a middleware) and `corsPreflight(options)` (an `OPTIONS` handler) are exported if you want to wire them yourself.",
     },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: '`origin: "*"` together with `credentials: true` throws at setup — a wildcard that reflects any caller\'s cookies is never what you want. List the origins you trust instead. `Access-Control-Allow-Credentials` only rides alongside an allowed origin.',
+    },
     { kind: "heading", id: "security-headers", text: "Security headers" },
     {
       kind: "paragraph",

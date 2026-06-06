@@ -34,6 +34,7 @@ import { middlewarePage } from "./middleware";
 import { pluginsOverviewPage } from "./plugins-overview";
 import { pluginsPage } from "./plugins";
 import { rateLimiterPluginPage } from "./plugin-rate-limiter";
+import { secureSessionPluginPage } from "./plugin-secure-session";
 import { sessionsPluginPage } from "./plugin-sessions";
 import { quickStartPage } from "./quick-start";
 import { rateLimitingPage } from "./rate-limiting";
@@ -91,6 +92,7 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       rateLimiterPluginPage,
       cookiePluginPage,
       sessionsPluginPage,
+      secureSessionPluginPage,
       authPluginPage,
       jwtPluginPage,
       csrfPluginPage,

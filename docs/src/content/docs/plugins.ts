@@ -54,5 +54,24 @@ await app.ready();
 app.listen(3000);`,
       },
     },
+    { kind: "heading", id: "official-plugins", text: "Official plugins" },
+    {
+      kind: "paragraph",
+      text: "The same API powers 21 first-party packages, each a separate npm install and versioned apart from the core. The full catalog lives in [Official plugins](/docs/plugins-overview); at a glance they fall into four groups:",
+    },
+    {
+      kind: "list",
+      items: [
+        "**Security & auth** — helmet, auth, jwt, csrf, ip-filter.",
+        "**Sessions, cookies & state** — cookie, session, secure-session, cache, idempotency, ratelimiter (the stores back onto memory, Redis, or memcached).",
+        "**HTTP features** — etag, range, sse, multipart-storage.",
+        "**Infra & DX** — env, sensible, autoload, view, proxy, circuit-breaker.",
+      ],
+    },
+    {
+      kind: "callout",
+      tone: "note",
+      text: "Most plugins are plain middleware you `app.use` or attach as a route `preHandler`. The session plugins install load + save hooks, so you call them on a scope — `session(app, { secret })` — to confine them to one branch of the app.",
+    },
   ],
 };
