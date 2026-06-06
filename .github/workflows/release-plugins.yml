@@ -1,8 +1,9 @@
 name: Release plugins
 
-# On a plugins-v* tag (or a manual dispatch): build and publish the official plugins
-# (@usetoki/toki-helmet, @usetoki/toki-ratelimiter) to npm at the version in each
-# package.json. Pure TypeScript — no native build needed. Needs the NPM_TOKEN secret.
+# On a plugins-v* tag (or a manual dispatch): build and publish every official plugin
+# under plugins/* (cookie, session, secure-session, auth, jwt, helmet, ratelimiter) to
+# npm at the version in each package.json. Pure TypeScript — no native build needed.
+# Idempotent: versions already on npm are skipped. Needs the NPM_TOKEN secret.
 
 on:
   push:
