@@ -1,0 +1,12 @@
+# Normalize text to LF in the working tree on every platform so served test
+# fixtures stay byte-identical (Windows checkout would otherwise turn \n into \r\n
+# and break exact-body assertions). Binary files are auto-detected and left alone.
+* text=auto eol=lf
+
+# Belt and braces: fixtures are served verbatim — never touch their line endings.
+__test__/fixtures/** -text
+
+# Known binaries.
+*.node binary
+*.png binary
+*.der binary
