@@ -636,6 +636,39 @@ interface ValidationError {
 }
 
 {
+  // ReDoS guard: a catastrophic-backtracking pattern run against a long attacker string
+  // would pin the event loop. schema.ts caps the input length (the schema's maxLength, or
+  // PATTERN_INPUT_CAP=4096) and fails without running the regex. The proof is that this
+  // test *finishes promptly* — a regression would hang the suite, not just flip an assert.
+  const app = createApp();
+  app.post(
+    "/redos",
+    {
+      schema: {
+        body: { type: "object", properties: { code: { type: "string", pattern: "^(a+)+$" } } },
+      },
+    },
+    (req) => ({ code: req.json<{ code: string }>().code }),
+  );
+
+  test("a pathological pattern against an oversized value fails fast (ReDoS guard)", async () => {
+    const huge = await app.inject({
+      method: "POST",
+      url: "/redos",
+      payload: { code: "a".repeat(8192) },
+    });
+    assert.equal(huge.statusCode, 400); // rejected without ever running the regex
+    assert.match(huge.json<ValidationError>().message, /code must match/);
+  });
+
+  test("a short value that satisfies the same pattern still matches", async () => {
+    const ok = await app.inject({ method: "POST", url: "/redos", payload: { code: "aaa" } });
+    assert.equal(ok.statusCode, 200);
+    assert.deepEqual(ok.json(), { code: "aaa" });
+  });
+}
+
+{
   test("the default 404 fires for an unmapped route", async () => {
     const app = createApp();
     app.get("/known", () => reply.text("ok"));

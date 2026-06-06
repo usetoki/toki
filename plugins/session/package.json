@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-session",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Stateful sessions for toki — signed id cookie, pluggable store (memory, Redis, memcached).",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

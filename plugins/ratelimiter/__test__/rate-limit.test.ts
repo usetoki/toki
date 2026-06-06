@@ -269,6 +269,23 @@ test("MemcachedStore uses add-first, never reaching an auto-vivifying incr on a 
   assert.ok((map.get("trl:" + k)?.ttl ?? 0) > 0, "ttl stays set — incr never auto-vivified");
 });
 
+test("MemoryStore.hit returns a snapshot, not the live bucket", () => {
+  const s = new MemoryStore();
+  const a = s.hit("k", 60_000); // count is 1 at this point
+  s.hit("k", 60_000); // bumps the live bucket to 2
+  assert.equal(a.count, 1, "the earlier snapshot must not have mutated to 2");
+  s.close();
+});
+
+test("MemoryStore caps stored keys at maxKeys — an early key is evicted under a flood", () => {
+  const s = new MemoryStore(60_000, 100);
+  for (let i = 0; i < 1000; i++) s.hit(`flood-${i}`, 60_000);
+  // the first key was pushed out by the capacity eviction, so hitting it again starts a
+  // fresh window at count 1 (proof the table is bounded, not holding all 1000 keys).
+  assert.equal(s.hit("flood-0", 60_000).count, 1, "an early key was evicted, not retained");
+  s.close();
+});
+
 test("MemcachedStore caps the TTL below the 30-day epoch threshold", async () => {
   let seenTtl = -1;
   const client: MemcachedClient = {

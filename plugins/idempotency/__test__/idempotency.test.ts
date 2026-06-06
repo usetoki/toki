@@ -89,6 +89,7 @@ app.register(
       req.setResponseHeader("X-Custom", "abc");
       return reply.json({ id: ++counters.charge });
     });
+    s.post("/transfer", (req) => reply.json({ to: req.query.get("to") }));
     s.get("/safe", () => reply.json({ n: ++counters.safe }));
   },
   { prefix: "/a" },
@@ -245,6 +246,37 @@ test("a Redis-backed store dedups and replays", async () => {
   });
   assert.ok(replayed(retry));
   assert.deepEqual(retry.json(), first.json());
+});
+
+test("the query string is part of the fingerprint — same key + body, different ?to= clashes", async () => {
+  const alice = await app.inject({
+    method: "POST",
+    url: "/a/transfer?to=alice",
+    headers: key("xfer"),
+    payload: { amt: 100 },
+  });
+  assert.equal(alice.statusCode, 200);
+  assert.deepEqual(alice.json(), { to: "alice" });
+
+  // SAME key, SAME body, but ?to=eve — must NOT replay the alice response; it's a clash
+  const eve = await app.inject({
+    method: "POST",
+    url: "/a/transfer?to=eve",
+    headers: key("xfer"),
+    payload: { amt: 100 },
+  });
+  assert.equal(eve.statusCode, 422);
+  assert.equal(replayed(eve), false);
+});
+
+test("MemoryStore caps stored keys at maxKeys (a unique-key flood can't grow unbounded)", () => {
+  const s = new MemoryStore({ maxKeys: 100 });
+  for (let i = 0; i < 1000; i++) {
+    s.begin(`flood-${i}`, "fp", 60_000);
+    assert.ok(s.size <= 100, `size ${s.size} exceeded the cap at i=${i}`);
+  }
+  assert.ok(s.size <= 100);
+  s.close();
 });
 
 test("a memcached-backed store dedups and replays", async () => {

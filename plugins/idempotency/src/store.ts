@@ -34,14 +34,19 @@ interface Slot {
 export interface MemoryStoreOptions {
   /** Interval to sweep expired slots, ms. Default `60000`. */
   sweepMs?: number;
+  /** Hard ceiling on stored keys. Default `100000`. The Idempotency-Key is attacker-
+   *  controlled, so without a cap a flood of unique keys grows memory until their TTL. */
+  maxKeys?: number;
 }
 
 /** In-process idempotency store with a periodic sweep. */
 export class MemoryStore implements IdempotencyStore {
   readonly #slots = new Map<string, Slot>();
   readonly #sweep: ReturnType<typeof setInterval>;
+  readonly #maxKeys: number;
 
   constructor(options: MemoryStoreOptions = {}) {
+    this.#maxKeys = options.maxKeys ?? 100_000;
     this.#sweep = setInterval(() => this.#evict(), options.sweepMs ?? 60_000);
     this.#sweep.unref?.();
   }
@@ -54,6 +59,7 @@ export class MemoryStore implements IdempotencyStore {
         ? { state: "replay", record: slot.record }
         : { state: "in-flight" };
     }
+    if (this.#slots.size >= this.#maxKeys) this.#capacityEvict();
     this.#slots.set(key, { fingerprint, record: null, expiresAt: Date.now() + lockTtlMs });
     return { state: "new" };
   }
@@ -74,10 +80,26 @@ export class MemoryStore implements IdempotencyStore {
     clearInterval(this.#sweep);
   }
 
+  /** Live slot count — bounded by maxKeys. */
+  get size(): number {
+    return this.#slots.size;
+  }
+
   #evict(): void {
     const now = Date.now();
     for (const [key, slot] of this.#slots) {
       if (now >= slot.expiresAt) this.#slots.delete(key);
+    }
+  }
+
+  // at capacity: drop expired first, then oldest-inserted (Map keeps order) so a flood
+  // of unique keys can never push the table past the ceiling.
+  #capacityEvict(): void {
+    this.#evict();
+    while (this.#slots.size >= this.#maxKeys) {
+      const oldest = this.#slots.keys().next().value;
+      if (oldest === undefined) break;
+      this.#slots.delete(oldest);
     }
   }
 }

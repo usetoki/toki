@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { generateKeyPairSync } from "node:crypto";
+import { createHmac, generateKeyPairSync } from "node:crypto";
 import { after, test } from "node:test";
 import { createApp, reply, type TokiRequest } from "@usetoki/toki";
 import { createJwksResolver, JwtError, jwtAuth, signJwt, verifyJwt } from "../dist/index.js";
@@ -164,4 +164,39 @@ test("a caller-supplied header.alg can't override the signing algorithm", () => 
   };
   assert.equal(decoded.alg, "HS256"); // authoritative — the signature is HS256
   assert.equal(decoded.kid, "k1"); // extra header fields still merge
+});
+
+// --- algorithm confusion: HMAC over a public-key PEM --------------------------
+// The classic attack: a service verifies RS256 with a public PEM but also allows HS256.
+// An attacker forges an HS256 token whose "secret" is that published public PEM. The
+// assertHmacKey guard must refuse a PEM as an HMAC key on both sign and verify.
+
+const rsaPublicPem = rsa.publicKey.export({ type: "spki", format: "pem" }) as string;
+
+test("verifying an HS256 token forged with a public-key PEM is rejected (algorithm-confusion)", async () => {
+  // forge an HS256 token RAW: HMAC over base64url(header).base64url(payload) using the RSA
+  // public PEM as the secret — exactly what a confused verifier would (wrongly) accept.
+  const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const signingInput = `${enc({ alg: "HS256", typ: "JWT" })}.${enc({ sub: "attacker" })}`;
+  const sig = createHmac("sha256", rsaPublicPem).update(signingInput).digest("base64url");
+  const forged = `${signingInput}.${sig}`;
+
+  await assert.rejects(
+    () => verifyJwt(forged, rsaPublicPem, { algorithms: ["RS256", "HS256"] }),
+    /algorithm-confusion/,
+    "must not accept an HMAC token keyed on the public PEM",
+  );
+});
+
+test("signing with an HMAC algorithm and a PEM key throws (algorithm-confusion)", () => {
+  assert.throws(
+    () => signJwt({ sub: "u" }, rsaPublicPem, { algorithm: "HS256" }),
+    /algorithm-confusion/,
+  );
+});
+
+test("a normal HMAC secret string (not PEM) still signs and verifies", async () => {
+  const token = signJwt({ sub: "ok" }, "a-plain-shared-secret", { algorithm: "HS256" });
+  const payload = await verifyJwt(token, "a-plain-shared-secret", { algorithms: ["HS256"] });
+  assert.equal(payload.sub, "ok");
 });

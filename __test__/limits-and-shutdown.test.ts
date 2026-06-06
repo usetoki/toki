@@ -136,6 +136,17 @@ test("a slow-but-complete request still succeeds within the timeout", async () =
   assert.match(resp, /\r\n\r\nok$/);
 });
 
+test("a Content-Length with a leading '+' is rejected at the wire (smuggling guard)", async () => {
+  // RFC 9112 Content-Length is 1*DIGIT; a '+5' that parseInt would accept could be read
+  // differently by a front-end, opening a request-smuggling desync. The native parser
+  // refuses any non-digit byte. inject() can't exercise this — it must hit the wire.
+  const sock = await connect(port);
+  sock.write("POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: +5\r\n\r\nAAAAA");
+  const resp = await readResponse(sock, 400);
+  sock.destroy();
+  assert.match(resp, /^HTTP\/1\.1 400/, "a non-digit Content-Length must be a 400");
+});
+
 test("close() is a hard close — an in-flight request is severed, not drained", async () => {
   const inflight = fetch(`http://127.0.0.1:${port}/slow`)
     .then((r) => r.text())

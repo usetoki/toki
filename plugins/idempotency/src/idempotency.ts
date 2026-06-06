@@ -48,7 +48,7 @@ export function idempotency(instance: TokiInstance, options: IdempotencyOptions 
       return required ? reply.text(`${header} header is required`, 400) : undefined;
     }
 
-    const fp = fingerprint(req.method, req.path, req.body);
+    const fp = fingerprint(req.method, req.path, req.query.toString(), req.body);
     const result = await store.begin(key, fp, lockTtlMs);
     switch (result.state) {
       case "new":

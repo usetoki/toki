@@ -25,6 +25,6 @@ export function formatEvent(event: SseEvent): string {
 }
 
 // NUL also terminates a Last-Event-ID on some parsers, so strip it alongside CR/LF
-function oneLine(value: string): string {
+export function oneLine(value: string): string {
   return value.replace(/[\r\n\0]/g, "");
 }

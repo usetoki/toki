@@ -176,3 +176,13 @@ test("MemcachedStore caps the TTL below the 30-day epoch threshold", async () =>
   await new MemcachedStore({ client }).set("sid", { a: 1 }, 40 * 24 * 3600 * 1000); // 40 days
   assert.ok(seenTtl > 0 && seenTtl <= 2_592_000, `ttl ${seenTtl} must stay a relative offset`);
 });
+
+test("MemoryStore caps stored sessions at maxKeys — an early sid is evicted, recent ones survive", () => {
+  const s = new MemoryStore(60_000, 100);
+  for (let i = 0; i < 1000; i++) s.set(`sid-${i}`, { i }, 60_000);
+  // a client minting a fresh session per request can't grow memory without bound: the
+  // oldest-inserted sid was pushed out, while the most-recent ones are still resolvable.
+  assert.equal(s.get("sid-0"), null, "an early sid was evicted");
+  assert.deepEqual(s.get("sid-999"), { i: 999 }, "a recent sid survives");
+  s.close();
+});

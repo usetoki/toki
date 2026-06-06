@@ -18,8 +18,11 @@ interface Entry {
 export class MemoryStore implements SessionStore {
   readonly #sessions = new Map<string, Entry>();
   readonly #sweep: ReturnType<typeof setInterval>;
+  // a client can mint a fresh session per request, so cap the table to bound memory
+  readonly #maxKeys: number;
 
-  constructor(sweepMs = 60_000) {
+  constructor(sweepMs = 60_000, maxKeys = 100_000) {
+    this.#maxKeys = maxKeys;
     this.#sweep = setInterval(() => this.#evict(), sweepMs);
     this.#sweep.unref?.();
   }
@@ -36,6 +39,7 @@ export class MemoryStore implements SessionStore {
   }
 
   set(sid: string, data: SessionData, ttlMs: number): void {
+    if (!this.#sessions.has(sid) && this.#sessions.size >= this.#maxKeys) this.#capacityEvict();
     this.#sessions.set(sid, { data: structuredClone(data), expiresAt: Date.now() + ttlMs });
   }
 
@@ -57,6 +61,16 @@ export class MemoryStore implements SessionStore {
     const now = Date.now();
     for (const [sid, entry] of this.#sessions) {
       if (now >= entry.expiresAt) this.#sessions.delete(sid);
+    }
+  }
+
+  // at capacity: drop expired first, then oldest-inserted (Map keeps order)
+  #capacityEvict(): void {
+    this.#evict();
+    while (this.#sessions.size >= this.#maxKeys) {
+      const oldest = this.#sessions.keys().next().value;
+      if (oldest === undefined) break;
+      this.#sessions.delete(oldest);
     }
   }
 }

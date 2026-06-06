@@ -43,10 +43,27 @@ export function isAlgorithm(alg: string): alg is JwtAlgorithm {
   return Object.prototype.hasOwnProperty.call(SPECS, alg);
 }
 
+// An HMAC secret is raw bytes — never PEM-encoded asymmetric key material. Passing a
+// public-key PEM where an HMAC key is expected is the JWT "algorithm confusion" attack
+// (forge a token by HMAC-signing with the published public key). A KeyObject is already
+// rejected by createHmac; this catches the PEM string/Buffer form on both sign and verify.
+function assertHmacKey(key: KeyInput): void {
+  if (key instanceof KeyObject) {
+    throw new Error("jwt: an HMAC algorithm requires a secret key, not a KeyObject");
+  }
+  const text = typeof key === "string" ? key : key.toString("latin1");
+  if (text.includes("-----BEGIN") && text.includes("KEY-----")) {
+    throw new Error(
+      "jwt: an HMAC algorithm cannot use a PEM/asymmetric key (algorithm-confusion guard)",
+    );
+  }
+}
+
 export function signData(alg: JwtAlgorithm, data: Buffer, key: KeyInput): Buffer {
   const spec = SPECS[alg];
   switch (spec.family) {
     case "hmac":
+      assertHmacKey(key);
       return createHmac(spec.hash!, key as Buffer | string)
         .update(data)
         .digest();
@@ -71,6 +88,7 @@ export function verifyData(
   const spec = SPECS[alg];
   switch (spec.family) {
     case "hmac": {
+      assertHmacKey(key);
       const expected = createHmac(spec.hash!, key as Buffer | string)
         .update(data)
         .digest();

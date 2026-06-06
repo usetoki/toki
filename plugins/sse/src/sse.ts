@@ -1,7 +1,7 @@
 import { reply } from "@usetoki/toki";
 import type { StreamResponse, TokiRequest } from "@usetoki/toki";
 import { Channel } from "./channel.js";
-import { formatEvent, type SseEvent } from "./format.js";
+import { formatEvent, oneLine, type SseEvent } from "./format.js";
 
 export interface SseStream {
   /** Send an event. A bare string is shorthand for `{ data }`. */
@@ -52,7 +52,8 @@ export function sse(
     lastEventId: req.headers.get("last-event-id"),
     signal: aborter.signal,
     send: (event) => channel.push(formatEvent(typeof event === "string" ? { data: event } : event)),
-    comment: (text = "") => channel.push(`:${text}\n\n`),
+    // strip CR/LF/NUL so a comment can't inject extra frames/fields (as id/event/data do)
+    comment: (text = "") => channel.push(`:${oneLine(text)}\n\n`),
     close: () => channel.close(),
   };
 

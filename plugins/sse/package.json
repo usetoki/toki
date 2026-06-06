@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki-sse",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Server-Sent Events for toki — heartbeats, event ids, and Last-Event-ID resume.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",

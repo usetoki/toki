@@ -90,7 +90,11 @@ pub fn parse(buf: []const u8, max_headers: usize) ParseError!ParsedHead {
 
         if (std.ascii.eqlIgnoreCase(name, "content-length")) {
             // RFC 9112 §6.3: reject two Content-Length fields with different values — a
-            // front-end and the origin disagreeing on body length is a smuggling desync
+            // front-end and the origin disagreeing on body length is a smuggling desync.
+            // Content-Length is 1*DIGIT — parseInt would also accept a leading '+'/'-', so
+            // reject any non-digit byte (a stricter front-end could read '+5' differently).
+            if (value.len == 0) return error.BadRequest;
+            for (value) |c| if (!std.ascii.isDigit(c)) return error.BadRequest;
             const n = std.fmt.parseInt(usize, value, 10) catch return error.BadRequest;
             if (seen_content_length and n != content_length) return error.BadRequest;
             content_length = n;

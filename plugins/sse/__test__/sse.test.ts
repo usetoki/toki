@@ -58,6 +58,16 @@ app.get("/heartbeat", (req) =>
     { heartbeatMs: 20 },
   ),
 );
+app.get("/comment-inject", (req) =>
+  sse(
+    req,
+    (s) => {
+      s.comment("keepalive\r\ndata: injected\r\n");
+      s.close();
+    },
+    { heartbeatMs: 0 },
+  ),
+);
 
 const handle = app.listen(0, { host: "127.0.0.1" });
 after(() => handle.close());
@@ -92,6 +102,14 @@ test("newlines in id/event are stripped so a value can't inject frames", async (
   assert.match(res.body, /id: 12\n/); // "1\n2" collapsed to "12"
   assert.match(res.body, /event: ab\n/);
   assert.doesNotMatch(res.body, /id: 1\n2/);
+});
+
+test("comment() strips CR/LF so it can't inject a separate data: event frame", async () => {
+  const res = await app.inject({ url: "/comment-inject" });
+  // the CR/LF/NUL are stripped, collapsing the whole thing onto one comment line
+  assert.match(res.body, /:keepalivedata: injected\n/);
+  // and crucially NO standalone "data: injected" event frame leaks through
+  assert.doesNotMatch(res.body, /\ndata: injected\n/);
 });
 
 test("the sse plugin does not emit a Connection header (hop-by-hop, server-managed)", async () => {

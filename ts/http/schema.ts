@@ -1,6 +1,24 @@
 // A compact JSON Schema subset for request validation and response serialization.
 // Dependency-free; covers the shapes real APIs use. Not a full draft implementation.
 
+// A `pattern` is developer-authored but runs against attacker-controlled input, so a
+// catastrophic-backtracking regex would pin the event loop. We can't time-bound a regex
+// in pure Node, but we can refuse to feed it an unbounded string: a value longer than the
+// schema's own maxLength (or this cap, when none is declared) fails without running the
+// regex. Author patterns to be linear (anchored, no nested quantifiers) for input above this.
+const PATTERN_INPUT_CAP = 4096;
+
+// compile each distinct pattern once instead of per request
+const patternCache = new Map<string, RegExp>();
+function compilePattern(pattern: string): RegExp {
+  let re = patternCache.get(pattern);
+  if (re === undefined) {
+    re = new RegExp(pattern);
+    patternCache.set(pattern, re);
+  }
+  return re;
+}
+
 /** Custom error messages: one for the whole field, or per failing keyword. */
 export interface ErrorMessages {
   type?: string;
@@ -173,8 +191,13 @@ function checkString(schema: JSONSchema, value: unknown, path: string, errors: s
       messageFor(schema, "maxLength", `${path} must be at most ${schema.maxLength} characters`),
     );
   }
-  if (schema.pattern && !new RegExp(schema.pattern).test(value)) {
-    errors.push(messageFor(schema, "pattern", `${path} must match ${schema.pattern}`));
+  if (schema.pattern) {
+    if (value.length > (schema.maxLength ?? PATTERN_INPUT_CAP)) {
+      // too long to match safely — fail without running the regex (ReDoS guard)
+      errors.push(messageFor(schema, "pattern", `${path} must match ${schema.pattern}`));
+    } else if (!compilePattern(schema.pattern).test(value)) {
+      errors.push(messageFor(schema, "pattern", `${path} must match ${schema.pattern}`));
+    }
   }
   if (schema.format && FORMATS[schema.format] && !FORMATS[schema.format]!.test(value)) {
     errors.push(messageFor(schema, "format", `${path} must be a valid ${schema.format}`));

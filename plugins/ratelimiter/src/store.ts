@@ -28,8 +28,11 @@ interface Bucket {
 export class MemoryStore implements Store {
   readonly #buckets = new Map<string, Bucket>();
   readonly #sweep: ReturnType<typeof setInterval>;
+  // hard ceiling so a flood of unique keys can't grow memory without bound between sweeps
+  readonly #maxKeys: number;
 
-  constructor(sweepMs = 60_000) {
+  constructor(sweepMs = 60_000, maxKeys = 100_000) {
+    this.#maxKeys = maxKeys;
     this.#sweep = setInterval(() => this.#evict(), sweepMs);
     // don't keep the process alive just for the sweep
     this.#sweep.unref?.();
@@ -39,12 +42,15 @@ export class MemoryStore implements Store {
     const now = Date.now();
     const bucket = this.#buckets.get(key);
     if (bucket === undefined || now >= bucket.resetAt) {
+      if (this.#buckets.size >= this.#maxKeys) this.#capacityEvict();
       const fresh: Bucket = { count: 1, resetAt: now + windowMs };
       this.#buckets.set(key, fresh);
-      return fresh;
+      return { count: fresh.count, resetAt: fresh.resetAt };
     }
     bucket.count += 1;
-    return bucket;
+    // a snapshot, never the live bucket — a concurrent hit must not mutate what the caller
+    // is about to read (it would make a within-budget burst all observe the final count).
+    return { count: bucket.count, resetAt: bucket.resetAt };
   }
 
   reset(key: string): void {
@@ -60,6 +66,17 @@ export class MemoryStore implements Store {
     const now = Date.now();
     for (const [key, bucket] of this.#buckets) {
       if (now >= bucket.resetAt) this.#buckets.delete(key);
+    }
+  }
+
+  // at capacity: drop expired first, then, if still full, evict oldest-inserted entries
+  // (Map keeps insertion order) so the table can never exceed the ceiling.
+  #capacityEvict(): void {
+    this.#evict();
+    while (this.#buckets.size >= this.#maxKeys) {
+      const oldest = this.#buckets.keys().next().value;
+      if (oldest === undefined) break;
+      this.#buckets.delete(oldest);
     }
   }
 }
