@@ -35,6 +35,20 @@ export const pluginsOverviewPage: DocPage = {
         ],
         ["`@usetoki/toki-auth`", "Basic / bearer / API-key auth, composed with anyOf / allOf"],
         ["`@usetoki/toki-jwt`", "Asymmetric JWT (RS/PS/ES/EdDSA) sign + verify with remote JWKS"],
+        [
+          "`@usetoki/toki-csrf`",
+          "CSRF protection — signed double-submit tokens with origin checks",
+        ],
+        [
+          "`@usetoki/toki-etag`",
+          "Automatic ETag validators and 304 Not Modified for dynamic responses",
+        ],
+        ["`@usetoki/toki-cache`", "Route response caching with TTL + Vary over memory or Redis"],
+        ["`@usetoki/toki-ip-filter`", "Allow / deny by IP and CIDR (IPv4 + IPv6)"],
+        [
+          "`@usetoki/toki-env`",
+          "Validate env vars at boot into a typed, frozen config — zero deps",
+        ],
       ],
     },
     {

@@ -1,0 +1,48 @@
+{
+  "name": "@usetoki/toki-etag",
+  "version": "0.1.0",
+  "description": "Automatic ETag validators and 304 Not Modified for dynamic toki responses.",
+  "license": "MIT",
+  "author": "Mohammad Almoghrabi <deounix@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usetoki/toki.git",
+    "directory": "plugins/etag"
+  },
+  "homepage": "https://usetoki.github.io/toki/",
+  "bugs": "https://github.com/usetoki/toki/issues",
+  "keywords": [
+    "toki",
+    "etag",
+    "304",
+    "conditional",
+    "cache",
+    "if-none-match"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 --test-force-exit __test__/*.test.ts"
+  },
+  "peerDependencies": {
+    "@usetoki/toki": ">=0.3.0"
+  },
+  "devDependencies": {
+    "@usetoki/toki": "file:../.."
+  }
+}

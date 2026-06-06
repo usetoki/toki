@@ -2,8 +2,13 @@ import type { DocCategory, DocPage } from "../../types";
 import { applicationPage } from "./application";
 import { authPluginPage } from "./plugin-auth";
 import { bodyParsingPage } from "./body-parsing";
+import { cachePluginPage } from "./plugin-cache";
 import { compressionPage } from "./compression";
 import { cookiePluginPage } from "./plugin-cookie";
+import { csrfPluginPage } from "./plugin-csrf";
+import { envPluginPage } from "./plugin-env";
+import { etagPluginPage } from "./plugin-etag";
+import { ipFilterPluginPage } from "./plugin-ip-filter";
 import { cookiesPage } from "./cookies";
 import { corsSecurityPage } from "./cors-security";
 import { decoratorsPage } from "./decorators";
@@ -79,6 +84,11 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       sessionsPluginPage,
       authPluginPage,
       jwtPluginPage,
+      csrfPluginPage,
+      etagPluginPage,
+      cachePluginPage,
+      ipFilterPluginPage,
+      envPluginPage,
     ],
   },
   {
