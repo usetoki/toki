@@ -34,10 +34,8 @@ app.get("/ctype", (req) => {
   return reply.json({ ok: true });
 });
 
-app.post(
-  "/loose",
-  { schema: { body: { type: "object", additionalProperties: false } } },
-  () => reply.text("ok"),
+app.post("/loose", { schema: { body: { type: "object", additionalProperties: false } } }, () =>
+  reply.text("ok"),
 );
 app.post(
   "/nullable",
