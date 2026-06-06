@@ -17,6 +17,10 @@ export interface MemcachedStoreOptions {
   prefix?: string;
 }
 
+// memcached reads any TTL above 30 days as an absolute unix timestamp, not a relative
+// offset — so a larger value would expire the key instantly. Cap at the threshold.
+const MAX_TTL_SECONDS = 2_592_000;
+
 /**
  * {@link Store} backed by memcached. memcached can't report a key's remaining TTL, so
  * `resetAt` (and thus `Retry-After`) is the full window length — an upper bound, not the
@@ -33,7 +37,7 @@ export class MemcachedStore implements Store {
 
   async hit(key: string, windowMs: number): Promise<StoreHit> {
     const k = this.#prefix + key;
-    const ttl = Math.max(1, Math.ceil(windowMs / 1000));
+    const ttl = Math.min(MAX_TTL_SECONDS, Math.max(1, Math.ceil(windowMs / 1000)));
     const resetAt = Date.now() + windowMs;
 
     // incr is atomic but won't create a key; a miss means the window isn't open yet

@@ -161,3 +161,18 @@ test("MemoryStore touch slides the TTL", async () => {
   assert.deepEqual(s.get("k"), { a: 1 });
   s.close();
 });
+
+test("MemcachedStore caps the TTL below the 30-day epoch threshold", async () => {
+  let seenTtl = -1;
+  const client = {
+    async get(): Promise<string | null> {
+      return null;
+    },
+    async set(_k: string, _v: string, ttl: number): Promise<void> {
+      seenTtl = ttl;
+    },
+    async delete(): Promise<void> {},
+  };
+  await new MemcachedStore({ client }).set("sid", { a: 1 }, 40 * 24 * 3600 * 1000); // 40 days
+  assert.ok(seenTtl > 0 && seenTtl <= 2_592_000, `ttl ${seenTtl} must stay a relative offset`);
+});

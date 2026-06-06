@@ -7,7 +7,10 @@ import {
   RedisStore,
   rateLimit,
   type MemcachedClient,
+  type RateLimitOptions,
   type RedisClient,
+  type Store,
+  type StoreHit,
 } from "../dist/index.js";
 
 const app = createApp({ logger: false });
@@ -39,6 +42,13 @@ class FakeRedis implements RedisClient {
       bucket.count += 1;
     }
     return [bucket.count, bucket.resetAt - now];
+  }
+}
+
+// a store that always fails, standing in for an unreachable Redis/memcached
+class DownStore implements Store {
+  async hit(): Promise<StoreHit> {
+    throw new Error("store down");
   }
 }
 
@@ -109,6 +119,35 @@ app.register(
       },
       () => reply.text("ok"),
     );
+    s.get(
+      "/down-open",
+      { preHandler: rateLimit({ max: 1, windowMs: 60_000, store: new DownStore() }) },
+      () => reply.text("ok"),
+    );
+    s.get(
+      "/down-closed",
+      {
+        preHandler: rateLimit({
+          max: 1,
+          windowMs: 60_000,
+          store: new DownStore(),
+          onStoreError: "closed",
+        }),
+      },
+      () => reply.text("ok"),
+    );
+    s.get(
+      "/msgfn",
+      {
+        // a builder that (wrongly) returns nothing — must not pass a blocked request through
+        preHandler: limiter({
+          max: 1,
+          windowMs: 60_000,
+          message: (() => undefined) as unknown as NonNullable<RateLimitOptions["message"]>,
+        }),
+      },
+      () => reply.text("ok"),
+    );
   },
   { prefix: "/r" },
 );
@@ -175,4 +214,36 @@ test("MemcachedStore drives the limiter", async () => {
   assert.equal((await app.inject({ url: "/r/memcached" })).statusCode, 200);
   assert.equal((await app.inject({ url: "/r/memcached" })).statusCode, 200);
   assert.equal((await app.inject({ url: "/r/memcached" })).statusCode, 429);
+});
+
+test("a store outage fails open by default — the request passes", async () => {
+  assert.equal((await app.inject({ url: "/r/down-open" })).statusCode, 200);
+});
+
+test("onStoreError 'closed' blocks the request when the store is down", async () => {
+  const r = await app.inject({ url: "/r/down-closed" });
+  assert.equal(r.statusCode, 429);
+  assert.ok(Number(r.headers["retry-after"]) >= 0);
+});
+
+test("a message builder returning nothing falls back to the default 429 body", async () => {
+  assert.equal((await app.inject({ url: "/r/msgfn" })).statusCode, 200);
+  const blocked = await app.inject({ url: "/r/msgfn" });
+  assert.equal(blocked.statusCode, 429);
+  assert.match(String(blocked.body), /rate limit exceeded/);
+});
+
+test("MemcachedStore caps the TTL below the 30-day epoch threshold", async () => {
+  let seenTtl = -1;
+  const client: MemcachedClient = {
+    async add(_k: string, _v: string, ttl: number): Promise<boolean> {
+      seenTtl = ttl;
+      return true;
+    },
+    async incr(): Promise<number | null> {
+      return null;
+    },
+  };
+  await new MemcachedStore({ client }).hit("k", 40 * 24 * 3600 * 1000); // 40-day window
+  assert.ok(seenTtl > 0 && seenTtl <= 2_592_000, `ttl ${seenTtl} must stay a relative offset`);
 });

@@ -13,6 +13,10 @@ export interface MemcachedStoreOptions {
   prefix?: string;
 }
 
+// memcached reads any TTL above 30 days as an absolute unix timestamp, not a relative
+// offset — so a larger value would expire the entry instantly. Cap at the threshold.
+const MAX_TTL_SECONDS = 2_592_000;
+
 /** {@link SessionStore} backed by memcached. The server expires entries at the TTL. */
 export class MemcachedStore implements SessionStore {
   readonly #client: MemcachedClient;
@@ -34,11 +38,8 @@ export class MemcachedStore implements SessionStore {
   }
 
   async set(sid: string, data: SessionData, ttlMs: number): Promise<void> {
-    await this.#client.set(
-      this.#prefix + sid,
-      JSON.stringify(data),
-      Math.max(1, Math.ceil(ttlMs / 1000)),
-    );
+    const ttlSeconds = Math.min(MAX_TTL_SECONDS, Math.max(1, Math.ceil(ttlMs / 1000)));
+    await this.#client.set(this.#prefix + sid, JSON.stringify(data), ttlSeconds);
   }
 
   async destroy(sid: string): Promise<void> {
