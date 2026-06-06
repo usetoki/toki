@@ -11,6 +11,9 @@ export interface ProxyOptions {
   headers?: Record<string, string>;
   /** Request headers to drop before forwarding. */
   stripHeaders?: string[];
+  /** Trust an inbound `X-Forwarded-For` and append to it. Off by default: the header is
+   *  overwritten with the real peer, so a client can't forge the forwarded chain. */
+  trustProxy?: boolean;
   /** Abort the upstream call after this many ms. */
   timeoutMs?: number;
   /** Injectable `fetch` (for a custom agent or tests). Default: global `fetch`. */
@@ -31,10 +34,13 @@ const BODYLESS = new Set(["GET", "HEAD", "OPTIONS"]);
  */
 export function proxy(options: ProxyOptions): Handler {
   const doFetch = options.fetch ?? fetch;
+  const upstreamUrl = new URL(options.upstream);
 
   return async (req): Promise<HandlerResult> => {
     const path = options.rewritePath ? options.rewritePath(req.path) : req.path;
-    const target = new URL(path, options.upstream);
+    const target = new URL(path, upstreamUrl);
+    // a crafted path ("//evil.com/x", "http://evil") must not redirect the proxy off the upstream
+    if (target.origin !== upstreamUrl.origin) return reply.text("Bad Gateway", 502);
     const query = req.query.toString();
     if (query) target.search = query;
 
@@ -46,7 +52,12 @@ export function proxy(options: ProxyOptions): Handler {
 
     const init: RequestInit = {
       method: req.method,
-      headers: requestHeaders(req, options.headers, options.stripHeaders),
+      headers: requestHeaders(
+        req,
+        options.headers,
+        options.stripHeaders,
+        options.trustProxy === true,
+      ),
       signal: controller.signal,
       redirect: "manual",
     };

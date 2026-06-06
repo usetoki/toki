@@ -20,6 +20,7 @@ export function requestHeaders(
   req: TokiRequest,
   add: Record<string, string> | undefined,
   strip: string[] | undefined,
+  trustProxy: boolean,
 ): Headers {
   const headers = new Headers();
   const stripSet = new Set((strip ?? []).map((h) => h.toLowerCase()));
@@ -29,8 +30,13 @@ export function requestHeaders(
     headers.set(name, value);
   }
 
+  // When this gateway is the edge, a client-supplied X-Forwarded-For is spoofed input —
+  // overwrite it with the real peer. Only extend the chain when sitting behind a proxy we trust.
   const forwardedFor = req.headers.get("x-forwarded-for");
-  headers.set("x-forwarded-for", forwardedFor ? `${forwardedFor}, ${req.ip}` : req.ip);
+  headers.set(
+    "x-forwarded-for",
+    trustProxy && forwardedFor ? `${forwardedFor}, ${req.ip}` : req.ip,
+  );
   headers.set("x-forwarded-host", req.headers.get("host") ?? "");
   headers.set("x-forwarded-proto", req.protocol);
 

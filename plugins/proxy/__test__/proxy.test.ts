@@ -27,6 +27,11 @@ app.post("/p", gateway);
 app.get("/down", proxy({ upstream: "http://up.test", fetch: unreachable }));
 app.get("/missing", proxy({ upstream: "http://up.test", fetch: notFound }));
 app.get("/rw", proxy({ upstream: "http://up.test", fetch: echo, rewritePath: () => "/rewritten" }));
+app.get(
+  "/ssrf",
+  proxy({ upstream: "http://up.test", fetch: echo, rewritePath: () => "http://evil.test/x" }),
+);
+app.get("/trust", proxy({ upstream: "http://up.test", fetch: echo, trustProxy: true }));
 
 const handle = app.listen(0, { host: "127.0.0.1" });
 after(() => handle.close());
@@ -80,4 +85,22 @@ test("the upstream status is preserved", async () => {
 test("rewritePath maps the upstream path", async () => {
   const fwd = (await app.inject({ url: "/rw" })).json() as Forwarded;
   assert.equal(fwd.url, "http://up.test/rewritten");
+});
+
+test("a path that escapes the upstream origin is refused", async () => {
+  assert.equal((await app.inject({ url: "/ssrf" })).statusCode, 502);
+});
+
+test("a client-supplied X-Forwarded-For is ignored by default", async () => {
+  const fwd = (
+    await app.inject({ url: "/g", headers: { "x-forwarded-for": "9.9.9.9" } })
+  ).json() as Forwarded;
+  assert.ok(!fwd.headers["x-forwarded-for"]!.includes("9.9.9.9")); // overwritten with the real peer
+});
+
+test("trustProxy appends to the X-Forwarded-For chain", async () => {
+  const fwd = (
+    await app.inject({ url: "/trust", headers: { "x-forwarded-for": "9.9.9.9" } })
+  ).json() as Forwarded;
+  assert.match(fwd.headers["x-forwarded-for"]!, /^9\.9\.9\.9, /);
 });
