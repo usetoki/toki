@@ -140,6 +140,74 @@ sock.send("ping", 9100, "192.168.1.5"); // IPv4`,
       tone: "note",
       text: "The `Buffer` handed to the handler is a copy of the datagram — it stays valid after the handler returns, so you can queue or store it freely.",
     },
+    { kind: "heading", id: "secure", text: "Secure datagrams" },
+    {
+      kind: "paragraph",
+      text: "Pass `secure: { key }` with a 32-byte pre-shared key and every datagram is sealed with AES-256-GCM — confidentiality and integrity per packet. Outgoing datagrams are encrypted in `socket.send`; incoming ones are authenticated and decrypted before your handler runs. A forged, tampered, truncated, or wrong-key datagram fails authentication and is dropped — `onMessage` only ever sees genuine plaintext.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "secure.ts",
+        language: "ts",
+        code: `import { randomBytes } from "node:crypto";
+import { createUdpServer } from "@usetoki/toki";
+
+const key = randomBytes(32); // 32-byte AES-256 key, shared with the peers
+
+const sock = createUdpServer((msg, rinfo, socket) => {
+  // msg is already decrypted + authenticated plaintext
+  socket.send(msg, rinfo.port, rinfo.address); // reply is sealed on the way out
+}, {
+  secure: { key, antiReplay: 100_000 }, // antiReplay drops repeated datagrams
+});
+
+sock.bind(9100, "127.0.0.1");`,
+      },
+    },
+    {
+      kind: "table",
+      headers: ["Field", "Type", "Description"],
+      rows: [
+        ["`key`", "`Uint8Array`", "The shared 32-byte AES-256 key. Both ends must hold the same key."],
+        [
+          "`antiReplay`",
+          "`number`",
+          "Optional. Remember this many recent nonces and drop a replayed datagram. Off by default.",
+        ],
+      ],
+    },
+    { kind: "heading", id: "primitives", text: "Sealing it yourself" },
+    {
+      kind: "paragraph",
+      text: "The same primitives the server uses are exported, so a client (or any peer) can seal and open datagrams with the shared key. `sealDatagram(key, plaintext)` returns the sealed `Buffer`; `openDatagram(key, sealed)` returns the plaintext `Buffer`, or `null` if it fails authentication. `ReplayWindow` tracks seen nonces if you want replay protection on the client side too.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "client.ts",
+        language: "ts",
+        code: `import { createSocket } from "node:dgram";
+import { openDatagram, sealDatagram } from "@usetoki/toki";
+
+const client = createSocket("udp4");
+
+client.on("message", (sealed) => {
+  const plain = openDatagram(key, sealed); // Buffer | null
+  if (plain === null) return; // not from someone holding the key — drop
+  console.log("reply:", plain.toString());
+  client.close();
+});
+
+const sealed = sealDatagram(key, Buffer.from("ping"));
+client.send(sealed, 9100, "127.0.0.1");`,
+      },
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "This is authenticated encryption per datagram, not DTLS. There is no handshake, no session, and no PKI — both ends just share a pre-shared key. `antiReplay` is bounded best-effort: it caps memory, so a captured datagram can eventually age out of the window and replay. Size the window to your threat model.",
+    },
     { kind: "heading", id: "shutdown", text: "Shutting down" },
     {
       kind: "paragraph",
