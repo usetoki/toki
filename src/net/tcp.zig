@@ -95,9 +95,14 @@ var read_scratch: [read_scratch_size]u8 = undefined;
 
 // TLS scratch, shared across connections — single thread, sequential dispatch, so each is
 // used and consumed within one synchronous call before the next connection touches it.
-// out: handshake flights + encrypted records + close_notify. plain: decrypted app data.
+// out: handshake flights + encrypted records + close_notify.
 var tls_out_scratch: [tlsmod.out_size]u8 = undefined;
-var tls_plain_scratch: [tlsmod.max_cleartext]u8 = undefined;
+// in: ciphertext libuv reads into (a partial carry from st.in copied to its front first), so
+// one read pulls many records at once. plain: where the whole batch decrypts before a single
+// dispatch. plain must be >= in, so decryptBatch never drops a record (plaintext < ciphertext).
+const tls_batch_size = 256 * 1024;
+var tls_in_scratch: [tls_batch_size]u8 = undefined;
+var tls_plain_scratch: [tls_batch_size]u8 = undefined;
 
 // see default_eof_poll_ms. Unref'd, so it never holds the process open by itself; an empty
 // body — its only job is to wake the loop so libuv re-polls and delivers any pending EOF.
@@ -303,10 +308,12 @@ fn armRead(conn: *Conn) void {
 fn allocBuf(handle: *anyopaque, suggested: usize, buf: *uv.Buf) callconv(.c) void {
     _ = suggested;
     const conn: *Conn = @ptrCast(@alignCast(handle));
-    // TLS reads ciphertext into the per-conn receive buffer (its unused tail, so a buffered
-    // partial record survives); plaintext reads land in the shared scratch.
+    // TLS reads ciphertext into the shared batch scratch so one read pulls many records.
+    // The per-conn partial carry (a record that arrived split across reads) is copied to the
+    // front first; libuv fills the tail. st.in_len is the carry length, read back in onRead.
     if (conn.tls) |st| {
-        const tail = st.in[st.in_len..];
+        if (st.in_len > 0) @memcpy(tls_in_scratch[0..st.in_len], st.in[0..st.in_len]);
+        const tail = tls_in_scratch[st.in_len..];
         buf.* = .{ .base = @ptrCast(tail.ptr), .len = @intCast(tail.len) };
         return;
     }
@@ -342,11 +349,11 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
         dispatch(conn.id, ev_end, undefinedValue());
         return;
     }
-    // TLS: libuv filled st.in's tail with ciphertext — drive the handshake/record machine,
-    // which dispatches ev_data with decrypted plaintext.
+    // TLS: libuv filled tls_in_scratch (carry + new bytes) with ciphertext — drive the
+    // handshake/record machine, which dispatches ev_data with decrypted plaintext.
     if (conn.tls) |st| {
-        st.in_len += @intCast(nread);
-        tlsDrive(conn, st);
+        const total = st.in_len + @as(usize, @intCast(nread));
+        tlsDrive(conn, st, tls_in_scratch[0..total]);
         return;
     }
 
@@ -361,22 +368,32 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
     dispatch(conn.id, ev_data, data_val);
 }
 
-// Drive a TLS connection: finish the handshake (its output is already ciphertext → raw write),
-// then decrypt every buffered record and hand the plaintext to JS as ev_data. Handshake
-// completion releases the held-back ev_connection. A peer close_notify surfaces as ev_end.
-fn tlsDrive(conn: *Conn, st: *tlsmod.State) void {
+// Drive a TLS connection over `cipher` (the shared ciphertext scratch: a partial carry from
+// st.in followed by this read's bytes). Finish the handshake (its output is already ciphertext
+// → raw write), then decrypt every complete record in one pass and hand the coalesced plaintext
+// to JS in a single ev_data. The partial trailing record is carried back into st.in for the
+// next read. Handshake completion releases the held-back ev_connection; a peer close_notify
+// surfaces as ev_end after the plaintext that rode in ahead of it is dispatched.
+fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
     var scope: napi.HandleScope = undefined;
     _ = napi.napi_open_handle_scope(env, &scope);
     defer _ = napi.napi_close_handle_scope(env, scope);
 
+    var cipher = cipher_in;
+
     if (!st.established) {
-        const h = tlsmod.handshake(st, &tls_out_scratch);
+        const h = tlsmod.handshakeBuf(st, cipher, &tls_out_scratch);
         if (h.send.len > 0) rawWriteAll(conn, h.send); // already ciphertext — never re-encrypt
         if (h.failed) {
             closeConn(conn);
             return;
         }
-        if (!st.established) return; // need more of the client's handshake
+        cipher = cipher[h.consumed..];
+        if (!st.established) {
+            // need more of the client's handshake — carry the partial record
+            if (!tlsmod.carry(st, cipher)) closeConn(conn);
+            return;
+        }
         if (!conn.tls_announced) {
             conn.tls_announced = true;
             dispatch(conn.id, ev_connection, remoteInfo(conn));
@@ -385,35 +402,43 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State) void {
         // fall through to drain any app records that rode in with the final handshake flight
     }
 
-    while (tlsmod.recordReady(st)) {
-        const r = tlsmod.readRecord(st, &tls_plain_scratch);
-        if (r.failed) {
-            closeConn(conn);
-            return;
-        }
-        if (r.closed) {
-            // peer's close_notify: treat as a half-close (EOF), same as a TCP FIN.
-            if (conn.read_ended) return;
-            conn.read_ended = true;
-            if (conn.reading) {
-                _ = uv.uv_read_stop(opaqueOf(&conn.handle));
-                conn.reading = false;
-            }
-            dispatch(conn.id, ev_end, undefinedValue());
-            return;
-        }
+    // One pass decrypts every complete record (plain scratch >= cipher scratch, so nothing is
+    // dropped); the trailing partial, if any, comes back as the unconsumed tail.
+    const b = tlsmod.decryptBatch(st, cipher, &tls_plain_scratch);
+    if (b.failed) {
+        closeConn(conn);
+        return;
+    }
+    if (b.plain_len > 0) {
         var data_val: napi.Value = undefined;
-        _ = napi.napi_create_buffer_copy(env, r.plain_len, &tls_plain_scratch, null, &data_val);
+        _ = napi.napi_create_buffer_copy(env, b.plain_len, &tls_plain_scratch, null, &data_val);
         dispatch(conn.id, ev_data, data_val);
         if (conn.closing) return; // a data handler may have torn the conn down
     }
+    if (b.closed) {
+        // peer's close_notify: treat as a half-close (EOF), same as a TCP FIN. The plaintext
+        // ahead of it was just dispatched above.
+        if (conn.read_ended) return;
+        conn.read_ended = true;
+        if (conn.reading) {
+            _ = uv.uv_read_stop(opaqueOf(&conn.handle));
+            conn.reading = false;
+        }
+        dispatch(conn.id, ev_end, undefinedValue());
+        return;
+    }
 
-    // A record header claiming more than the receive buffer can ever hold never completes —
-    // it would otherwise fill st.in and stall the connection (a TLS-level slowloris). The
-    // largest legal TLS record is exactly in_size, so a larger claim is a protocol violation.
+    const tail = cipher[b.consumed..];
+    if (!tlsmod.carry(st, tail)) {
+        closeConn(conn); // carry overflow: an oversized record that can't be a legal TLS frame
+        return;
+    }
+    // A record header claiming more than any legal TLS record never completes — it would
+    // otherwise sit in st.in and stall the connection (a TLS-level slowloris). The largest
+    // legal record is max_record, so a larger claim is a protocol violation.
     if (st.in_len >= 5) {
         const claimed = (@as(usize, st.in[3]) << 8) | @as(usize, st.in[4]);
-        if (claimed > tlsmod.in_size - 5) closeConn(conn);
+        if (claimed > tlsmod.max_record - 5) closeConn(conn);
     }
 }
 

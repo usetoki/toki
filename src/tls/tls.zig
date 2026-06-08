@@ -99,6 +99,41 @@ pub fn handshake(st: *State, out: []u8) Handshake {
     return .{ .send = out[0..r.send_pos], .failed = false };
 }
 
+pub const HandshakeBuf = struct {
+    send: []const u8, // ciphertext to put on the wire (slice of `out`)
+    consumed: usize, // handshake ciphertext consumed from `cipher`
+    failed: bool,
+};
+
+/// Like `handshake`, but reads from the caller's `cipher` buffer instead of st.in and reports
+/// how much it consumed — the caller owns the buffer and the carry. Sets up the record layer
+/// and st.established when the handshake completes; `cipher[consumed..]` is then application
+/// data the caller can hand to decryptBatch.
+pub fn handshakeBuf(st: *State, cipher: []const u8, out: []u8) HandshakeBuf {
+    const r = st.handshake.run(cipher, out) catch
+        return .{ .send = &.{}, .consumed = 0, .failed = true };
+    if (st.handshake.done()) {
+        const c = st.handshake.cipher() orelse return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = true };
+        st.record = lib.nonblock.Connection.init(c);
+        st.established = true;
+    }
+    return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = false };
+}
+
+/// Largest legal TLS record on the wire. A record header claiming more than this is a
+/// protocol violation that could never complete — used to drop a TLS-level slowloris.
+pub const max_record = in_size;
+
+/// Carry `bytes` (a partial trailing record, ≤ one record) into st.in for the next read.
+/// Returns false if it somehow exceeds the carry buffer — a malformed oversized record the
+/// caller should treat as a protocol violation and close.
+pub fn carry(st: *State, bytes: []const u8) bool {
+    if (bytes.len > st.in.len) return false;
+    if (bytes.len > 0) std.mem.copyForwards(u8, st.in[0..bytes.len], bytes);
+    st.in_len = bytes.len;
+    return true;
+}
+
 /// true once the next whole TLS record (header + payload) is buffered in st.in
 pub fn recordReady(st: *const State) bool {
     if (st.in_len < 5) return false;
@@ -124,6 +159,31 @@ pub fn readRecord(st: *State, plain: []u8) Read {
         return .{ .plain_len = 0, .closed = false, .failed = true };
     consume(st, d.ciphertext_pos);
     return .{ .plain_len = d.cleartext.len, .closed = d.closed, .failed = false };
+}
+
+pub const Batch = struct {
+    plain_len: usize, // decrypted bytes written to `plain`
+    consumed: usize, // ciphertext bytes of complete records consumed from `cipher`
+    closed: bool, // a close_notify alert was seen mid-batch
+    failed: bool,
+};
+
+/// Decrypt every complete record in `cipher` into `plain` in one pass. `plain` must be at
+/// least `cipher.len` (plaintext is always shorter than its ciphertext, so that guarantees
+/// every complete record fits and nothing is dropped). A partial trailing record stays in
+/// `cipher` as the unconsumed tail — the caller carries those `cipher.len - consumed` bytes
+/// to the next read. `closed` is set when the peer's close_notify rode in this batch; the
+/// records before it are still decrypted into `plain`. Does NOT touch st.in — the caller owns
+/// the ciphertext buffer and the partial carry.
+pub fn decryptBatch(st: *State, cipher: []const u8, plain: []u8) Batch {
+    const d = st.record.decrypt(cipher, plain) catch
+        return .{ .plain_len = 0, .consumed = 0, .closed = false, .failed = true };
+    return .{
+        .plain_len = d.cleartext.len,
+        .consumed = cipher.len - d.unused_ciphertext.len,
+        .closed = d.closed,
+        .failed = false,
+    };
 }
 
 pub const Write = struct {
