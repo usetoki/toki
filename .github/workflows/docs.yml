@@ -13,6 +13,10 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  # The Pages actions still ship Node 20 bundles; run them on Node 24 (matches release.yml).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 # Only one Pages deploy at a time; let a newer run supersede an in-flight one.
 concurrency:
   group: pages
@@ -25,8 +29,8 @@ jobs:
       run:
         working-directory: docs
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
