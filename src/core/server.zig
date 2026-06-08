@@ -66,7 +66,8 @@ fn setupTls(env: napi.Env, options: napi.Value) bool {
         _ = napi.napi_throw_error(env, null, "tls: `key` is required alongside `cert`");
         return false;
     };
-    tlsmod.init(alloc, cert, key) catch |e| {
+    // HTTPS keeps today's behavior: no client-certificate auth (client_auth = null).
+    tlsmod.init(alloc, cert, key, null) catch |e| {
         var msg: [128]u8 = undefined;
         const text = std.fmt.bufPrintZ(&msg, "tls: {s}", .{@errorName(e)}) catch "tls: setup failed";
         _ = napi.napi_throw_error(env, null, text.ptr);

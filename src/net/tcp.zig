@@ -114,6 +114,15 @@ fn opaqueOf(p: anytype) *anyopaque {
     return @ptrCast(p);
 }
 
+// current wall-clock time in Unix seconds (for TLS client-cert validity checks). libuv's
+// uv_gettimeofday is the cross-platform real clock already linked in; 0 on the rare failure
+// makes a client_auth handshake reject in-date certs rather than accept stale ones.
+fn wallClockSeconds() i64 {
+    var tv: uv.TimeVal64 = undefined;
+    if (uv.uv_gettimeofday(&tv) != 0) return 0;
+    return tv.tv_sec;
+}
+
 fn nextId() u32 {
     const id = next_id;
     next_id +%= 1;
@@ -207,7 +216,16 @@ fn setupTls(e: napi.Env, options: napi.Value) bool {
         _ = napi.napi_throw_error(e, null, "tls: `key` is required alongside `cert`");
         return false;
     };
-    tlsmod.init(alloc, cert, key) catch |err| {
+
+    // optional mutual TLS: a client-CA bundle turns on a CertificateRequest. `require`
+    // makes a missing/untrusted client cert fail the handshake; without it the conn is
+    // allowed and `authorized` on the connection event reflects whether one was presented.
+    var client_auth: ?tlsmod.ClientAuthConfig = null;
+    if (readBufferProp(e, options, "tlsClientCa")) |ca| {
+        client_auth = .{ .ca_pem = ca, .require = optBool(e, options, "tlsRequireClient") };
+    }
+
+    tlsmod.init(alloc, cert, key, client_auth) catch |err| {
         var msg: [128]u8 = undefined;
         const text = std.fmt.bufPrintZ(&msg, "tls: {s}", .{@errorName(err)}) catch "tls: setup failed";
         _ = napi.napi_throw_error(e, null, text.ptr);
@@ -260,7 +278,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         return;
     };
     if (tls_enabled) {
-        conn.tls = tlsmod.newState(alloc) orelse {
+        conn.tls = tlsmod.newState(alloc, wallClockSeconds()) orelse {
             closeConn(conn);
             return;
         };
@@ -296,6 +314,13 @@ fn remoteInfo(conn: *Conn) napi.Value {
     var port_val: napi.Value = undefined;
     _ = napi.napi_create_uint32(env, conn.remote_port, &port_val);
     _ = napi.napi_set_named_property(env, obj, "port", port_val);
+    // on a TLS conn, report whether the peer presented a valid client cert. The conn event
+    // for a TLS conn is dispatched post-handshake (tlsDrive), so st.authorized is settled.
+    if (conn.tls) |st| {
+        var auth_val: napi.Value = undefined;
+        _ = napi.napi_get_boolean(env, st.authorized, &auth_val);
+        _ = napi.napi_set_named_property(env, obj, "authorized", auth_val);
+    }
     return obj;
 }
 

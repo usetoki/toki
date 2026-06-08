@@ -25,18 +25,51 @@ var g_auth: lib.config.CertKeyPair = undefined;
 var g_csprng: std.Random.DefaultCsprng = undefined;
 const g_alpn: []const []const u8 = &.{"http/1.1"};
 
+// Optional mutual-TLS: when a client-CA bundle is supplied, the server sends a
+// CertificateRequest and verifies the client cert against this bundle. Parsed once at
+// init and reused for every handshake. null = no client auth (today's behavior).
+// Type is the lib's `Options.client_auth` field (?ClientAuth) — referenced via @FieldType
+// so we don't depend on the lib re-exporting ClientAuth through `config`.
+const ClientAuth = @typeInfo(@FieldType(lib.config.Server, "client_auth")).optional.child;
+var g_client_auth: ?ClientAuth = null;
+
 pub fn enabled() bool {
     return g_enabled;
 }
 
+/// Optional client-certificate authentication, supplied to `init`.
+/// `ca_pem` is the trusted CA bundle the client cert is verified against; `require`
+/// makes a missing/invalid client cert fail the handshake (.require vs .request).
+pub const ClientAuthConfig = struct {
+    ca_pem: []const u8,
+    require: bool,
+};
+
 /// parse the PEM cert chain + key and build the server config. once, at listen.
-pub fn init(gpa: std.mem.Allocator, cert_pem: []const u8, key_pem: []const u8) !void {
+/// `client_auth` enables mutual TLS when present; null keeps the plain server behavior.
+pub fn init(
+    gpa: std.mem.Allocator,
+    cert_pem: []const u8,
+    key_pem: []const u8,
+    client_auth: ?ClientAuthConfig,
+) !void {
     // a transient blocking Io just for PEM parsing + the rng seed (works single-threaded)
     var threaded = std.Io.Threaded.init(gpa, .{});
     const io = threaded.io();
 
     g_auth = try lib.config.CertKeyPair.fromSlice(gpa, io, cert_pem, key_pem);
     errdefer g_auth.deinit(gpa);
+
+    // free a CA bundle from a prior listen before replacing it (re-listen in one process)
+    if (g_client_auth) |*prev| prev.root_ca.deinit(gpa);
+    g_client_auth = null;
+    if (client_auth) |ca| {
+        const bundle = try lib.config.cert.fromSlice(gpa, io, ca.ca_pem);
+        g_client_auth = .{
+            .root_ca = bundle,
+            .auth_type = if (ca.require) .require else .request,
+        };
+    }
 
     var seed: [std.Random.DefaultCsprng.secret_seed_length]u8 = undefined;
     try io.randomSecure(&seed);
@@ -45,13 +78,17 @@ pub fn init(gpa: std.mem.Allocator, cert_pem: []const u8, key_pem: []const u8) !
     g_enabled = true;
 }
 
-fn serverOptions() lib.config.Server {
+fn serverOptions(now_sec: i64) lib.config.Server {
     return .{
         .rng = g_csprng.random(),
         .auth = &g_auth,
+        .client_auth = g_client_auth,
         .cipher_suites = lib.config.cipher_suites.secure,
         .alpn_protocols = g_alpn,
-        .now = .zero,
+        // real wall-clock time: client_auth verifies the client cert's validity window
+        // against this, so .zero (1970) would reject every in-date cert. The caller passes
+        // the current time at accept. Harmless without client_auth (we sign, not verify).
+        .now = .fromNanoseconds(@as(i96, now_sec) * std.time.ns_per_s),
     };
 }
 
@@ -62,15 +99,21 @@ pub const State = struct {
     record: lib.nonblock.Connection = undefined, // encrypt/decrypt, after established
     established: bool = false,
     sent_close: bool = false,
+    // true once established if the peer presented a client cert that verified against the
+    // configured CA. Meaningful only when client_auth is on; always false otherwise. With
+    // .require an unauthorized peer never reaches `established`, so this is true there.
+    authorized: bool = false,
     in: [in_size]u8 = undefined, // ciphertext from the socket, not yet consumed
     in_len: usize = 0,
 };
 
 var pool: std.heap.MemoryPool(State) = .empty;
 
-pub fn newState(gpa: std.mem.Allocator) ?*State {
+/// `now_sec` is the current wall-clock time in Unix seconds — used to verify a client
+/// cert's validity window when client_auth is on (ignored otherwise).
+pub fn newState(gpa: std.mem.Allocator, now_sec: i64) ?*State {
     const st = pool.create(gpa) catch return null;
-    st.* = .{ .handshake = lib.nonblock.Server.init(serverOptions()) };
+    st.* = .{ .handshake = lib.nonblock.Server.init(serverOptions(now_sec)) };
     return st;
 }
 
@@ -94,6 +137,7 @@ pub fn handshake(st: *State, out: []u8) Handshake {
     if (st.handshake.done()) {
         const c = st.handshake.cipher() orelse return .{ .send = out[0..r.send_pos], .failed = true };
         st.record = lib.nonblock.Connection.init(c);
+        st.authorized = st.handshake.clientCertVerified();
         st.established = true;
     }
     return .{ .send = out[0..r.send_pos], .failed = false };
@@ -115,6 +159,7 @@ pub fn handshakeBuf(st: *State, cipher: []const u8, out: []u8) HandshakeBuf {
     if (st.handshake.done()) {
         const c = st.handshake.cipher() orelse return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = true };
         st.record = lib.nonblock.Connection.init(c);
+        st.authorized = st.handshake.clientCertVerified();
         st.established = true;
     }
     return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = false };

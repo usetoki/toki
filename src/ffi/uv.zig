@@ -64,6 +64,10 @@ pub extern fn uv_tcp_getpeername(handle: *anyopaque, name: *anyopaque, namelen: 
 pub extern fn uv_tcp_getsockname(handle: *anyopaque, name: *anyopaque, namelen: *c_int) c_int;
 pub extern fn uv_ip_name(addr: *const anyopaque, dst: [*c]u8, size: usize) c_int;
 pub extern fn uv_now(loop: *anyopaque) u64;
+// wall-clock time (uv_timeval64_t). The only cross-platform real-clock source already
+// linked into the addon — std.time lost its wall-clock helpers (time now flows via Io).
+pub const TimeVal64 = extern struct { tv_sec: i64, tv_usec: i32 };
+pub extern fn uv_gettimeofday(tv: *TimeVal64) c_int;
 pub extern fn uv_timer_init(loop: *anyopaque, handle: *anyopaque) c_int;
 pub extern fn uv_timer_start(handle: *anyopaque, cb: TimerCb, timeout: u64, repeat: u64) c_int;
 pub extern fn uv_listen(stream: *anyopaque, backlog: c_int, cb: ConnectionCb) c_int;

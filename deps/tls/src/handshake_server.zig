@@ -88,6 +88,9 @@ pub const Handshake = struct {
     transcript: Transcript = .{},
     /// ALPN protocol selected during handshake.
     alpn_protocol: ?[]const u8 = null,
+    /// Set once the client presented a certificate that verified against root_ca.
+    /// Always false when client_auth is null or the client sent an empty cert (.request mode).
+    client_cert_verified: bool = false,
 
     const Self = @This();
 
@@ -298,6 +301,7 @@ pub const Handshake = struct {
                                     error.TlsUnknownSignatureScheme => error.TlsIllegalParameter,
                                     else => error.TlsDecryptError,
                                 };
+                                h.client_cert_verified = true;
                                 handshake_state = .finished;
                             },
                             .finished => {
@@ -713,5 +717,12 @@ pub const NonBlock = struct {
     /// ALPN protocol negotiated during handshake, null if none.
     pub fn alpnProtocol(self: Self) ?[]const u8 {
         return self.inner.alpn_protocol;
+    }
+
+    /// True when the client presented a certificate that verified against the
+    /// configured root_ca. Always false without client_auth, or in .request mode
+    /// when the client sent no certificate.
+    pub fn clientCertVerified(self: Self) bool {
+        return self.inner.client_cert_verified;
     }
 };

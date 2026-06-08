@@ -70,9 +70,13 @@ pub fn onConnection(server: *anyopaque, status: c_int) callconv(.c) void {
         _ = uv.uv_tcp_nodelay(eng.opaqueOf(&conn.tcp), 1);
         recordPeerIp(conn);
     }
-    // HTTPS: every connection starts a TLS handshake before any HTTP is seen.
+    // HTTPS: every connection starts a TLS handshake before any HTTP is seen. HTTPS never
+    // enables client_auth, so now_sec is unused here, but pass real time anyway (correct if
+    // mTLS is ever added to this path).
     if (tlsmod.enabled()) {
-        conn.tls = tlsmod.newState(alloc) orelse {
+        var tv: uv.TimeVal64 = undefined;
+        const now_sec: i64 = if (uv.uv_gettimeofday(&tv) == 0) tv.tv_sec else 0;
+        conn.tls = tlsmod.newState(alloc, now_sec) orelse {
             closeConn(eng.opaqueOf(&conn.tcp));
             return;
         };

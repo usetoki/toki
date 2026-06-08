@@ -7,6 +7,10 @@ export type { RemoteInfo, TcpOptions } from "../native/native.js";
 export interface TcpSocket {
   readonly remoteAddress: string;
   readonly remotePort: number;
+  /** TLS only: `true` when the peer presented a client certificate that verified against the
+   *  server's `tls.ca`. `false` on a plaintext connection, or a TLS connection where no valid
+   *  client cert was presented (only reachable without `rejectUnauthorized`). */
+  readonly authorized: boolean;
   /** Send bytes. Returns `false` when the send buffer is backed up — stop writing and
    *  resume on `drain`. A string is encoded as UTF-8. */
   write(data: Uint8Array | string): boolean;
@@ -28,8 +32,23 @@ export interface TcpServerOptions extends TcpOptions {
    * Terminate TLS on the raw socket (no reverse proxy). PEM cert chain (leaf first) +
    * private key — RSA or EC. AEAD suites only, TLS 1.2 + 1.3. The handler runs once the
    * handshake completes, so the first `write` is already over an established session.
+   *
+   * Mutual TLS (client certificate authentication): set `requestCert` and a `ca` bundle to
+   * ask the client for a certificate and verify it against `ca`. With `rejectUnauthorized`
+   * a missing or untrusted client cert fails the handshake (the connection never reaches the
+   * handler); without it the connection is allowed and {@link TcpSocket.authorized} reports
+   * whether a valid cert was presented.
    */
-  tls?: { cert: string | Uint8Array; key: string | Uint8Array };
+  tls?: {
+    cert: string | Uint8Array;
+    key: string | Uint8Array;
+    /** request a client certificate during the handshake (enables mTLS) */
+    requestCert?: boolean;
+    /** with `requestCert`, reject a client whose cert is missing or untrusted */
+    rejectUnauthorized?: boolean;
+    /** PEM CA bundle the client certificate is verified against */
+    ca?: string | Uint8Array;
+  };
 }
 
 /** The listening TCP server returned by {@link createTcpServer}. */
@@ -60,6 +79,7 @@ function toPem(value: string | Uint8Array): Buffer {
 class Socket implements TcpSocket {
   readonly remoteAddress: string;
   readonly remotePort: number;
+  readonly authorized: boolean;
   readonly #id: number;
   readonly #allowHalfOpen: boolean;
   #ended = false; // we've ended our write side
@@ -75,6 +95,8 @@ class Socket implements TcpSocket {
     this.#allowHalfOpen = allowHalfOpen;
     this.remoteAddress = remote.address;
     this.remotePort = remote.port;
+    // native sets `authorized` on the TLS connection event; absent on plaintext → false.
+    this.authorized = remote.authorized ?? false;
   }
 
   write(data: Uint8Array | string): boolean {
@@ -155,10 +177,21 @@ export function createTcpServer(
   const allowHalfOpen = options.allowHalfOpen ?? false;
   const sockets = new Map<number, Socket>();
 
-  // flatten the tls option into the cert/key buffers native reads (mirrors app.listen)
-  const nativeOptions: TcpServerOptions = options.tls
-    ? { ...options, tlsCert: toPem(options.tls.cert), tlsKey: toPem(options.tls.key) }
-    : options;
+  // flatten the tls option into the cert/key buffers native reads (mirrors app.listen).
+  // mTLS: a `ca` bundle + `requestCert` turns on client-cert auth; `rejectUnauthorized`
+  // makes it mandatory (.require) rather than just requested (.request).
+  let nativeOptions: TcpServerOptions = options;
+  if (options.tls) {
+    nativeOptions = {
+      ...options,
+      tlsCert: toPem(options.tls.cert),
+      tlsKey: toPem(options.tls.key),
+    };
+    if (options.tls.requestCert && options.tls.ca !== undefined) {
+      nativeOptions.tlsClientCa = toPem(options.tls.ca);
+      nativeOptions.tlsRequireClient = options.tls.rejectUnauthorized === true;
+    }
+  }
 
   const dispatch = (id: number, event: Ev, arg: RemoteInfo | Uint8Array | undefined): void => {
     switch (event) {

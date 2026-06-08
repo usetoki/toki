@@ -163,6 +163,9 @@ export type UdpDispatch = (data: Uint8Array, rinfo: RemoteInfo) => void;
 export interface RemoteInfo {
   readonly address: string;
   readonly port: number;
+  /** TLS connections only: whether the peer presented a client cert that verified against
+   *  the server's `ca`. Absent on plaintext connections. */
+  readonly authorized?: boolean;
 }
 
 /** {@link Native.tcpListen} tuning */
@@ -183,6 +186,11 @@ export interface TcpOptions {
   tlsCert?: Uint8Array;
   /** @internal flattened key PEM from the TCP server's `tls` option */
   tlsKey?: Uint8Array;
+  /** @internal flattened client-CA PEM from the TCP server's `tls.ca` — enables mTLS */
+  tlsClientCa?: Uint8Array;
+  /** @internal `tls.requestCert && tls.rejectUnauthorized`: fail the handshake on a
+   *  missing/untrusted client cert (.require) rather than just request one (.request) */
+  tlsRequireClient?: boolean;
 }
 
 /** {@link Native.udpBind} tuning */

@@ -53,6 +53,7 @@ pub extern fn napi_create_int32(env: Env, value: i32, result: *Value) c_int;
 pub extern fn napi_get_named_property(env: Env, object: Value, utf8name: [*c]const u8, result: *Value) c_int;
 pub extern fn napi_get_value_uint32(env: Env, value: Value, result: *u32) c_int;
 pub extern fn napi_get_value_bool(env: Env, value: Value, result: *bool) c_int;
+pub extern fn napi_get_boolean(env: Env, value: bool, result: *Value) c_int;
 pub extern fn napi_get_value_double(env: Env, value: Value, result: *f64) c_int;
 pub extern fn napi_typeof(env: Env, value: Value, result: *c_int) c_int;
 pub extern fn napi_get_null(env: Env, result: *Value) c_int;
