@@ -1,8 +1,8 @@
 // run: node examples/tls.ts
 //
 // Direct HTTPS termination — no reverse proxy. Pass a PEM cert chain + private key
-// (RSA or EC) as `tls` to `listen`, and toki terminates TLS 1.2/1.3 in the native
-// engine. Here we mint a throwaway self-signed cert with openssl to keep the example
+// (RSA or EC) as `tls` to `listen`, and toki terminates TLS 1.3 in the native engine.
+// Here we mint a throwaway self-signed cert with openssl to keep the example
 // self-contained; in production you'd load real cert/key files.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -69,7 +69,7 @@ function get(path: string): Promise<{ status: number; body: string; tls: string 
 const root = await get("/");
 assert.equal(root.status, 200);
 assert.equal(root.body, "hello over https");
-assert.ok(root.tls === "TLSv1.3" || root.tls === "TLSv1.2");
+assert.equal(root.tls, "TLSv1.3"); // toki's server speaks TLS 1.3 only
 console.log(`GET / over ${root.tls} -> ${root.body}`);
 
 const me = await get("/me");

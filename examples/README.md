@@ -30,3 +30,19 @@ node examples/routing.ts
 | `decorators.ts` | `decorate` (app) + `decorateRequest` (per request) |
 | `config-and-shutdown.ts` | listen options + graceful `close()` |
 | `reply-builders.ts` | `reply.text/html/json/empty/redirect/bytes` + req introspection |
+
+## Networking
+
+Raw TCP/UDP, TLS, and the secure-UDP layer. The TLS examples mint throwaway certs with
+`openssl` and skip cleanly if it isn't installed.
+
+| File | Shows |
+|---|---|
+| `tcp.ts` | `createTcpServer` echo, backpressure (`write` → `false` / `drain`), half-close |
+| `tcp-tls.ts` | TLS 1.3 termination on a raw socket (`tls: { cert, key }`) |
+| `tcp-mtls.ts` | mutual TLS — `requestCert` + `ca` + `rejectUnauthorized`, `socket.authorized` |
+| `tls.ts` | direct HTTPS (`app.listen(0, { tls: { cert, key } })`), TLS 1.3 only |
+| `udp.ts` | `createUdpServer` datagram echo |
+| `udp-secure.ts` | per-datagram AES-256-GCM under a pre-shared key (`secure: { key }`) |
+| `udp-noise.ts` | Noise-XX session — X25519 mutual auth, forward secrecy, replay protection |
+| `unix-socket.ts` | listening on a unix domain socket |
