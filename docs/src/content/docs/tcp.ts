@@ -174,7 +174,7 @@ createTcpServer((socket) => {
     { kind: "heading", id: "tls", text: "TLS" },
     {
       kind: "paragraph",
-      text: "Pass `tls: { cert, key }` and the listener terminates real TLS on the raw socket — the same native engine that powers HTTPS, just on your own protocol. The handshake runs in Zig; your handler is called only once it completes, so the connection is already an established session by your first `write`. You always work in plaintext — the bytes you read are decrypted, the bytes you write are encrypted on the wire.",
+      text: "Pass `tls: { cert, key }` and the listener terminates real TLS 1.3 on the raw socket — the same native engine that powers HTTPS, just on your own protocol. There is no reverse proxy in front: the handshake (ECDHE key exchange, an AEAD cipher) runs in Zig. Your handler is called only once the handshake completes, so the connection is already an established session by your first `write`. You always work in plaintext — the bytes you read are decrypted, the bytes you write are encrypted on the wire.",
     },
     {
       kind: "code",
@@ -189,8 +189,8 @@ const server = createTcpServer((socket) => {
   socket.on("data", (chunk) => socket.write(chunk)); // echo
 }, {
   tls: {
-    cert: readFileSync("cert.pem"), // leaf first, then any intermediates
-    key: readFileSync("key.pem"),
+    cert: readFileSync("cert.pem"), // PEM chain, leaf first, then any intermediates
+    key: readFileSync("key.pem"),   // RSA or EC private key
   },
 });
 
@@ -200,7 +200,7 @@ console.log("tls echo on", port);`,
     },
     {
       kind: "paragraph",
-      text: "`cert` and `key` accept a PEM string or raw bytes (`Buffer`/`Uint8Array`). A client connects with `node:tls` exactly as it would to any TLS server:",
+      text: "`cert` and `key` accept a PEM string or raw bytes (`Buffer`/`Uint8Array`). The cert is a chain with the leaf first; the key may be RSA or EC. A client connects with `node:tls` exactly as it would to any TLS server:",
     },
     {
       kind: "code",
@@ -222,9 +222,139 @@ socket.on("data", (chunk) => {
       },
     },
     {
+      kind: "heading", id: "tls-options", text: "The tls option",
+    },
+    {
+      kind: "paragraph",
+      text: "`cert` and `key` are all you need for ordinary server-authenticated TLS. The other three fields turn on mutual TLS (client-certificate auth).",
+    },
+    {
+      kind: "table",
+      headers: ["Field", "Type", "Default", "Description"],
+      rows: [
+        ["`cert`", "`string | Uint8Array`", "—", "PEM certificate chain, leaf first. Required."],
+        ["`key`", "`string | Uint8Array`", "—", "PEM private key for the leaf cert — RSA or EC. Required."],
+        ["`requestCert`", "`boolean`", "`false`", "Ask the client for a certificate during the handshake (turns on mTLS). Requires `ca`."],
+        ["`ca`", "`string | Uint8Array`", "—", "PEM CA bundle the client certificate is verified against. Mandatory once `requestCert` is set."],
+        ["`rejectUnauthorized`", "`boolean`", "`false`", "With `requestCert`, fail the handshake when the client cert is missing or untrusted. Off: allow the connection and report the result on `socket.authorized`."],
+      ],
+    },
+    {
       kind: "callout",
       tone: "note",
-      text: "This is TLS termination directly on the raw socket — no reverse proxy in front. It negotiates TLS 1.3 and TLS 1.2 with AEAD suites only (AES-GCM, ChaCha20-Poly1305) and ECDHE for forward secrecy; the server key may be RSA or EC.",
+      text: "This is TLS termination directly on the raw socket — no reverse proxy in front. It negotiates TLS 1.3 only, AEAD suites only, with ECDHE for forward secrecy; the server key may be RSA or EC.",
+    },
+    { kind: "heading", id: "mtls", text: "Mutual TLS (client certificates)" },
+    {
+      kind: "paragraph",
+      text: "Set `requestCert: true` and a `ca` bundle, and the server asks each client for a certificate and verifies it against `ca`. Add `rejectUnauthorized: true` and a client that presents no cert — or one not signed by your CA — fails the handshake and never reaches your handler. Leave it off and the connection is allowed either way; `socket.authorized` tells you whether a valid client cert was presented.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "mtls-server.ts",
+        language: "ts",
+        code: `import { readFileSync } from "node:fs";
+import { createTcpServer } from "@usetoki/toki";
+
+const server = createTcpServer((socket) => {
+  // with rejectUnauthorized we only get here on a verified client cert
+  console.log("client authorized:", socket.authorized); // true
+  socket.write("welcome\\n");
+}, {
+  tls: {
+    cert: readFileSync("server-cert.pem"),
+    key: readFileSync("server-key.pem"),
+    requestCert: true,                       // ask the client for a cert
+    ca: readFileSync("client-ca.pem"),       // verify it against this CA
+    rejectUnauthorized: true,                // reject anyone unverified
+  },
+});
+
+server.listen(8443, "127.0.0.1");`,
+      },
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "`requestCert` without `ca` throws — there is nothing to verify the client cert against. Always pass the CA bundle that signs your client certs.",
+    },
+    {
+      kind: "paragraph",
+      text: "The client side presents its certificate with `node:tls` by passing `cert` and `key` to `connect`:",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "mtls-client.ts",
+        language: "ts",
+        code: `import { readFileSync } from "node:fs";
+import { connect } from "node:tls";
+
+const socket = connect(8443, "127.0.0.1", {
+  ca: readFileSync("server-cert.pem"),  // trust the server
+  cert: readFileSync("client-cert.pem"), // present our own cert
+  key: readFileSync("client-key.pem"),
+}, () => {
+  console.log("authorized by server:", socket.authorized);
+  socket.write("hi\\n");
+});
+socket.on("data", (chunk) => {
+  console.log(chunk.toString()); // "welcome"
+  socket.end();
+});`,
+      },
+    },
+    {
+      kind: "paragraph",
+      text: "Without `rejectUnauthorized`, the handshake always succeeds and you decide what to do with an unauthenticated peer. `socket.authorized` is `true` only when a client cert verified against your `ca` — gate sensitive work on it.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "mtls-soft.ts",
+        language: "ts",
+        code: `createTcpServer((socket) => {
+  if (!socket.authorized) {
+    socket.end("anonymous access denied\\n"); // no valid client cert
+    return;
+  }
+  socket.write("ok\\n");
+}, {
+  tls: {
+    cert: readFileSync("server-cert.pem"),
+    key: readFileSync("server-key.pem"),
+    requestCert: true,
+    ca: readFileSync("client-ca.pem"),
+    // rejectUnauthorized omitted: let everyone in, then check socket.authorized
+  },
+}).listen(8444, "127.0.0.1");`,
+      },
+    },
+    { kind: "heading", id: "tls-perf", text: "Performance" },
+    {
+      kind: "paragraph",
+      text: "Reads are TLS-record-batched: the engine decrypts every record available from one libuv read and hands them to your handler as a single `data` dispatch, rather than one crossing into JS per record. Throughput is around 1.4 GB/s on a release build and is cipher-bound — the AEAD cipher, not toki, is the ceiling.",
+    },
+    {
+      kind: "callout",
+      tone: "tip",
+      text: "Build in release for the TLS fast path. A Debug build runs the cipher far slower; the 1.4 GB/s figure is a release-mode number.",
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "TLS 1.3 only. A client that offers nothing newer than TLS 1.2 is rejected at the handshake — there is no 1.2 fallback. Make sure your clients speak 1.3 (every current `node:tls`, browser, and curl does).",
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "No session resumption yet — no TLS tickets, no session IDs. Every connection runs a full handshake, including the asymmetric key exchange. Fine for long-lived connections; for very short, very frequent ones the per-connection handshake cost is the thing to watch.",
+    },
+    {
+      kind: "callout",
+      tone: "note",
+      text: "Need HTTP over TLS rather than a raw protocol? The HTTPS page covers `app.listen({ tls })`, which runs the same TLS 1.3 engine for the HTTP server. mTLS, though, lives only here on the raw TCP server.",
     },
     { kind: "heading", id: "shutdown", text: "Shutting down" },
     {
