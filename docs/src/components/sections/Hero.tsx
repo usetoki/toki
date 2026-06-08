@@ -19,8 +19,8 @@ export function Hero(): ReactElement {
             A <span className={styles.grad}>blazing-fast</span> HTTP framework for Node.js
           </h1>
           <p className={styles.lede}>
-            A clean, fully-typed TypeScript API on top of a native engine written in Zig. Parsing,
-            routing, static files, and compression run in native code — your handlers stay in
+            A clean, fully-typed TypeScript API on top of a native engine written in Zig. HTTP,
+            WebSockets, raw TCP/UDP, and TLS 1.3 run in native code — your handlers stay in
             JavaScript.
           </p>
           <div className={styles.install}>

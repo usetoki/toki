@@ -8,16 +8,34 @@ export const FEATURES: readonly Feature[] = [
       "HTTP/1.1 parsing, routing, and I/O run in Zig on Node's own libuv loop — handlers are called synchronously, with no thread hop.",
   },
   {
-    icon: "🧩",
-    title: "Fully typed API",
+    icon: "🔌",
+    title: "Raw TCP",
     description:
-      "A clean, strict TypeScript surface: routes, hooks, middleware, plugins, and schemas, with real editor autocompletion and no any.",
+      "createTcpServer opens a libuv-backed listener for your own wire protocol — pooled connections, real backpressure, half-close, low memory.",
+  },
+  {
+    icon: "🔐",
+    title: "TLS 1.3 & mTLS",
+    description:
+      "Native TLS 1.3 termination (ECDHE + AEAD) for HTTPS and raw TCP — no reverse proxy — with mutual-TLS client certificates on raw sockets.",
+  },
+  {
+    icon: "📡",
+    title: "UDP, secured",
+    description:
+      "createUdpServer for datagrams, plus per-packet AES-256-GCM under a shared key or a Noise-XX session with mutual auth and forward secrecy.",
   },
   {
     icon: "🔭",
     title: "WebSockets",
     description:
       "Full RFC 6455 in native code: framing, masking, fragmentation, ping/pong, close codes, subprotocols, and permessage-deflate.",
+  },
+  {
+    icon: "🧩",
+    title: "Fully typed API",
+    description:
+      "A clean, strict TypeScript surface: routes, hooks, middleware, plugins, and schemas, with real editor autocompletion and no any.",
   },
   {
     icon: "🗜️",
