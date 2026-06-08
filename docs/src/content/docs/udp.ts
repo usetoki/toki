@@ -208,6 +208,132 @@ client.send(sealed, 9100, "127.0.0.1");`,
       tone: "warning",
       text: "This is authenticated encryption per datagram, not DTLS. There is no handshake, no session, and no PKI — both ends just share a pre-shared key. `antiReplay` is bounded best-effort: it caps memory, so a captured datagram can eventually age out of the window and replay. Size the window to your threat model.",
     },
+    { kind: "heading", id: "noise", text: "Encrypted sessions (Noise)" },
+    {
+      kind: "paragraph",
+      text: "The per-datagram `secure` mode above seals each packet under a shared key. `createSecureUdpServer` + `connectSecureUdp` are a step up: they run a Noise XX handshake (X25519 ECDH derives a fresh per-session AES-256-GCM key, both ends prove their static identity, and the ephemeral keys give forward secrecy), then exchange replay-protected encrypted datagrams over the resulting session. This is the WireGuard-style way to secure UDP — a mutually authenticated session per peer rather than a standing pre-shared key.",
+    },
+    {
+      kind: "paragraph",
+      text: "Each peer has a long-term X25519 static identity, a `KeyPair` from `generateKeyPair()` with `{ privateKey, publicKey, publicRaw }`. Persist it; `publicRaw` is the 32-byte public key you hand to the other side out-of-band. After the handshake, each end learns the peer's authenticated static key as `remoteStatic` — compare it against the key you expected to know who you're really talking to.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "noise-server.ts",
+        language: "ts",
+        code: `import { createSecureUdpServer, generateKeyPair } from "@usetoki/toki";
+
+const serverKey = generateKeyPair(); // persist this; share serverKey.publicRaw with clients
+
+const srv = createSecureUdpServer({
+  staticKey: serverKey,
+  onSession: (s) => {
+    // s.remoteStatic is the peer's authenticated static public key — authorize it here
+    console.log("peer", s.remoteStatic.toString("hex"));
+  },
+  onMessage: (msg, s) => {
+    s.send("pong:" + msg.toString()); // encrypted reply on this session
+  },
+});
+
+const { port } = srv.bind(0, "127.0.0.1"); // one udp socket per process
+console.log("listening on", port, "pub", serverKey.publicRaw.toString("hex"));`,
+      },
+    },
+    {
+      kind: "paragraph",
+      text: "A client runs `connectSecureUdp`, which performs the handshake and resolves a live session. It uses `node:dgram` internally, so it can run in the same process as a server without tripping the native single-socket rule. Authenticate the server by checking `session.remoteStatic` equals the `publicRaw` you trust before you send anything sensitive.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "noise-client.ts",
+        language: "ts",
+        code: `import { connectSecureUdp, generateKeyPair } from "@usetoki/toki";
+
+const clientKey = generateKeyPair();
+const session = await connectSecureUdp({ staticKey: clientKey }, port, "127.0.0.1");
+
+// authenticate the server: its static key must be the one you expected
+if (!session.remoteStatic.equals(serverKey.publicRaw)) {
+  session.close();
+  throw new Error("unexpected server identity");
+}
+
+session.on("message", (m) => console.log("reply:", m.toString()));
+session.send("ping");`,
+      },
+    },
+    {
+      kind: "callout",
+      tone: "tip",
+      text: "One handshake buys you three things for the life of the session: mutual authentication (each end proves its static identity), forward secrecy (the per-session key comes from ephemeral DH, so a later key compromise can't decrypt captured traffic), and replay protection on every transport datagram.",
+    },
+    {
+      kind: "heading",
+      id: "noise-options",
+      text: "Session options",
+    },
+    {
+      kind: "paragraph",
+      text: "`createSecureUdpServer(options)`:",
+    },
+    {
+      kind: "table",
+      headers: ["Option", "Type", "Default", "Description"],
+      rows: [
+        ["`staticKey`", "`KeyPair`", "—", "The server's long-term X25519 identity. Clients authenticate this key."],
+        ["`onSession`", "`(s) => void`", "—", "Optional. Called when a peer finishes the handshake. Inspect `s.remoteStatic` to authorize it."],
+        ["`onMessage`", "`(msg, s) => void`", "—", "Called with each decrypted, authenticated datagram and its session. Reply with `s.send(...)`."],
+        ["`maxPending`", "`number`", "`1024`", "Cap on half-finished handshakes held at once — bounds half-open handshake DoS."],
+        ["`sessionTtlMs`", "`number`", "`120000`", "Drop a peer after this many ms of inactivity."],
+      ],
+    },
+    {
+      kind: "paragraph",
+      text: "`connectSecureUdp(options, port, host?)`:",
+    },
+    {
+      kind: "table",
+      headers: ["Option", "Type", "Default", "Description"],
+      rows: [
+        ["`staticKey`", "`KeyPair`", "—", "The client's X25519 identity. The server authenticates it."],
+        ["`retransmitMs`", "`number`", "`250`", "Resend the handshake message this often until it lands — UDP can drop it."],
+        ["`timeoutMs`", "`number`", "`5000`", "Give up and reject the promise if the handshake doesn't complete in time."],
+      ],
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "This is NOT DTLS. There is no PKI and no wire interop with other stacks — peers authenticate each other by raw static public key, the way WireGuard does. You must distribute those keys out-of-band and verify `remoteStatic` on both ends. There is also no rekey: a session refuses to send once it would exceed 2^64 datagrams under one key, so start a fresh session for long-lived, very high-volume peers.",
+    },
+    { kind: "heading", id: "choosing", text: "Choosing a UDP security model" },
+    {
+      kind: "paragraph",
+      text: "Three options, in increasing order of protection. Pick the lightest one that covers your threat model:",
+    },
+    {
+      kind: "table",
+      headers: ["API", "Protection", "Use it when"],
+      rows: [
+        [
+          "`createUdpServer(handler)`",
+          "None — plaintext datagrams.",
+          "Traffic is already trusted (loopback, private network) or non-sensitive telemetry.",
+        ],
+        [
+          "`createUdpServer(handler, { secure })`",
+          "Per-datagram AES-256-GCM under a pre-shared key. No handshake, no session, no identity.",
+          "Every peer already shares one key and you just need confidentiality + integrity per packet.",
+        ],
+        [
+          "`createSecureUdpServer(...)`",
+          "Noise XX session: mutual static-key auth, forward secrecy, replay protection.",
+          "Peers have their own identities and you want a real authenticated, forward-secret session.",
+        ],
+      ],
+    },
     { kind: "heading", id: "shutdown", text: "Shutting down" },
     {
       kind: "paragraph",
