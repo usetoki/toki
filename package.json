@@ -1,6 +1,6 @@
 {
   "name": "@usetoki/toki",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A blazing-fast HTTP framework for Node.js with a native engine written in Zig.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
