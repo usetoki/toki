@@ -173,6 +173,16 @@ export interface TcpOptions {
   noDelay?: boolean;
   /** pending-connection queue. Default 512 */
   backlog?: number;
+  /** per-connection send-backlog ceiling in bytes; a connection that exceeds it (a
+   *  non-reading peer plus a producer ignoring backpressure) is dropped. Default 16 MiB. */
+  maxWriteQueue?: number;
+  /** how often (ms) to re-poll for a peer's FIN/RST that the OS left pending while the loop
+   *  was idle. macOS kqueue can otherwise sit on it for seconds. Default 50; 0 disables. */
+  eofPollMs?: number;
+  /** @internal flattened cert PEM from the TCP server's `tls` option */
+  tlsCert?: Uint8Array;
+  /** @internal flattened key PEM from the TCP server's `tls` option */
+  tlsKey?: Uint8Array;
 }
 
 /** {@link Native.udpBind} tuning */

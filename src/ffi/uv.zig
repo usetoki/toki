@@ -77,6 +77,11 @@ pub extern fn uv_tcp_nodelay(handle: *anyopaque, enable: c_int) c_int;
 // half-close: flush queued writes, then shutdown(SHUT_WR) so the peer sees EOF.
 pub extern fn uv_shutdown(req: *anyopaque, handle: *anyopaque, cb: ShutdownCb) c_int;
 pub extern fn uv_close(handle: *anyopaque, cb: ?CloseCb) void;
+// force-close: SO_LINGER(0) then close, so a wedged send buffer is discarded and the peer
+// gets an RST immediately instead of a FIN that waits for a non-reading peer to drain.
+pub extern fn uv_tcp_close_reset(handle: *anyopaque, cb: ?CloseCb) c_int;
+// unref a handle so it never keeps Node's loop (and the process) alive on its own.
+pub extern fn uv_unref(handle: *anyopaque) void;
 pub extern fn uv_strerror(err: c_int) [*c]const u8;
 
 // UDP. recv_start hands every datagram to recv_cb with the sender's sockaddr; send is

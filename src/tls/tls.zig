@@ -112,9 +112,15 @@ pub const Read = struct {
     failed: bool,
 };
 
-/// decrypt the next record into `plain` (the caller guarantees it's big enough)
+/// decrypt the next record into `plain` (the caller guarantees it's big enough).
+/// Only the next single record is handed to decrypt: feeding it the whole buffer would let
+/// it consume a trailing record whose plaintext overflows `plain` (one record's worth) — the
+/// excess cleartext is dropped by decrypt's reset while its ciphertext stays consumed, so a
+/// buffer holding >1 record (combined plaintext > max_cleartext) silently loses bytes. One
+/// record in, ≤ max_cleartext out, always fits.
 pub fn readRecord(st: *State, plain: []u8) Read {
-    const d = st.record.decrypt(st.in[0..st.in_len], plain) catch
+    const record_len = 5 + ((@as(usize, st.in[3]) << 8) | @as(usize, st.in[4]));
+    const d = st.record.decrypt(st.in[0..record_len], plain) catch
         return .{ .plain_len = 0, .closed = false, .failed = true };
     consume(st, d.ciphertext_pos);
     return .{ .plain_len = d.cleartext.len, .closed = d.closed, .failed = false };
