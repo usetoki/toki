@@ -76,12 +76,12 @@ function toPem(value: string | Uint8Array): Buffer {
   return typeof value === "string" ? Buffer.from(value, "utf8") : Buffer.from(value);
 }
 
+const EMPTY_PEER: RemoteInfo = { address: "", port: 0 };
+
 class Socket implements TcpSocket {
-  readonly remoteAddress: string;
-  readonly remotePort: number;
-  readonly authorized: boolean;
   readonly #id: number;
   readonly #allowHalfOpen: boolean;
+  #peer?: RemoteInfo; // peer address, fetched from native on first access then cached
   #ended = false; // we've ended our write side
   #readEnded = false; // peer half-closed
   #needDrain = false; // a write is backed up; a drain is pending
@@ -90,13 +90,27 @@ class Socket implements TcpSocket {
   #end: Array<() => void> = [];
   #close: Array<() => void> = [];
 
-  constructor(id: number, remote: RemoteInfo, allowHalfOpen: boolean) {
+  constructor(id: number, allowHalfOpen: boolean) {
     this.#id = id;
     this.#allowHalfOpen = allowHalfOpen;
-    this.remoteAddress = remote.address;
-    this.remotePort = remote.port;
-    // native sets `authorized` on the TLS connection event; absent on plaintext → false.
-    this.authorized = remote.authorized ?? false;
+  }
+
+  // Peer fields are read lazily: a handler that never inspects the address costs no
+  // getpeername and no native object build. An empty result (the connection closed before
+  // anyone asked) is cached too, so we ask native at most once.
+  #fetchPeer(): RemoteInfo {
+    return (this.#peer ??= native.tcpPeer(this.#id) ?? EMPTY_PEER);
+  }
+  get remoteAddress(): string {
+    return this.#fetchPeer().address;
+  }
+  get remotePort(): number {
+    return this.#fetchPeer().port;
+  }
+  /** TLS connections only: whether the peer presented a client cert that verified against
+   *  `tls.ca`. `false` on plaintext or an unverified client. */
+  get authorized(): boolean {
+    return this.#fetchPeer().authorized ?? false;
   }
 
   write(data: Uint8Array | string): boolean {
@@ -198,10 +212,10 @@ export function createTcpServer(
     }
   }
 
-  const dispatch = (id: number, event: Ev, arg: RemoteInfo | Uint8Array | undefined): void => {
+  const dispatch = (id: number, event: Ev, arg: Uint8Array | undefined): void => {
     switch (event) {
       case Ev.Connection: {
-        const socket = new Socket(id, arg as RemoteInfo, allowHalfOpen);
+        const socket = new Socket(id, allowHalfOpen);
         sockets.set(id, socket);
         handler(socket);
         return;

@@ -133,6 +133,9 @@ interface Native {
   tcpListen(port: number, host: string, options: TcpOptions, dispatch: TcpDispatch): number;
   /** write to a TCP connection; returns the queued-byte backlog (0 when flushed) */
   tcpSend(id: number, data: Uint8Array): number;
+  /** peer address (+ TLS `authorized`) of a connection, read lazily on first access;
+   *  `undefined` once the connection has closed */
+  tcpPeer(id: number): RemoteInfo | undefined;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */
@@ -150,12 +153,9 @@ interface Native {
 
 /** native TCP event tags (match src/net/tcp.zig) */
 export type TcpEvent = 0 | 1 | 2 | 3; // connection | data | drain | close
-/** TCP lifecycle callback. `arg` is a {@link RemoteInfo} on connection, a buffer on data, else undefined */
-export type TcpDispatch = (
-  id: number,
-  event: TcpEvent,
-  arg: RemoteInfo | Uint8Array | undefined,
-) => void;
+/** TCP lifecycle callback. `arg` is a buffer on data, else undefined (peer info is fetched
+ *  lazily via {@link Native.tcpPeer}, not handed to the connection event) */
+export type TcpDispatch = (id: number, event: TcpEvent, arg: Uint8Array | undefined) => void;
 /** UDP datagram callback */
 export type UdpDispatch = (data: Uint8Array, rinfo: RemoteInfo) => void;
 

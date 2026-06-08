@@ -1,5 +1,6 @@
 # Zig
 /zig-out
+/zig-pkg
 /.zig-cache
 
 # Node

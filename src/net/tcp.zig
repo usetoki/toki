@@ -49,6 +49,9 @@ const Conn = struct {
     read_ended: bool,
     remote_port: u16,
     remote_ip: [46]u8, // null-terminated; "" for an address we couldn't read
+    // the peer address is read lazily: getpeername + the JS object are built only when the
+    // handler first touches socket.remoteAddress/port/authorized (most accepts never do).
+    peer_recorded: bool,
     // per-conn cipher state, null on a plaintext conn. The socket sees ciphertext;
     // app data is encrypted on write and decrypted on read through this.
     tls: ?*tlsmod.State,
@@ -257,6 +260,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .read_ended = false,
         .remote_port = 0,
         .remote_ip = [_]u8{0} ** 46,
+        .peer_recorded = false,
         .tls = null,
         .tls_announced = false,
         .next = null,
@@ -269,7 +273,6 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         return;
     }
     if (no_delay) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
-    recordPeer(conn);
     conns.put(alloc, conn.id, conn) catch {
         closeConn(conn);
         return;
@@ -287,18 +290,34 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         var scope: napi.HandleScope = undefined;
         _ = napi.napi_open_handle_scope(env, &scope);
         defer _ = napi.napi_close_handle_scope(env, scope);
-        dispatch(conn.id, ev_connection, remoteInfo(conn));
+        // no peer object here — the JS Socket pulls it on demand via tcpPeer (most never do).
+        dispatch(conn.id, ev_connection, undefinedValue());
     }
 
     armRead(conn);
 }
 
 fn recordPeer(conn: *Conn) void {
+    conn.peer_recorded = true; // mark attempted; a failed read leaves "" / 0, don't retry
     var storage: [128]u8 align(8) = undefined;
     var namelen: c_int = storage.len;
     if (uv.uv_tcp_getpeername(opaqueOf(&conn.handle), &storage, &namelen) != 0) return;
     addr.name(&storage, &conn.remote_ip);
     conn.remote_port = addr.portOf(&storage);
+}
+
+// tcpPeer(id) -> { address, port, authorized? } — the JS Socket calls this the first time the
+// handler reads a peer field, so a connection nobody inspects never pays getpeername or the
+// N-API object build. Undefined if the id is gone (the socket already closed).
+pub fn peer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return undefinedValue();
+    if (!conn.peer_recorded) recordPeer(conn);
+    return remoteInfo(conn);
 }
 
 fn remoteInfo(conn: *Conn) napi.Value {
@@ -418,7 +437,7 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
         }
         if (!conn.tls_announced) {
             conn.tls_announced = true;
-            dispatch(conn.id, ev_connection, remoteInfo(conn));
+            dispatch(conn.id, ev_connection, undefinedValue());
             if (conn.closing) return; // handler may have destroyed it on connect
         }
         // fall through to drain any app records that rode in with the final handshake flight
