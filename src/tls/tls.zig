@@ -169,9 +169,8 @@ pub fn handshakeBuf(st: *State, cipher: []const u8, out: []u8) HandshakeBuf {
 /// protocol violation that could never complete — used to drop a TLS-level slowloris.
 pub const max_record = in_size;
 
-/// Carry `bytes` (a partial trailing record, ≤ one record) into st.in for the next read.
-/// Returns false if it somehow exceeds the carry buffer — a malformed oversized record the
-/// caller should treat as a protocol violation and close.
+/// Stash a partial trailing record into st.in to prepend to the next read. Returns false
+/// when bytes > in_size (no legal record is that big — the caller closes the connection).
 pub fn carry(st: *State, bytes: []const u8) bool {
     if (bytes.len > st.in.len) return false;
     if (bytes.len > 0) std.mem.copyForwards(u8, st.in[0..bytes.len], bytes);
@@ -213,13 +212,11 @@ pub const Batch = struct {
     failed: bool,
 };
 
-/// Decrypt every complete record in `cipher` into `plain` in one pass. `plain` must be at
-/// least `cipher.len` (plaintext is always shorter than its ciphertext, so that guarantees
-/// every complete record fits and nothing is dropped). A partial trailing record stays in
-/// `cipher` as the unconsumed tail — the caller carries those `cipher.len - consumed` bytes
-/// to the next read. `closed` is set when the peer's close_notify rode in this batch; the
-/// records before it are still decrypted into `plain`. Does NOT touch st.in — the caller owns
-/// the ciphertext buffer and the partial carry.
+/// Unlike readRecord, this never touches st.in — the caller owns the ciphertext buffer and
+/// the partial carry. Decrypts every complete record in `cipher` into `plain` in one pass;
+/// `plain` must be >= cipher.len (AEAD shrinks each record, so every one fits). A partial
+/// trailing record is left as cipher[consumed..] for the caller to carry. `closed` flags a
+/// close_notify in this batch — records before it are still decrypted.
 pub fn decryptBatch(st: *State, cipher: []const u8, plain: []u8) Batch {
     const d = st.record.decrypt(cipher, plain) catch
         return .{ .plain_len = 0, .consumed = 0, .closed = false, .failed = true };

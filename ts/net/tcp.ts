@@ -187,7 +187,12 @@ export function createTcpServer(
       tlsCert: toPem(options.tls.cert),
       tlsKey: toPem(options.tls.key),
     };
-    if (options.tls.requestCert && options.tls.ca !== undefined) {
+    if (options.tls.requestCert) {
+      if (options.tls.ca === undefined) {
+        throw new Error(
+          "toki: tls.requestCert needs tls.ca (the CA bundle that signs client certs)",
+        );
+      }
       nativeOptions.tlsClientCa = toPem(options.tls.ca);
       nativeOptions.tlsRequireClient = options.tls.rejectUnauthorized === true;
     }

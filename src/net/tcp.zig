@@ -97,9 +97,9 @@ var read_scratch: [read_scratch_size]u8 = undefined;
 // used and consumed within one synchronous call before the next connection touches it.
 // out: handshake flights + encrypted records + close_notify.
 var tls_out_scratch: [tlsmod.out_size]u8 = undefined;
-// in: ciphertext libuv reads into (a partial carry from st.in copied to its front first), so
-// one read pulls many records at once. plain: where the whole batch decrypts before a single
-// dispatch. plain must be >= in, so decryptBatch never drops a record (plaintext < ciphertext).
+// in: one libuv read of ciphertext (the partial carry copied to its front), so a read pulls
+// many records at once. plain: the whole batch decrypts here before one dispatch. plain >= in
+// (AEAD shrinks each record, so it always fits). 256 KiB ≈ 15 max records per read.
 const tls_batch_size = 256 * 1024;
 var tls_in_scratch: [tls_batch_size]u8 = undefined;
 var tls_plain_scratch: [tls_batch_size]u8 = undefined;
@@ -114,9 +114,8 @@ fn opaqueOf(p: anytype) *anyopaque {
     return @ptrCast(p);
 }
 
-// current wall-clock time in Unix seconds (for TLS client-cert validity checks). libuv's
-// uv_gettimeofday is the cross-platform real clock already linked in; 0 on the rare failure
-// makes a client_auth handshake reject in-date certs rather than accept stale ones.
+// Unix seconds for client-cert validity; 0 on failure → the handshake rejects the cert
+// (fail closed beats trusting a cert against a stale clock).
 fn wallClockSeconds() i64 {
     var tv: uv.TimeVal64 = undefined;
     if (uv.uv_gettimeofday(&tv) != 0) return 0;
@@ -155,7 +154,7 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
 
     var bind_flags: c_uint = 0;
     if (optBool(e, argv[2], "reusePort")) bind_flags = 2; // UV_TCP_REUSEPORT
-    no_delay = !optBoolDefaultFalse(e, argv[2], "noDelay", false);
+    no_delay = optBoolDefault(e, argv[2], "noDelay", true); // TCP_NODELAY on unless told otherwise
     const backlog: c_int = optInt(e, argv[2], "backlog") orelse 512;
     max_write_queue = default_max_write_queue;
     if (optInt(e, argv[2], "maxWriteQueue")) |v| {
@@ -205,11 +204,9 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     return uintValue(e, bound_port);
 }
 
-// Reads the PEM cert chain + key from the options object and builds the TLS config, so the
-// raw TCP server terminates TLS directly. Mirrors server.zig's setupTls: both are required;
-// returns false after throwing a JS error on a missing key or unparsable PEM, true when TLS
-// is off or configured cleanly. The buffers are valid for this synchronous call — init copies
-// what it keeps.
+// cert+key → tlsmod.init (with optional client-cert CA); no cert means plaintext. Throws and
+// returns false on a missing key or bad PEM. init copies what it keeps, so the JS buffers
+// don't need to outlive this call.
 fn setupTls(e: napi.Env, options: napi.Value) bool {
     const cert = readBufferProp(e, options, "tlsCert") orelse return true; // no cert → plaintext
     const key = readBufferProp(e, options, "tlsKey") orelse {
@@ -458,12 +455,11 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
         closeConn(conn); // carry overflow: an oversized record that can't be a legal TLS frame
         return;
     }
-    // A record header claiming more than any legal TLS record never completes — it would
-    // otherwise sit in st.in and stall the connection (a TLS-level slowloris). The largest
-    // legal record is max_record, so a larger claim is a protocol violation.
+    // A header claiming a payload past the TLS 1.3 cap (2^14 + 256) can never complete; left
+    // alone it sits in the carry and stalls the connection — a TLS-level slowloris. Close it.
     if (st.in_len >= 5) {
         const claimed = (@as(usize, st.in[3]) << 8) | @as(usize, st.in[4]);
-        if (claimed > tlsmod.max_record - 5) closeConn(conn);
+        if (claimed > tlsmod.max_cleartext + 256) closeConn(conn);
     }
 }
 
@@ -747,10 +743,11 @@ fn uintValue(e: napi.Env, v: u32) napi.Value {
 }
 
 fn optBool(e: napi.Env, options: napi.Value, name: [*c]const u8) bool {
-    return optBoolDefaultFalse(e, options, name, false);
+    return optBoolDefault(e, options, name, false);
 }
 
-fn optBoolDefaultFalse(e: napi.Env, options: napi.Value, name: [*c]const u8, default: bool) bool {
+// reads a bool option, returning `default` when it's absent or not a boolean
+fn optBoolDefault(e: napi.Env, options: napi.Value, name: [*c]const u8, default: bool) bool {
     var value: napi.Value = undefined;
     _ = napi.napi_get_named_property(e, options, name, &value);
     var kind: c_int = 0;
