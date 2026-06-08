@@ -75,7 +75,7 @@ export interface ServerOptions {
   wsCompression?: boolean;
   /**
    * Terminate HTTPS directly (no reverse proxy). PEM cert chain (leaf first) +
-   * private key — RSA or EC. AEAD suites only, TLS 1.2 + 1.3.
+   * private key — RSA or EC. TLS 1.3 only (AEAD suites).
    */
   tls?: { cert: string | Uint8Array; key: string | Uint8Array };
   /** @internal flattened cert PEM from {@link ServerOptions.tls} */

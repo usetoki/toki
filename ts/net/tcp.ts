@@ -30,7 +30,7 @@ export interface TcpServerOptions extends TcpOptions {
   allowHalfOpen?: boolean;
   /**
    * Terminate TLS on the raw socket (no reverse proxy). PEM cert chain (leaf first) +
-   * private key — RSA or EC. AEAD suites only, TLS 1.2 + 1.3. The handler runs once the
+   * private key — RSA or EC. TLS 1.3 only (AEAD suites). The handler runs once the
    * handshake completes, so the first `write` is already over an established session.
    *
    * Mutual TLS (client certificate authentication): set `requestCert` and a `ca` bundle to

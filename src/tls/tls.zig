@@ -3,7 +3,7 @@
 //! Pure transform: owns the per-connection cipher state plus a one-record ciphertext
 //! buffer, and exposes handshake/decrypt/encrypt/close as buffer-in, buffer-out calls.
 //! No import of engine.zig or loop.zig — the loop drives it and does the libuv I/O.
-//! AEAD suites only (TLS 1.3 + TLS 1.2 GCM/ChaCha).
+//! TLS 1.3 only (AEAD suites; ECDHE).
 
 const std = @import("std");
 const lib = @import("tls");

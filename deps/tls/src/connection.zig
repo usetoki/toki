@@ -615,6 +615,13 @@ pub const NonBlock = struct {
         defer self.reset();
         var input: Io.Reader = .fixed(ciphertext);
         self.inner.input = &input;
+        // On a record error, read() encrypts an alert through inner.output. decrypt has no
+        // real output buffer (the caller tears the connection down), so point it at a small
+        // discard buffer — otherwise the alert write dereferences an undefined writer and the
+        // process segfaults on the first malformed post-handshake record.
+        var alert_buf: [256]u8 = undefined;
+        var output: Io.Writer = .fixed(&alert_buf);
+        self.inner.output = &output;
 
         var n: usize = 0;
         while (n < cleartext.len) {
