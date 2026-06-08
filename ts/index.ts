@@ -28,6 +28,21 @@ export { createTcpServer } from "./net/tcp.js";
 export type { TcpServer, TcpSocket, TcpOptions, TcpServerOptions } from "./net/tcp.js";
 export { createUdpServer, sealDatagram, openDatagram, ReplayWindow, keysEqual } from "./net/udp.js";
 export type { UdpSocket, UdpOptions, UdpServerOptions, SecureUdpOptions } from "./net/udp.js";
+export {
+  createSecureUdpServer,
+  connectSecureUdp,
+  generateKeyPair,
+  keyPairFromPrivateRaw,
+  NoiseSession,
+} from "./net/secure-udp.js";
+export type {
+  KeyPair,
+  SecureSession,
+  SecureUdpServer,
+  SecureUdpServerOptions,
+  SecureClientSession,
+  SecureUdpClientOptions,
+} from "./net/secure-udp.js";
 export type { RemoteInfo } from "./native/native.js";
 export { TokiWebSocket } from "./websocket/websocket.js";
 export type {
