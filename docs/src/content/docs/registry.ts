@@ -44,7 +44,9 @@ import { routingPage } from "./routing";
 import { serverOptionsPage } from "./server-options";
 import { staticFilesPage } from "./static-files";
 import { streamingPage } from "./streaming";
+import { tcpPage } from "./tcp";
 import { testingPage } from "./testing";
+import { udpPage } from "./udp";
 import { validationPage } from "./validation";
 import { websocketsPage } from "./websockets";
 
@@ -83,6 +85,10 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       loggingPage,
       testingPage,
     ],
+  },
+  {
+    title: "Networking",
+    pages: [tcpPage, udpPage],
   },
   {
     title: "Plugins",

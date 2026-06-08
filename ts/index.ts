@@ -24,6 +24,11 @@ export type {
 export type { FormFile, ParsedForm } from "./http/forms.js";
 export type { StaticOptions } from "./http/static.js";
 export type { ServerOptions } from "./native/native.js";
+export { createTcpServer } from "./net/tcp.js";
+export type { TcpServer, TcpSocket, TcpOptions } from "./net/tcp.js";
+export { createUdpServer } from "./net/udp.js";
+export type { UdpSocket, UdpOptions } from "./net/udp.js";
+export type { RemoteInfo } from "./native/native.js";
 export { TokiWebSocket } from "./websocket/websocket.js";
 export type {
   BufferListener,

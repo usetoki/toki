@@ -9,6 +9,8 @@ const server = @import("core/server.zig");
 const loop = @import("core/loop.zig");
 const stream = @import("http/stream.zig");
 const websocket = @import("websocket/session.zig");
+const tcp = @import("net/tcp.zig");
+const udp = @import("net/udp.zig");
 
 export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.c) napi.Value {
     defineFn(env, exports, "listen", &server.listen);
@@ -21,6 +23,16 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "wsPong", &websocket.pong);
     defineFn(env, exports, "wsClose", &websocket.closeSocket);
     defineFn(env, exports, "close", &server.closeServer);
+    // raw TCP server
+    defineFn(env, exports, "tcpListen", &tcp.listen);
+    defineFn(env, exports, "tcpSend", &tcp.send);
+    defineFn(env, exports, "tcpEnd", &tcp.end);
+    defineFn(env, exports, "tcpClose", &tcp.closeSocket);
+    defineFn(env, exports, "tcpCloseServer", &tcp.closeServer);
+    // UDP server
+    defineFn(env, exports, "udpBind", &udp.bind);
+    defineFn(env, exports, "udpSend", &udp.send);
+    defineFn(env, exports, "udpClose", &udp.close);
     return exports;
 }
 

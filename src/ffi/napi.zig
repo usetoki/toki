@@ -59,4 +59,6 @@ pub extern fn napi_get_null(env: Env, result: *Value) c_int;
 pub extern fn napi_get_array_length(env: Env, value: Value, result: *u32) c_int;
 pub extern fn napi_get_element(env: Env, object: Value, index: u32, result: *Value) c_int;
 pub extern fn napi_create_external_buffer(env: Env, length: usize, data: ?*anyopaque, finalize_cb: Finalize, finalize_hint: ?*anyopaque, result: *Value) c_int;
+// copies `length` bytes into a fresh V8-owned Buffer — safe for the JS side to retain.
+pub extern fn napi_create_buffer_copy(env: Env, length: usize, data: ?*const anyopaque, result_data: ?*?*anyopaque, result: *Value) c_int;
 pub extern fn napi_get_buffer_info(env: Env, value: Value, data: *?*anyopaque, length: *usize) c_int;

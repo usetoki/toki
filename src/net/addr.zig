@@ -1,0 +1,32 @@
+//! Socket-address helpers shared by the TCP and UDP servers. The port lives at byte
+//! offset 2 of every sockaddr_in / sockaddr_in6 on every platform, so we read it from
+//! the raw bytes — no struct overlay, no alignment assumption on a kernel-supplied ptr.
+
+const std = @import("std");
+const uv = @import("../ffi/uv.zig");
+
+fn opaqueOf(p: anytype) *anyopaque {
+    return @ptrCast(p);
+}
+
+/// Host port (native byte order) from a sockaddr the kernel/libuv handed us. sin_port /
+/// sin6_port are both 16-bit network-order at offset 2 — read the two bytes directly.
+pub fn portOf(addr: *const anyopaque) u16 {
+    const bytes: [*]const u8 = @ptrCast(addr);
+    return (@as(u16, bytes[2]) << 8) | bytes[3];
+}
+
+/// Fill `out` (must be sockaddr_storage-sized — an IPv6 sockaddr is larger than
+/// sockaddr_in) from a host string + port. IPv4 by default; a host with ':' is IPv6.
+pub fn parse(host: [*c]const u8, host_len: usize, port: i32, out: *anyopaque) bool {
+    const slice = host[0..host_len];
+    if (std.mem.indexOfScalar(u8, slice, ':') != null) {
+        return uv.uv_ip6_addr(host, port, out) == 0;
+    }
+    return uv.uv_ip4_addr(host, port, out) == 0;
+}
+
+/// Presentation string of a sockaddr into `dst` (null-terminated). "" on failure.
+pub fn name(addr: *const anyopaque, dst: []u8) void {
+    _ = uv.uv_ip_name(addr, dst.ptr, dst.len);
+}

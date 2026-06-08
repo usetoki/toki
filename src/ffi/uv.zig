@@ -13,6 +13,13 @@ const builtin = @import("builtin");
 // libuv only touches sizeof(real) bytes, so the slack is harmless.
 pub const tcp_size = 1024;
 pub const write_size = 512;
+// uv_udp_t and uv_udp_send_t, same generous over-sizing as the tcp/write blocks above.
+pub const udp_size = 1024;
+pub const udp_send_size = 512;
+
+// uv_udp_bind / uv_udp_recv_start flags we use.
+pub const UDP_REUSEADDR: c_uint = 4;
+pub const UDP_RECVMMSG: c_uint = 256;
 
 // uv_buf_t differs by platform: Windows is WSABUF order { ULONG len; char* base },
 // unix is { char* base; size_t len }. Swapping them makes libuv read a garbage
@@ -36,8 +43,14 @@ pub const AllocCb = *const fn (handle: *anyopaque, suggested: usize, buf: *Buf) 
 pub const ReadCb = *const fn (stream: *anyopaque, nread: isize, buf: *const Buf) callconv(.c) void;
 pub const WriteCb = *const fn (req: *anyopaque, status: c_int) callconv(.c) void;
 pub const CloseCb = *const fn (handle: *anyopaque) callconv(.c) void;
+pub const ShutdownCb = *const fn (req: *anyopaque, status: c_int) callconv(.c) void;
+// uv_shutdown_t is small; generous over-size like the other req blocks.
+pub const shutdown_size = 128;
 
 pub const TimerCb = *const fn (handle: *anyopaque) callconv(.c) void;
+// recv_cb: addr is null on the "no more datagrams this pass" callback; flags carries UV_UDP_PARTIAL etc.
+pub const UdpRecvCb = *const fn (handle: *anyopaque, nread: isize, buf: *const Buf, addr: ?*const anyopaque, flags: c_uint) callconv(.c) void;
+pub const UdpSendCb = *const fn (req: *anyopaque, status: c_int) callconv(.c) void;
 
 pub const timer_size = 256; // generous over the real uv_timer_t (unix ~152, Windows larger).
 
@@ -61,5 +74,19 @@ pub extern fn uv_write(req: *anyopaque, stream: *anyopaque, bufs: [*]const Buf, 
 // non-blocking, no req/alloc/cb: returns bytes written or negative err (UV_EAGAIN).
 pub extern fn uv_try_write(stream: *anyopaque, bufs: [*]const Buf, nbufs: c_uint) c_int;
 pub extern fn uv_tcp_nodelay(handle: *anyopaque, enable: c_int) c_int;
+// half-close: flush queued writes, then shutdown(SHUT_WR) so the peer sees EOF.
+pub extern fn uv_shutdown(req: *anyopaque, handle: *anyopaque, cb: ShutdownCb) c_int;
 pub extern fn uv_close(handle: *anyopaque, cb: ?CloseCb) void;
 pub extern fn uv_strerror(err: c_int) [*c]const u8;
+
+// UDP. recv_start hands every datagram to recv_cb with the sender's sockaddr; send is
+// async (req + cb), try_send is the non-blocking fast path (returns bytes or UV_EAGAIN).
+pub extern fn uv_udp_init(loop: *anyopaque, handle: *anyopaque) c_int;
+pub extern fn uv_udp_init_ex(loop: *anyopaque, handle: *anyopaque, flags: c_uint) c_int;
+pub extern fn uv_udp_bind(handle: *anyopaque, addr: *const anyopaque, flags: c_uint) c_int;
+pub extern fn uv_udp_recv_start(handle: *anyopaque, alloc_cb: AllocCb, recv_cb: UdpRecvCb) c_int;
+pub extern fn uv_udp_recv_stop(handle: *anyopaque) c_int;
+pub extern fn uv_udp_send(req: *anyopaque, handle: *anyopaque, bufs: [*]const Buf, nbufs: c_uint, addr: *const anyopaque, cb: UdpSendCb) c_int;
+pub extern fn uv_udp_try_send(handle: *anyopaque, bufs: [*]const Buf, nbufs: c_uint, addr: *const anyopaque) c_int;
+pub extern fn uv_udp_getsockname(handle: *anyopaque, name: *anyopaque, namelen: *c_int) c_int;
+pub extern fn uv_ip6_addr(ip: [*c]const u8, port: c_int, addr: *anyopaque) c_int;

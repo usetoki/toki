@@ -128,6 +128,59 @@ interface Native {
   wsClose(wsId: number, code: number): void;
   /** stop accepting and close every live connection */
   close(): void;
+
+  /** start a raw TCP server; `dispatch(id, event, arg)` fires per connection lifecycle event */
+  tcpListen(port: number, host: string, options: TcpOptions, dispatch: TcpDispatch): number;
+  /** write to a TCP connection; returns the queued-byte backlog (0 when flushed) */
+  tcpSend(id: number, data: Uint8Array): number;
+  /** half-close a TCP connection: flush queued writes, then send FIN */
+  tcpEnd(id: number): void;
+  /** drop a TCP connection now */
+  tcpClose(id: number): void;
+  /** stop accepting and close every live TCP connection */
+  tcpCloseServer(): void;
+
+  /** bind a UDP socket; `dispatch(data, rinfo)` fires per received datagram */
+  udpBind(port: number, host: string, options: UdpOptions, dispatch: UdpDispatch): number;
+  /** send a datagram to `host:port` */
+  udpSend(data: Uint8Array, port: number, host: string): void;
+  /** stop receiving and close the UDP socket */
+  udpClose(): void;
+}
+
+/** native TCP event tags (match src/net/tcp.zig) */
+export type TcpEvent = 0 | 1 | 2 | 3; // connection | data | drain | close
+/** TCP lifecycle callback. `arg` is a {@link RemoteInfo} on connection, a buffer on data, else undefined */
+export type TcpDispatch = (
+  id: number,
+  event: TcpEvent,
+  arg: RemoteInfo | Uint8Array | undefined,
+) => void;
+/** UDP datagram callback */
+export type UdpDispatch = (data: Uint8Array, rinfo: RemoteInfo) => void;
+
+/** peer address of a TCP connection or the sender of a UDP datagram */
+export interface RemoteInfo {
+  readonly address: string;
+  readonly port: number;
+}
+
+/** {@link Native.tcpListen} tuning */
+export interface TcpOptions {
+  /** `SO_REUSEPORT` so workers can share the port (Linux/BSD) */
+  reusePort?: boolean;
+  /** Nagle's algorithm; default off (low latency) */
+  noDelay?: boolean;
+  /** pending-connection queue. Default 512 */
+  backlog?: number;
+}
+
+/** {@link Native.udpBind} tuning */
+export interface UdpOptions {
+  /** `SO_REUSEADDR` */
+  reuseAddr?: boolean;
+  /** batch reads with `recvmmsg` (Linux) */
+  recvmmsg?: boolean;
 }
 
 // Detects musl libc (Alpine) so Linux picks the right package. glibc exposes

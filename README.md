@@ -186,6 +186,31 @@ app.ws("/chat", { protocols: ["chat"] }, (socket, req) => {
 
 A plain `GET` to a WebSocket path (no `Upgrade` header) gets `426 Upgrade Required`.
 
+## 🔌 TCP & UDP
+
+Beyond HTTP, the engine exposes raw **TCP** and **UDP** servers on the same libuv loop —
+no extra thread, the same try-write-then-queue backpressure, and a connection that costs
+about what the kernel charges (no per-socket HTTP buffer).
+
+```ts
+import { createTcpServer, createUdpServer } from "@usetoki/toki";
+
+// TCP echo
+const tcp = createTcpServer((socket) => {
+  socket.on("data", (chunk) => socket.write(chunk));
+});
+tcp.listen(9000);
+
+// UDP echo
+const udp = createUdpServer((msg, rinfo, sock) => sock.send(msg, rinfo.port, rinfo.address));
+udp.bind(9001);
+```
+
+`socket.write()` returns `false` under backpressure (resume on `drain`); `socket.end()`
+half-closes after flushing. One TCP and one UDP server per process — scale across cores
+with `reusePort` and a process per core. See the [TCP](https://usetoki.github.io/toki/)
+and UDP docs for the full API.
+
 ## 🔌 Plugins
 
 Official, first-party plugins — each its own `@usetoki/*` package, installed on demand.
