@@ -1,9 +1,9 @@
-export { auth } from "./compose.js";
-export type { AuthOptions } from "./compose.js";
-export { basic } from "./strategies/basic.js";
-export type { BasicOptions } from "./strategies/basic.js";
-export { bearer } from "./strategies/bearer.js";
-export { apiKey } from "./strategies/api-key.js";
-export type { ApiKeyOptions } from "./strategies/api-key.js";
-export { safeEqual } from "./safe-equal.js";
-export type { Strategy } from "./types.js";
+export { auth } from "./compose.ts";
+export type { AuthOptions } from "./compose.ts";
+export { basic } from "./strategies/basic.ts";
+export type { BasicOptions } from "./strategies/basic.ts";
+export { bearer } from "./strategies/bearer.ts";
+export { apiKey } from "./strategies/api-key.ts";
+export type { ApiKeyOptions } from "./strategies/api-key.ts";
+export { safeEqual } from "./safe-equal.ts";
+export type { Strategy } from "./types.ts";

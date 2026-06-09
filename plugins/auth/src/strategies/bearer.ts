@@ -1,5 +1,5 @@
 import type { TokiRequest } from "@usetoki/toki";
-import type { Strategy, VerifyResult } from "../types.js";
+import type { Strategy, VerifyResult } from "../types.ts";
 
 /** Bearer-token auth. `verify(token, req)` returns the user, or null to reject. */
 export function bearer(verify: (token: string, req: TokiRequest) => VerifyResult): Strategy {

@@ -1,40 +1,40 @@
 // Public API surface.
-export { createApp, Toki } from "./core/app.js";
-export { Scope } from "./core/scope.js";
-export type { TokiInstance, TokiPlugin } from "./core/scope.js";
-export { RouteGroup } from "./http/group.js";
-export type { InjectOptions, InjectResponse } from "./http/inject.js";
-export { TokiRequest } from "./http/request.js";
-export { reply } from "./http/response.js";
-export { parseCookies, serializeCookie } from "./http/cookies.js";
-export type { CookieOptions } from "./http/cookies.js";
-export { createConsoleLogger, silentLogger } from "./core/logger.js";
-export { compression, corsHeaders, corsPreflight, securityHeaders } from "./security/middleware.js";
-export type { CompressionOptions, CorsOptions, SecurityOptions } from "./security/middleware.js";
-export { serialize, validate } from "./http/schema.js";
-export type { ErrorMessages, JSONSchema, RouteSchema } from "./http/schema.js";
-export { JwtError, jwtAuth, signJwt, verifyJwt } from "./security/jwt.js";
+export { createApp, Toki } from "./core/app.ts";
+export { Scope } from "./core/scope.ts";
+export type { TokiInstance, TokiPlugin } from "./core/scope.ts";
+export { RouteGroup } from "./http/group.ts";
+export type { InjectOptions, InjectResponse } from "./http/inject.ts";
+export { TokiRequest } from "./http/request.ts";
+export { reply } from "./http/response.ts";
+export { parseCookies, serializeCookie } from "./http/cookies.ts";
+export type { CookieOptions } from "./http/cookies.ts";
+export { createConsoleLogger, silentLogger } from "./core/logger.ts";
+export { compression, corsHeaders, corsPreflight, securityHeaders } from "./security/middleware.ts";
+export type { CompressionOptions, CorsOptions, SecurityOptions } from "./security/middleware.ts";
+export { serialize, validate } from "./http/schema.ts";
+export type { ErrorMessages, JSONSchema, RouteSchema } from "./http/schema.ts";
+export { JwtError, jwtAuth, signJwt, verifyJwt } from "./security/jwt.ts";
 export type {
   JwtAlgorithm,
   JwtAuthOptions,
   JwtPayload,
   SignOptions,
   VerifyOptions,
-} from "./security/jwt.js";
-export type { FormFile, ParsedForm } from "./http/forms.js";
-export type { StaticOptions } from "./http/static.js";
-export type { ServerOptions } from "./native/native.js";
-export { createTcpServer } from "./net/tcp.js";
-export type { TcpServer, TcpSocket, TcpOptions, TcpServerOptions } from "./net/tcp.js";
-export { createUdpServer, sealDatagram, openDatagram, ReplayWindow, keysEqual } from "./net/udp.js";
-export type { UdpSocket, UdpOptions, UdpServerOptions, SecureUdpOptions } from "./net/udp.js";
+} from "./security/jwt.ts";
+export type { FormFile, ParsedForm } from "./http/forms.ts";
+export type { StaticOptions } from "./http/static.ts";
+export type { ServerOptions } from "./native/native.ts";
+export { createTcpServer } from "./net/tcp.ts";
+export type { TcpServer, TcpSocket, TcpOptions, TcpServerOptions } from "./net/tcp.ts";
+export { createUdpServer, sealDatagram, openDatagram, ReplayWindow, keysEqual } from "./net/udp.ts";
+export type { UdpSocket, UdpOptions, UdpServerOptions, SecureUdpOptions } from "./net/udp.ts";
 export {
   createSecureUdpServer,
   connectSecureUdp,
   generateKeyPair,
   keyPairFromPrivateRaw,
   NoiseSession,
-} from "./net/secure-udp.js";
+} from "./net/secure-udp.ts";
 export type {
   KeyPair,
   SecureSession,
@@ -42,9 +42,9 @@ export type {
   SecureUdpServerOptions,
   SecureClientSession,
   SecureUdpClientOptions,
-} from "./net/secure-udp.js";
-export type { RemoteInfo } from "./native/native.js";
-export { TokiWebSocket } from "./websocket/websocket.js";
+} from "./net/secure-udp.ts";
+export type { RemoteInfo } from "./native/native.ts";
+export { TokiWebSocket } from "./websocket/websocket.ts";
 export type {
   BufferListener,
   CloseListener,
@@ -52,7 +52,7 @@ export type {
   MessageListener,
   WebSocketHandler,
   WebSocketOptions,
-} from "./websocket/websocket.js";
+} from "./websocket/websocket.ts";
 export type {
   BodyParser,
   ContentTypeParserEntry,
@@ -75,4 +75,4 @@ export type {
   StreamSource,
   TokiOptions,
   TokiResponse,
-} from "./core/types.js";
+} from "./core/types.ts";

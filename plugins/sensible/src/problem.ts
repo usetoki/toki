@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { ErrorHandler, TokiRequest } from "@usetoki/toki";
-import { HttpError, type HttpErrorOptions, isHttpError } from "./errors.js";
+import { HttpError, type HttpErrorOptions, isHttpError } from "./errors.ts";
 
 const encoder = new TextEncoder();
 

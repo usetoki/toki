@@ -1,2 +1,2 @@
-export { createCookies } from "./cookies.js";
-export type { Cookies, CookieCryptoOptions } from "./cookies.js";
+export { createCookies } from "./cookies.ts";
+export type { Cookies, CookieCryptoOptions } from "./cookies.ts";

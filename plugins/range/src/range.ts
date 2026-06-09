@@ -1,7 +1,7 @@
 import { open } from "node:fs/promises";
 import { reply } from "@usetoki/toki";
 import type { HandlerResult, TokiRequest } from "@usetoki/toki";
-import { parseRange, type RangeSpec } from "./parse.js";
+import { parseRange, type RangeSpec } from "./parse.ts";
 
 export interface RangeOptions {
   /** Content type of the entity. Default `"application/octet-stream"`. */

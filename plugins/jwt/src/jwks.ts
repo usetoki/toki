@@ -1,6 +1,6 @@
 import { createPublicKey, type JsonWebKey, type KeyObject } from "node:crypto";
-import { JwtError } from "./errors.js";
-import type { JwtHeader, KeyResolver } from "./types.js";
+import { JwtError } from "./errors.ts";
+import type { JwtHeader, KeyResolver } from "./types.ts";
 
 export interface JwksOptions {
   /** the JWKS endpoint (e.g. https://issuer/.well-known/jwks.json) */

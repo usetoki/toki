@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { createApp } from "@usetoki/toki";
-import { parseRange, sendRange } from "../dist/index.js";
+import { parseRange, sendRange } from "../src/index.ts";
 
 test("parseRange handles every single-range form", () => {
   assert.deepEqual(parseRange("bytes=0-3", 10), { start: 0, end: 3 });

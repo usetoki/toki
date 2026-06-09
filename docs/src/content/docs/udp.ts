@@ -118,6 +118,7 @@ sock.send("ping", 9100, "192.168.1.5"); // IPv4`,
       rows: [
         ["`reuseAddr`", "`boolean`", "`false`", "Set `SO_REUSEADDR` so the port can be rebound quickly (and shared across workers)."],
         ["`recvmmsg`", "`boolean`", "`false`", "Batch reads with `recvmmsg` on Linux for higher receive throughput under load."],
+        ["`rateLimit`", "`{ max, windowMs }`", "off", "Native per-source datagram limit — see [Rate limiting datagrams](#rate-limit)."],
       ],
     },
     {
@@ -139,6 +140,27 @@ sock.send("ping", 9100, "192.168.1.5"); // IPv4`,
       kind: "callout",
       tone: "note",
       text: "The `Buffer` handed to the handler is a copy of the datagram — it stays valid after the handler returns, so you can queue or store it freely.",
+    },
+    { kind: "heading", id: "rate-limit", text: "Rate limiting datagrams" },
+    {
+      kind: "paragraph",
+      text: "`rateLimit: { max, windowMs }` caps how many datagrams one source address may deliver per window. An over-limit packet is dropped inside the engine — before any decryption, before the Buffer copy, before the dispatch into JS — and nothing is sent back, since answering an over-limit datagram would hand a spoofing attacker an amplifier.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "guarded-udp.ts",
+        language: "ts",
+        code: `const server = createUdpServer(onMessage, {
+  rateLimit: { max: 1000, windowMs: 1_000 }, // 1000 datagrams per source per second
+  secure: { key }, // over-limit packets are dropped before any decryption
+});`,
+      },
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "Be honest about what this buys you: the packet has already crossed the kernel, so this caps what a source can make your JS thread chew through — abuse control, not a line-rate DDoS shield. Volumetric floods are soaked further upstream. For per-key budgets or shared counters, wrap the handler with `udpRateLimit` from [`@usetoki/toki-ratelimiter`](/docs/plugin-rate-limiter).",
     },
     { kind: "heading", id: "secure", text: "Secure datagrams" },
     {

@@ -1,7 +1,7 @@
 // A WebSocket echo endpoint with subprotocol negotiation and a live client.
 // run: node examples/websocket.ts
 import assert from "node:assert/strict";
-import { createApp } from "../dist/index.js";
+import { createApp } from "../ts/index.ts";
 
 const PORT = 8090;
 

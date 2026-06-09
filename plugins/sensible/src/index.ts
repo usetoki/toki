@@ -1,6 +1,6 @@
-export { sensible } from "./sensible.js";
-export { httpErrors, createError, HttpError, isHttpError } from "./errors.js";
-export type { HttpErrorOptions } from "./errors.js";
-export { problemJson } from "./problem.js";
-export type { ProblemOptions } from "./problem.js";
-export { assert } from "./assert.js";
+export { sensible } from "./sensible.ts";
+export { httpErrors, createError, HttpError, isHttpError } from "./errors.ts";
+export type { HttpErrorOptions } from "./errors.ts";
+export { problemJson } from "./problem.ts";
+export type { ProblemOptions } from "./problem.ts";
+export { assert } from "./assert.ts";

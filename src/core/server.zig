@@ -47,7 +47,7 @@ pub fn listen(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     _ = napi.napi_create_reference(env, argv[3], 1, &eng.dispatch_ref);
     eng.static_table = static.Table.init(alloc);
     buildStaticTable(env, argv[4]);
-    ratelimit.init(alloc);
+    ratelimit.http.init(alloc);
     readOptions(env, argv[5]);
     if (!setupTls(env, argv[5])) return eng.undefinedValue(env); // bad cert/key → threw
     websocket.configure(env, argv[6], argv[7], argv[8], methods.len);
@@ -120,7 +120,7 @@ fn boot(env: napi.Env, port: i32) void {
     }
 
     // only arm the sweep if a guard needs it
-    if (eng.header_timeout_ms > 0 or ratelimit.enabled()) {
+    if (eng.header_timeout_ms > 0 or ratelimit.http.enabled()) {
         _ = uv.uv_timer_init(eng.loop.?, eng.opaqueOf(&eng.sweep_timer));
         _ = uv.uv_timer_start(eng.opaqueOf(&eng.sweep_timer), &onSweep, 1000, 1000);
     }
@@ -133,8 +133,8 @@ fn readOptions(env: napi.Env, options: napi.Value) void {
     if (readOptUint(env, options, "backlog")) |v| eng.backlog = @intCast(v);
     if (readOptBool(env, options, "reusePort")) eng.bind_flags = 2; // UV_TCP_REUSEPORT
     if (readOptBool(env, options, "notFound")) eng.not_found_dispatch = true;
-    if (readOptUint(env, options, "rateLimitMax")) |v| ratelimit.max = @intCast(v);
-    if (readOptUint(env, options, "rateLimitWindowMs")) |v| ratelimit.window_ms = v;
+    if (readOptUint(env, options, "rateLimitMax")) |v| ratelimit.http.max = @intCast(v);
+    if (readOptUint(env, options, "rateLimitWindowMs")) |v| ratelimit.http.window_ms = v;
     if (readOptUint(env, options, "maxWsMessageBytes")) |v| eng.max_ws_message = v;
     if (readOptBool(env, options, "wsCompression")) eng.ws_compression = true;
 
@@ -272,7 +272,7 @@ fn onSweep(handle: *anyopaque) callconv(.c) void {
             node = next;
         }
     }
-    ratelimit.sweep(now);
+    ratelimit.http.sweep(now);
 }
 
 /// close() — stop accepting, then close every live connection.
@@ -281,8 +281,8 @@ pub fn closeServer(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Val
     if (!eng.server_closing) {
         eng.server_closing = true;
         uv.uv_close(eng.opaqueOf(&eng.listen_socket), null);
-        if (eng.header_timeout_ms > 0 or ratelimit.enabled()) uv.uv_close(eng.opaqueOf(&eng.sweep_timer), null);
-        ratelimit.reset();
+        if (eng.header_timeout_ms > 0 or ratelimit.http.enabled()) uv.uv_close(eng.opaqueOf(&eng.sweep_timer), null);
+        ratelimit.http.reset();
         if (eng.unix_path != null) removeSocketFile(&eng.unix_path_buf); // don't leave the socket file behind
     }
     var node = eng.conn_list;

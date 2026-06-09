@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createApp, parseCookies, reply, serializeCookie } from "../dist/index.js";
+import { createApp, parseCookies, reply, serializeCookie } from "../ts/index.ts";
 
 interface ValidationError {
   statusCode: number;

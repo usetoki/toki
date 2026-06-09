@@ -1,3 +1,3 @@
-export { etag } from "./etag.js";
-export type { EtagOptions } from "./etag.js";
-export type { EtagAlgorithm } from "./hash.js";
+export { etag } from "./etag.ts";
+export type { EtagOptions } from "./etag.ts";
+export type { EtagAlgorithm } from "./hash.ts";

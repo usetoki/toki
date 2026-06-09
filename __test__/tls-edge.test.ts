@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { connect as netConnect } from "node:net";
 import { after, test } from "node:test";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 import { certFixture, makeHttps } from "./tls-helpers.ts";
 
 const cert = certFixture("rsa-cert.pem");

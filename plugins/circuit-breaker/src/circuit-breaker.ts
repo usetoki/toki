@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { Handler, HandlerResult, TokiRequest } from "@usetoki/toki";
-import { Breaker } from "./breaker.js";
+import { Breaker } from "./breaker.ts";
 
 export interface CircuitBreakerOptions {
   /** Failure fraction (0–1) over the window that trips the breaker. Default `0.5`. */

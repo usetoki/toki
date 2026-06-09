@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import net from "node:net";
 import { after, before, describe, test } from "node:test";
 import { constants, deflateRawSync, inflateRawSync } from "node:zlib";
-import { createApp } from "../dist/index.js";
+import { createApp } from "../ts/index.ts";
 import { freePort } from "./helpers.ts";
 
 // permessage-deflate needs its own app, and the native engine is a singleton, so

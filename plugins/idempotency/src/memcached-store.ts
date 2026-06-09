@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { BeginResult, IdempotencyRecord, IdempotencyStore } from "./store.js";
+import type { BeginResult, IdempotencyRecord, IdempotencyStore } from "./store.ts";
 
 // an Idempotency-Key is client-controlled and may hold spaces/unicode/be huge; memcached
 // keys forbid that and cap at 250 bytes, so hash into a fixed, always-valid token.

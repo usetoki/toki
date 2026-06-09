@@ -1,7 +1,7 @@
 // run: node examples/cors-and-security.ts
 
 import assert from "node:assert/strict";
-import { createApp, securityHeaders } from "../dist/index.js";
+import { createApp, securityHeaders } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 

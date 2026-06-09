@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply, type TokiRequest } from "@usetoki/toki";
-import { apiKey, auth, basic, bearer, safeEqual } from "../dist/index.js";
+import { apiKey, auth, basic, bearer, safeEqual } from "../src/index.ts";
 
 const app = createApp({ logger: false });
 

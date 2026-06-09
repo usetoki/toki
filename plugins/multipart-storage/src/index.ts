@@ -1,7 +1,7 @@
-export { multipart } from "./multipart.js";
-export type { MultipartOptions, ParsedUpload } from "./multipart.js";
-export { diskStorage } from "./storage.js";
-export type { Storage, IncomingFile, DiskFile, DiskStorageOptions } from "./storage.js";
-export { MultipartError } from "./errors.js";
-export { parts } from "./parser.js";
-export type { RawPart } from "./parser.js";
+export { multipart } from "./multipart.ts";
+export type { MultipartOptions, ParsedUpload } from "./multipart.ts";
+export { diskStorage } from "./storage.ts";
+export type { Storage, IncomingFile, DiskFile, DiskStorageOptions } from "./storage.ts";
+export { MultipartError } from "./errors.ts";
+export { parts } from "./parser.ts";
+export type { RawPart } from "./parser.ts";

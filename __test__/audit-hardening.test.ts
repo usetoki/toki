@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { corsHeaders, createApp, reply } from "../dist/index.js";
+import { corsHeaders, createApp, reply } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 app.cors({ origin: ["https://app.test"], credentials: true });

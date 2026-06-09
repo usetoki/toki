@@ -1,6 +1,6 @@
-import { keyring } from "./keyring.js";
-import { seal as sealValue, unseal as unsealValue } from "./seal.js";
-import { sign as signValue, unsign as unsignValue } from "./sign.js";
+import { keyring } from "./keyring.ts";
+import { seal as sealValue, unseal as unsealValue } from "./seal.ts";
+import { sign as signValue, unsign as unsignValue } from "./sign.ts";
 
 export interface CookieCryptoOptions {
   /** One or more secrets (each >= 16 bytes). The first is current; the rest are still

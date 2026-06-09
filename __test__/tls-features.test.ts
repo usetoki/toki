@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 import { certFixture, makeHttps } from "./tls-helpers.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));

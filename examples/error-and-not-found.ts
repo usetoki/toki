@@ -1,6 +1,6 @@
 // run: node examples/error-and-not-found.ts
 import assert from "node:assert/strict";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 

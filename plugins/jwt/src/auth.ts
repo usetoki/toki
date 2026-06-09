@@ -1,7 +1,7 @@
 import { type HandlerResult, type Middleware, reply, type TokiRequest } from "@usetoki/toki";
-import { JwtError } from "./errors.js";
-import type { KeyInput, KeyResolver } from "./types.js";
-import { verifyJwt, type VerifyOptions } from "./verify.js";
+import { JwtError } from "./errors.ts";
+import type { KeyInput, KeyResolver } from "./types.ts";
+import { verifyJwt, type VerifyOptions } from "./verify.ts";
 
 declare module "@usetoki/toki" {
   interface TokiRequest {

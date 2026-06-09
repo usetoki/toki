@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import type { TLSSocket } from "node:tls";
 import { fileURLToPath } from "node:url";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string): Buffer => readFileSync(join(here, "fixtures", name));

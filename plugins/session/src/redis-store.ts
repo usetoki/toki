@@ -1,4 +1,4 @@
-import type { SessionData, SessionStore } from "./store.js";
+import type { SessionData, SessionStore } from "./store.ts";
 
 /** Minimal ioredis-compatible surface (also KeyDB / Valkey / Upstash). node-redis v4
  *  uses different signatures — wrap it; see the README. */

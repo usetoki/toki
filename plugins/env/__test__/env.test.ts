@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bool, email, EnvError, json, loadEnv, num, port, str, url } from "../dist/index.js";
+import { bool, email, EnvError, json, loadEnv, num, port, str, url } from "../src/index.ts";
 
 test("coerces each variable to its declared type", () => {
   const env = loadEnv(

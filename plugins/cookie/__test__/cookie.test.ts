@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createCookies } from "../dist/index.js";
+import { createCookies } from "../src/index.ts";
 
 const SECRET = "0123456789abcdef-secret-key"; // >= 16 bytes
 const ROTATED = "fedcba9876543210-newer-secret";

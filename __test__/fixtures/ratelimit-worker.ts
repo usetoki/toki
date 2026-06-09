@@ -1,7 +1,7 @@
 // one rate-limited app per child process: the native limiter holds max/window in
 // global state and the engine can't re-listen after close(), so each scenario
 // runs fresh here and reports what it saw as JSON on stdout. spec is argv[2].
-import { createApp, reply } from "../../dist/index.js";
+import { createApp, reply } from "../../ts/index.ts";
 
 type Step = { hit: { url?: string; count: number } } | { sleep: number };
 type Spec = { rateLimit?: { max: number; windowMs: number }; steps: Step[] };

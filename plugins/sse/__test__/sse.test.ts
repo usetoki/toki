@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp } from "@usetoki/toki";
-import { sse } from "../dist/index.js";
+import { sse } from "../src/index.ts";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const app = createApp({ logger: false });

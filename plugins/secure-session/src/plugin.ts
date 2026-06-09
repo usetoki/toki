@@ -1,7 +1,7 @@
 import type { CookieOptions, Middleware, ResponseHook, TokiInstance } from "@usetoki/toki";
 import { createCookies } from "@usetoki/toki-cookie";
-import { decode, encode, type SessionData } from "./codec.js";
-import { CookieSession, type Session } from "./session.js";
+import { decode, encode, type SessionData } from "./codec.ts";
+import { CookieSession, type Session } from "./session.ts";
 
 declare module "@usetoki/toki" {
   interface TokiRequest {

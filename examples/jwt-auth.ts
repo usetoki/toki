@@ -1,7 +1,7 @@
 // run: node examples/jwt-auth.ts
 
 import assert from "node:assert/strict";
-import { createApp, jwtAuth, signJwt } from "../dist/index.js";
+import { createApp, jwtAuth, signJwt } from "../ts/index.ts";
 
 const SECRET = "dev-secret";
 

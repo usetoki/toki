@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { Handler, HandlerResult } from "@usetoki/toki";
-import { requestHeaders, responseHeaders } from "./headers.js";
+import { requestHeaders, responseHeaders } from "./headers.ts";
 
 export interface ProxyOptions {
   /** Upstream base URL, e.g. `"http://localhost:9000"`. */

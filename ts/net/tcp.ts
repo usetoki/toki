@@ -1,6 +1,6 @@
-import { native, type RemoteInfo, type TcpOptions } from "../native/native.js";
+import { native, type RemoteInfo, type TcpOptions } from "../native/native.ts";
 
-export type { RemoteInfo, TcpOptions } from "../native/native.js";
+export type { RemoteInfo, TcpOptions } from "../native/native.ts";
 
 /** A single accepted TCP connection. Reads arrive as `data`; backpressure is reported
  *  by {@link TcpSocket.write} returning `false` until the next `drain`. */
@@ -28,6 +28,13 @@ export interface TcpServerOptions extends TcpOptions {
   /** Keep the write side open after the peer half-closes (FIN). Default `false`: the write
    *  side is ended automatically once its backlog has flushed, like Node's `net`. */
   allowHalfOpen?: boolean;
+  /**
+   * Native per-IP accept limit, enforced in the engine before the TLS handshake runs and
+   * before the connection ever reaches JS. An over-limit peer is reset at accept — it costs
+   * the server no key exchange and no dispatch. Counts accepts (not bytes or requests);
+   * for per-key application budgets see `@usetoki/toki-ratelimiter`'s `tcpRateLimit`.
+   */
+  rateLimit?: { max: number; windowMs: number };
   /**
    * Terminate TLS on the raw socket (no reverse proxy). PEM cert chain (leaf first) +
    * private key — RSA or EC. TLS 1.3 only (AEAD suites). The handler runs once the
@@ -59,13 +66,9 @@ export interface TcpServer {
   close(): void;
 }
 
-const enum Ev {
-  Connection = 0,
-  Data = 1,
-  Drain = 2,
-  Close = 3,
-  End = 4,
-}
+// event tags from the native dispatcher, matched in src/net/tcp.zig
+const Ev = { Connection: 0, Data: 1, Drain: 2, Close: 3, End: 4 } as const;
+type Ev = (typeof Ev)[keyof typeof Ev];
 
 // One raw TCP server per process. The native engine is a singleton, so a second
 // listener would clobber the first. Mirrors the HTTP `app.listen` rule.
@@ -195,9 +198,16 @@ export function createTcpServer(
   // mTLS: a `ca` bundle + `requestCert` turns on client-cert auth; `rejectUnauthorized`
   // makes it mandatory (.require) rather than just requested (.request).
   let nativeOptions: TcpServerOptions = options;
-  if (options.tls) {
+  if (options.rateLimit) {
     nativeOptions = {
       ...options,
+      rateLimitMax: options.rateLimit.max,
+      rateLimitWindowMs: options.rateLimit.windowMs,
+    };
+  }
+  if (options.tls) {
+    nativeOptions = {
+      ...nativeOptions,
       tlsCert: toPem(options.tls.cert),
       tlsKey: toPem(options.tls.key),
     };

@@ -7,7 +7,7 @@ export const rateLimitingPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Pass `rateLimit` to `listen` to enable the built-in per-IP limiter. It runs in Zig: over-limit requests get a `429 Too Many Requests` with a `Retry-After` header before they ever reach your handlers, so a flood costs almost nothing. This is core; no plugin needed.",
+      text: "Pass `rateLimit` to `listen` to enable the built-in per-IP limiter. It runs in Zig: over-limit requests get a `429 Too Many Requests` with a `Retry-After` header before they ever reach your handlers, so a flood costs almost nothing. This is core; no plugin needed. The raw transports have the same guard: [TCP](/docs/tcp#rate-limit) takes `rateLimit` on `createTcpServer` (accepts are reset before the TLS handshake) and [UDP](/docs/udp#rate-limit) on `createUdpServer` (over-limit datagrams never cross into JS).",
     },
     {
       kind: "code",

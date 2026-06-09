@@ -11,7 +11,7 @@ import {
   type RedisClient,
   type Store,
   type StoreHit,
-} from "../dist/index.js";
+} from "../src/index.ts";
 
 const app = createApp({ logger: false });
 const stores: MemoryStore[] = [];

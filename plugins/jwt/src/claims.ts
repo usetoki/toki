@@ -1,5 +1,5 @@
-import { JwtError } from "./errors.js";
-import type { JwtPayload } from "./types.js";
+import { JwtError } from "./errors.ts";
+import type { JwtPayload } from "./types.ts";
 
 export interface ClaimChecks {
   issuer?: string | string[] | undefined;

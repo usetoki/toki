@@ -1,5 +1,5 @@
-export { sse } from "./sse.js";
-export type { SseStream, SseOptions } from "./sse.js";
-export { formatEvent } from "./format.js";
-export type { SseEvent } from "./format.js";
-export { Channel } from "./channel.js";
+export { sse } from "./sse.ts";
+export type { SseStream, SseOptions } from "./sse.ts";
+export { formatEvent } from "./format.ts";
+export type { SseEvent } from "./format.ts";
+export { Channel } from "./channel.ts";

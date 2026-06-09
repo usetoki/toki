@@ -31,7 +31,10 @@ export class Breaker {
   #openUntil = 0;
   #probing = false;
 
-  constructor(private readonly config: BreakerConfig) {
+  readonly #config: BreakerConfig;
+
+  constructor(config: BreakerConfig) {
+    this.#config = config;
     this.#windowEnd = config.now() + config.windowMs;
   }
 
@@ -42,10 +45,10 @@ export class Breaker {
   /** Whether a call may proceed now. Promotes `open` → `half-open` once the cooldown passes. */
   allow(): boolean {
     if (this.#state === "open") {
-      if (this.config.now() < this.#openUntil) return false;
+      if (this.#config.now() < this.#openUntil) return false;
       this.#state = "half-open";
       this.#probing = true;
-      this.#emit(this.config.onHalfOpen);
+      this.#emit(this.#config.onHalfOpen);
       return true;
     }
     if (this.#state === "half-open") {
@@ -60,7 +63,7 @@ export class Breaker {
   /** Seconds until the next probe is allowed; 0 unless open. */
   cooldownSeconds(): number {
     if (this.#state !== "open") return 0;
-    return Math.max(0, Math.ceil((this.#openUntil - this.config.now()) / 1000));
+    return Math.max(0, Math.ceil((this.#openUntil - this.#config.now()) / 1000));
   }
 
   success(): void {
@@ -81,8 +84,8 @@ export class Breaker {
     this.#total += 1;
     this.#failures += 1;
     if (
-      this.#total >= this.config.minimumRequests &&
-      this.#failures / this.#total >= this.config.failureThreshold
+      this.#total >= this.#config.minimumRequests &&
+      this.#failures / this.#total >= this.#config.failureThreshold
     ) {
       this.#open();
     }
@@ -90,19 +93,19 @@ export class Breaker {
 
   // start a fresh window once the current one has elapsed
   #roll(): void {
-    const now = this.config.now();
+    const now = this.#config.now();
     if (now >= this.#windowEnd) {
       this.#failures = 0;
       this.#total = 0;
-      this.#windowEnd = now + this.config.windowMs;
+      this.#windowEnd = now + this.#config.windowMs;
     }
   }
 
   #open(): void {
     this.#state = "open";
-    this.#openUntil = this.config.now() + this.config.resetTimeoutMs;
+    this.#openUntil = this.#config.now() + this.#config.resetTimeoutMs;
     this.#probing = false;
-    this.#emit(this.config.onOpen);
+    this.#emit(this.#config.onOpen);
   }
 
   #close(): void {
@@ -110,8 +113,8 @@ export class Breaker {
     this.#failures = 0;
     this.#total = 0;
     this.#probing = false;
-    this.#windowEnd = this.config.now() + this.config.windowMs;
-    this.#emit(this.config.onClose);
+    this.#windowEnd = this.#config.now() + this.#config.windowMs;
+    this.#emit(this.#config.onClose);
   }
 
   // a user transition hook must never corrupt the state machine by throwing

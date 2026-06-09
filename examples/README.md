@@ -45,4 +45,5 @@ Raw TCP/UDP, TLS, and the secure-UDP layer. The TLS examples mint throwaway cert
 | `udp.ts` | `createUdpServer` datagram echo |
 | `udp-secure.ts` | per-datagram AES-256-GCM under a pre-shared key (`secure: { key }`) |
 | `udp-noise.ts` | Noise-XX session — X25519 mutual auth, forward secrecy, replay protection |
+| `net-rate-limit.ts` | native per-IP accept guard (TCP) + per-source datagram guard (UDP) |
 | `unix-socket.ts` | listening on a unix domain socket |

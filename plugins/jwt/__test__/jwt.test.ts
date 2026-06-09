@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync } from "node:crypto";
 import { after, test } from "node:test";
 import { createApp, reply, type TokiRequest } from "@usetoki/toki";
-import { createJwksResolver, JwtError, jwtAuth, signJwt, verifyJwt } from "../dist/index.js";
+import { createJwksResolver, JwtError, jwtAuth, signJwt, verifyJwt } from "../src/index.ts";
 
 const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const ec = generateKeyPairSync("ec", { namedCurve: "P-256" });

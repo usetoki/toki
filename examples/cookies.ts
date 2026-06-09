@@ -1,6 +1,6 @@
 // run: node examples/cookies.ts
 import assert from "node:assert/strict";
-import { createApp, parseCookies, reply, serializeCookie } from "../dist/index.js";
+import { createApp, parseCookies, reply, serializeCookie } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 

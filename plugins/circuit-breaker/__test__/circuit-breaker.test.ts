@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { Breaker, circuitBreaker } from "../dist/index.js";
+import { Breaker, circuitBreaker } from "../src/index.ts";
 
 function clock() {
   let t = 1000;

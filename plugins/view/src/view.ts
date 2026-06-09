@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { reply } from "@usetoki/toki";
 import type { TokiResponse } from "@usetoki/toki";
-import type { Renderer, ViewEngine } from "./engine.js";
+import type { Renderer, ViewEngine } from "./engine.ts";
 
 export interface ViewOptions {
   engine: ViewEngine;

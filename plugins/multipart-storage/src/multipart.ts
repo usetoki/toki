@@ -1,7 +1,7 @@
 import type { TokiRequest } from "@usetoki/toki";
-import { MultipartError } from "./errors.js";
-import { parts } from "./parser.js";
-import type { Storage } from "./storage.js";
+import { MultipartError } from "./errors.ts";
+import { parts } from "./parser.ts";
+import type { Storage } from "./storage.ts";
 
 export interface MultipartOptions<T> {
   /** Where file parts are written. */

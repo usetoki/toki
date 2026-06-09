@@ -1,4 +1,4 @@
-import type { Store, StoreHit } from "./store.js";
+import type { Store, StoreHit } from "./store.ts";
 
 /**
  * Minimal ioredis-compatible surface — the Redis `EVAL` command (server-side Lua, NOT

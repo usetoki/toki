@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { csrf } from "../dist/index.js";
+import { csrf } from "../src/index.ts";
 
 const SECRET = "0123456789abcdef-csrf-secret";
 const app = createApp({ logger: false });

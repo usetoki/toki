@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 // one app per file: a second createApp().inject() in the same process aborts the native engine (exit 144)
 const app = createApp({ logger: false });

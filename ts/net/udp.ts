@@ -1,8 +1,8 @@
-import { native, type RemoteInfo, type UdpOptions } from "../native/native.js";
-import { openDatagram, ReplayWindow, sealDatagram } from "./secure-datagram.js";
+import { native, type RemoteInfo, type UdpOptions } from "../native/native.ts";
+import { openDatagram, ReplayWindow, sealDatagram } from "./secure-datagram.ts";
 
-export type { RemoteInfo, UdpOptions } from "../native/native.js";
-export { sealDatagram, openDatagram, ReplayWindow, keysEqual } from "./secure-datagram.js";
+export type { RemoteInfo, UdpOptions } from "../native/native.ts";
+export { sealDatagram, openDatagram, ReplayWindow, keysEqual } from "./secure-datagram.ts";
 
 /** Pre-shared-key authenticated encryption for every datagram (AES-256-GCM). Not DTLS —
  *  no handshake, no session — just per-datagram confidentiality + integrity. Both ends
@@ -17,6 +17,13 @@ export interface SecureUdpOptions {
 /** Options for {@link createUdpServer}. */
 export interface UdpServerOptions extends UdpOptions {
   secure?: SecureUdpOptions;
+  /**
+   * Native per-source datagram limit. An over-limit packet is dropped in the engine —
+   * no decryption, no Buffer copy, no dispatch into JS — and nothing is sent back
+   * (answering an over-limit datagram would be an amplification vector). The packet has
+   * still crossed the kernel, so this is abuse control, not a line-rate DDoS shield.
+   */
+  rateLimit?: { max: number; windowMs: number };
 }
 
 /** A bound UDP socket. UDP is connectionless — there are no connections to track, just
@@ -43,6 +50,16 @@ export function createUdpServer(
   const secure = options.secure;
   const replay = secure?.antiReplay ? new ReplayWindow(secure.antiReplay) : undefined;
 
+  // flatten the rateLimit option into the fields native reads (mirrors createTcpServer)
+  let nativeOptions: UdpServerOptions = options;
+  if (options.rateLimit) {
+    nativeOptions = {
+      ...options,
+      rateLimitMax: options.rateLimit.max,
+      rateLimitWindowMs: options.rateLimit.windowMs,
+    };
+  }
+
   const socket: UdpSocket = {
     bind(port: number, host = "0.0.0.0"): { port: number } {
       if (active) throw new Error("toki: a UDP server is already bound in this process");
@@ -59,7 +76,7 @@ export function createUdpServer(
         if (replay !== undefined && !replay.accept(data)) return; // replayed — drop
         onMessage(plain, rinfo, socket);
       };
-      const bound = native.udpBind(port, host, options, dispatch);
+      const bound = native.udpBind(port, host, nativeOptions, dispatch);
       active = true;
       return { port: bound };
     },

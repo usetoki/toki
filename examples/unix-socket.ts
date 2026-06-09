@@ -2,7 +2,7 @@
 // run: node examples/unix-socket.ts
 import assert from "node:assert/strict";
 import http from "node:http";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 const socketPath = `/tmp/toki-example-${process.pid}.sock`;
 

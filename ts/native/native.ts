@@ -182,6 +182,10 @@ export interface TcpOptions {
   /** how often (ms) to re-poll for a peer's FIN/RST that the OS left pending while the loop
    *  was idle. macOS kqueue can otherwise sit on it for seconds. Default 50; 0 disables. */
   eofPollMs?: number;
+  /** @internal flattened {@link TcpServerOptions.rateLimit} — accepts per IP per window */
+  rateLimitMax?: number;
+  /** @internal flattened {@link TcpServerOptions.rateLimit} window in ms */
+  rateLimitWindowMs?: number;
   /** @internal flattened cert PEM from the TCP server's `tls` option */
   tlsCert?: Uint8Array;
   /** @internal flattened key PEM from the TCP server's `tls` option */
@@ -199,6 +203,10 @@ export interface UdpOptions {
   reuseAddr?: boolean;
   /** batch reads with `recvmmsg` (Linux) */
   recvmmsg?: boolean;
+  /** @internal flattened {@link UdpServerOptions.rateLimit} — datagrams per source per window */
+  rateLimitMax?: number;
+  /** @internal flattened {@link UdpServerOptions.rateLimit} window in ms */
+  rateLimitWindowMs?: number;
 }
 
 // Detects musl libc (Alpine) so Linux picks the right package. glibc exposes

@@ -53,7 +53,7 @@ env.NODE_ENV; // "development" | "production" | "test"`,
         filename: "app.ts",
         language: "ts",
         code: `import { createApp } from "@usetoki/toki";
-import { env } from "./env.js";
+import { env } from "./env.ts";
 
 const app = createApp();
 app.listen(env.PORT);`,

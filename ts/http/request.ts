@@ -1,8 +1,8 @@
-import { type CookieOptions, parseCookies, serializeCookie } from "./cookies.js";
-import { parseForm, type ParsedForm } from "./forms.js";
-import { silentLogger } from "../core/logger.js";
-import type { NativeRequest } from "../native/native.js";
-import type { ContentTypeParserEntry, Logger, RouteMethod } from "../core/types.js";
+import { type CookieOptions, parseCookies, serializeCookie } from "./cookies.ts";
+import { parseForm, type ParsedForm } from "./forms.ts";
+import { silentLogger } from "../core/logger.ts";
+import type { NativeRequest } from "../native/native.ts";
+import type { ContentTypeParserEntry, Logger, RouteMethod } from "../core/types.ts";
 
 let sequence = 0;
 

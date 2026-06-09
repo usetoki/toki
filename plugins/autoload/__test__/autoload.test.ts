@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { createApp } from "@usetoki/toki";
-import { autoload, joinPrefix, routePrefix } from "../dist/index.js";
+import { autoload, joinPrefix, routePrefix } from "../src/index.ts";
 
 test("routePrefix derives URL prefixes from file paths", () => {
   assert.equal(routePrefix("index.ts"), "/");

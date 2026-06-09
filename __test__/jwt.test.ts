@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { createApp, jwtAuth, JwtError, reply, signJwt, verifyJwt } from "../dist/index.js";
+import { createApp, jwtAuth, JwtError, reply, signJwt, verifyJwt } from "../ts/index.ts";
 
 const SECRET = "super-secret-key";
 

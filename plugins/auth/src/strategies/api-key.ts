@@ -1,5 +1,5 @@
 import type { TokiRequest } from "@usetoki/toki";
-import type { Strategy, VerifyResult } from "../types.js";
+import type { Strategy, VerifyResult } from "../types.ts";
 
 export interface ApiKeyOptions {
   /** header carrying the key. Default "x-api-key". */

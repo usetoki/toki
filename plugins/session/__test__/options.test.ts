@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { MemoryStore, session } from "../dist/index.js";
+import { MemoryStore, session } from "../src/index.ts";
 
 const store = new MemoryStore();
 const app = createApp({ logger: false });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import http from "node:http";
 import { after, test } from "node:test";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 // unix-domain sockets are a POSIX feature here; Windows maps them to named pipes.
 const skip = process.platform === "win32";

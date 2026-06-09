@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { brotliDecompressSync, gunzipSync } from "node:zlib";
-import { compression, createApp, reply } from "../dist/index.js";
+import { compression, createApp, reply } from "../ts/index.ts";
 
 // inject() doesn't auto-decompress, so unwrap the wire bytes by hand.
 const decode = (encoding: string | undefined, raw: Buffer): string => {

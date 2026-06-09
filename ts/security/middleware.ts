@@ -1,7 +1,7 @@
 import { brotliCompress, constants, gzip } from "node:zlib";
 import { promisify } from "node:util";
-import { rawResponse, reply } from "../http/response.js";
-import type { Handler, Middleware, ResponseHook } from "../core/types.js";
+import { rawResponse, reply } from "../http/response.ts";
+import type { Handler, Middleware, ResponseHook } from "../core/types.ts";
 
 const gzipAsync = promisify(gzip);
 const brotliAsync = promisify(brotliCompress);

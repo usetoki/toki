@@ -1,4 +1,4 @@
-import { createError, type HttpErrorOptions } from "./errors.js";
+import { createError, type HttpErrorOptions } from "./errors.ts";
 
 /**
  * Throw an {@link HttpError} with `status` when `condition` is falsy. The narrowing return

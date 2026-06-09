@@ -1,5 +1,5 @@
 import { type HandlerResult, type Middleware, reply, type TokiRequest } from "@usetoki/toki";
-import type { Strategy } from "./types.js";
+import type { Strategy } from "./types.ts";
 
 declare module "@usetoki/toki" {
   interface TokiRequest {

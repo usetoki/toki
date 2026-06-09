@@ -8,7 +8,7 @@ import {
   RedisStore,
   type MemcachedClient,
   type RedisClient,
-} from "../dist/index.js";
+} from "../src/index.ts";
 
 class FakeRedis implements RedisClient {
   readonly #m = new Map<string, { value: string; expiresAt: number }>();

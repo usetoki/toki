@@ -8,7 +8,7 @@ import {
   RedisStore,
   type MemcachedClient,
   type RedisClient,
-} from "../dist/index.js";
+} from "../src/index.ts";
 
 // in-memory stand-in for Redis, honoring the PX TTL
 class FakeRedis implements RedisClient {

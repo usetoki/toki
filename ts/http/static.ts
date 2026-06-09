@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, sep } from "node:path";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
-import type { StaticEntry } from "../native/native.js";
+import type { StaticEntry } from "../native/native.ts";
 
 /** Options for {@link Toki.static}. */
 export interface StaticOptions {

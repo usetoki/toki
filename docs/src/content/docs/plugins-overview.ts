@@ -57,7 +57,7 @@ export const pluginsOverviewPage: DocPage = {
         ],
         [
           "`@usetoki/toki-ratelimiter`",
-          "Per-route, per-key rate limiting with pluggable stores (memory, Redis, memcached)",
+          "Per-key rate limiting for HTTP, raw TCP, and UDP with pluggable stores (memory, Redis, memcached)",
         ],
       ],
     },

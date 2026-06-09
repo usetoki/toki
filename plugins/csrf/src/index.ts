@@ -1,2 +1,2 @@
-export { csrf } from "./csrf.js";
-export type { CsrfOptions, CsrfCookieOptions } from "./csrf.js";
+export { csrf } from "./csrf.ts";
+export type { CsrfOptions, CsrfCookieOptions } from "./csrf.ts";

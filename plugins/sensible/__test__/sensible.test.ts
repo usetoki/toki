@@ -7,7 +7,7 @@ import {
   httpErrors,
   isHttpError,
   sensible,
-} from "../dist/index.js";
+} from "../src/index.ts";
 
 const seen: unknown[] = [];
 const app = createApp({ logger: false });

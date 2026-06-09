@@ -1,7 +1,7 @@
 import { reply } from "@usetoki/toki";
 import type { StreamResponse, TokiRequest } from "@usetoki/toki";
-import { Channel } from "./channel.js";
-import { formatEvent, oneLine, type SseEvent } from "./format.js";
+import { Channel } from "./channel.ts";
+import { formatEvent, oneLine, type SseEvent } from "./format.ts";
 
 export interface SseStream {
   /** Send an event. A bare string is shorthand for `{ data }`. */

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp } from "../dist/index.js";
+import { createApp } from "../ts/index.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "toki-static-"));
 writeFileSync(join(dir, "hello.txt"), "hello from disk\n");

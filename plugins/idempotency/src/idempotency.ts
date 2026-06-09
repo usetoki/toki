@@ -1,7 +1,7 @@
 import { reply } from "@usetoki/toki";
 import type { TokiInstance, TokiRequest } from "@usetoki/toki";
-import { fingerprint } from "./fingerprint.js";
-import { type IdempotencyStore, MemoryStore } from "./store.js";
+import { fingerprint } from "./fingerprint.ts";
+import { type IdempotencyStore, MemoryStore } from "./store.ts";
 
 const encoder = new TextEncoder();
 const SKIP_HEADERS = new Set(["set-cookie"]);

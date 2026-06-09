@@ -1,6 +1,6 @@
-import { signData } from "./algorithms.js";
-import { encode, encodeJson } from "./base64url.js";
-import type { JwtAlgorithm, JwtHeader, JwtPayload, KeyInput } from "./types.js";
+import { signData } from "./algorithms.ts";
+import { encode, encodeJson } from "./base64url.ts";
+import type { JwtAlgorithm, JwtHeader, JwtPayload, KeyInput } from "./types.ts";
 
 export interface SignOptions {
   algorithm: JwtAlgorithm;

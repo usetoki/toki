@@ -1,7 +1,7 @@
 import { reply } from "@usetoki/toki";
 import type { TokiInstance, TokiRequest, TokiResponse } from "@usetoki/toki";
-import { defaultKey } from "./key.js";
-import { type CacheStore, MemoryStore } from "./store.js";
+import { defaultKey } from "./key.ts";
+import { type CacheStore, MemoryStore } from "./store.ts";
 
 const encoder = new TextEncoder();
 // marks a request whose response was served from cache, so onSend doesn't re-store it

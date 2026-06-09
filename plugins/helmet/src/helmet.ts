@@ -1,5 +1,5 @@
 import type { Middleware } from "@usetoki/toki";
-import { buildCsp, type CspDirectives, DEFAULT_CSP } from "./csp.js";
+import { buildCsp, type CspDirectives, DEFAULT_CSP } from "./csp.ts";
 
 /** HSTS knobs; `true` uses the defaults below. */
 export interface HstsOptions {

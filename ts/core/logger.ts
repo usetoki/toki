@@ -1,4 +1,4 @@
-import type { Logger, LogLevel, TokiOptions } from "./types.js";
+import type { Logger, LogLevel, TokiOptions } from "./types.ts";
 
 const LEVELS: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import dgram from "node:dgram";
 import type net from "node:net";
 import { after, before, describe, test } from "node:test";
-import { createUdpServer, type RemoteInfo } from "../dist/index.js";
+import { createUdpServer, type RemoteInfo } from "../ts/index.ts";
 
 // ---------------------------------------------------------------------------
 // server under test

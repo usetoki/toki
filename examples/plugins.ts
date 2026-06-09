@@ -1,6 +1,6 @@
 // run: node examples/plugins.ts
 import assert from "node:assert/strict";
-import { createApp, TokiRequest, type TokiInstance, type PluginOptions } from "../dist/index.js";
+import { createApp, TokiRequest, type TokiInstance, type PluginOptions } from "../ts/index.ts";
 
 const scopedOf = (req: TokiRequest) => (req as unknown as { scoped?: string }).scoped ?? null;
 

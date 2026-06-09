@@ -1,11 +1,11 @@
 import dgram from "node:dgram";
-import { createUdpServer, type RemoteInfo } from "./udp.js";
-import { HandshakeState } from "./noise/handshake-state.js";
-import type { KeyPair } from "./noise/dh.js";
-import { NoiseSession } from "./noise-session.js";
+import { createUdpServer, type RemoteInfo } from "./udp.ts";
+import { HandshakeState } from "./noise/handshake-state.ts";
+import type { KeyPair } from "./noise/dh.ts";
+import { NoiseSession } from "./noise-session.ts";
 
-export { generateKeyPair, keyPairFromPrivateRaw, type KeyPair } from "./noise/dh.js";
-export { NoiseSession } from "./noise-session.js";
+export { generateKeyPair, keyPairFromPrivateRaw, type KeyPair } from "./noise/dh.ts";
+export { NoiseSession } from "./noise-session.ts";
 
 // Encrypted, authenticated UDP sessions built on the Noise XX handshake (X25519 + AES-256-GCM
 // + SHA-256). The WireGuard-style way to secure connectionless traffic when DTLS isn't

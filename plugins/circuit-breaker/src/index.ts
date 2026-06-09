@@ -1,4 +1,4 @@
-export { circuitBreaker } from "./circuit-breaker.js";
-export type { CircuitBreakerOptions } from "./circuit-breaker.js";
-export { Breaker } from "./breaker.js";
-export type { BreakerState, BreakerConfig } from "./breaker.js";
+export { circuitBreaker } from "./circuit-breaker.ts";
+export type { CircuitBreakerOptions } from "./circuit-breaker.ts";
+export { Breaker } from "./breaker.ts";
+export type { BreakerState, BreakerConfig } from "./breaker.ts";

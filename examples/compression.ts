@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { gunzipSync, brotliDecompressSync } from "node:zlib";
-import { createApp, compression } from "../dist/index.js";
+import { createApp, compression } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 

@@ -1,13 +1,13 @@
-import type { TokiRequest } from "../http/request.js";
-import { isTokiResponse, jsonResponse, normalize, reply } from "../http/response.js";
-import { type JSONSchema, type RouteSchema, serialize, validate } from "../http/schema.js";
+import type { TokiRequest } from "../http/request.ts";
+import { isTokiResponse, jsonResponse, normalize, reply } from "../http/response.ts";
+import { type JSONSchema, type RouteSchema, serialize, validate } from "../http/schema.ts";
 import type {
   HandlerResult,
   Middleware,
   ResponseHook,
   SerializationHook,
   TokiResponse,
-} from "./types.js";
+} from "./types.ts";
 
 export function isThenable<T>(value: unknown): value is Promise<T> {
   return (

@@ -1,4 +1,4 @@
-import type { EnvVar } from "./validators.js";
+import type { EnvVar } from "./validators.ts";
 
 /** A map of variable name → validator. */
 export type EnvSchema = Record<string, EnvVar<unknown>>;
@@ -10,9 +10,12 @@ export type Env<S extends EnvSchema> = {
 
 /** Thrown when one or more variables are missing or invalid; collects every problem. */
 export class EnvError extends Error {
-  constructor(readonly problems: readonly string[]) {
+  readonly problems: readonly string[];
+
+  constructor(problems: readonly string[]) {
     super(`invalid environment:\n  ${problems.join("\n  ")}`);
     this.name = "EnvError";
+    this.problems = problems;
   }
 }
 

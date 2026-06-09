@@ -1,6 +1,6 @@
-import { CipherState } from "./cipher-state.js";
-import { DHLEN, dh, generateKeyPair, type KeyPair } from "./dh.js";
-import { SymmetricState } from "./symmetric-state.js";
+import { CipherState } from "./cipher-state.ts";
+import { DHLEN, dh, generateKeyPair, type KeyPair } from "./dh.ts";
+import { SymmetricState } from "./symmetric-state.ts";
 
 // HandshakeState (Noise spec §5.3) for the XX pattern over X25519 + AES-256-GCM + SHA-256:
 //

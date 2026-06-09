@@ -159,6 +159,7 @@ createTcpServer((socket) => {
         ["`reusePort`", "`boolean`", "`false`", "Set `SO_REUSEPORT` so several worker processes can share one port (Linux/BSD)."],
         ["`noDelay`", "`boolean`", "`false`", "Disable Nagle's algorithm — send small writes immediately for lower latency."],
         ["`backlog`", "`number`", "`512`", "Size of the kernel's pending-connection queue."],
+        ["`rateLimit`", "`{ max, windowMs }`", "off", "Native per-IP accept limit — see [Rate limiting accepts](#rate-limit)."],
       ],
     },
     {
@@ -170,6 +171,31 @@ createTcpServer((socket) => {
       kind: "callout",
       tone: "note",
       text: "The `Buffer` handed to `data` is a copy of the received bytes — it stays valid after the handler returns, so you can buffer or queue it freely. (This differs from the WebSocket `message` buffer, which is a transient view.)",
+    },
+    { kind: "heading", id: "rate-limit", text: "Rate limiting accepts" },
+    {
+      kind: "paragraph",
+      text: "`rateLimit: { max, windowMs }` caps how many connections one IP may open per window, enforced inside the engine at accept time. An over-limit peer is reset immediately: on a TLS listener that happens *before* the handshake state even exists, so a connection flood costs the attacker a SYN and costs you a hash lookup — not an ECDHE key exchange. The rejected connection never reaches JS at all.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "guarded.ts",
+        language: "ts",
+        code: `const server = createTcpServer(handler, {
+  rateLimit: { max: 100, windowMs: 60_000 }, // 100 accepts per IP per minute
+  tls: { cert, key }, // over-limit peers are reset before the handshake
+});`,
+      },
+    },
+    {
+      kind: "paragraph",
+      text: "The counter is a fixed window per source address (IPv4 or IPv6), swept as it goes, with a hard cap on tracked addresses so the table itself can't be ballooned. When the option is absent the accept path pays a single branch.",
+    },
+    {
+      kind: "callout",
+      tone: "note",
+      text: "This guard counts *accepts*. For per-key budgets (a user id, an API key), custom over-limit responses, or counters shared across processes via Redis, wrap your handler with `tcpRateLimit` from [`@usetoki/toki-ratelimiter`](/docs/plugin-rate-limiter) — the two compose: the native guard absorbs floods, the plugin enforces application policy.",
     },
     { kind: "heading", id: "tls", text: "TLS" },
     {

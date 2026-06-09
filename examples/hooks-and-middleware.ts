@@ -1,7 +1,7 @@
 // run: node examples/hooks-and-middleware.ts
 
 import assert from "node:assert/strict";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 const app = createApp();
 const phases: string[] = [];

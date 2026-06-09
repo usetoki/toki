@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import net from "node:net";
 import { after, before, test } from "node:test";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 import { freePort } from "./helpers.ts";
 
 function connect(port: number): Promise<net.Socket> {

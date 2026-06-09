@@ -1,4 +1,4 @@
-import type { CacheEntry, CacheStore } from "./store.js";
+import type { CacheEntry, CacheStore } from "./store.ts";
 
 /** Minimal ioredis-compatible surface (also KeyDB / Valkey / Upstash). */
 export interface RedisClient {

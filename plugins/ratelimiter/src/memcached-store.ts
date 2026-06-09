@@ -1,4 +1,4 @@
-import type { Store, StoreHit } from "./store.js";
+import type { Store, StoreHit } from "./store.ts";
 
 /**
  * Minimal memcached surface. Modern memjs matches with a thin wrapper; the older

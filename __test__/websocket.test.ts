@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import http from "node:http";
 import net from "node:net";
 import { after, before, describe, test } from "node:test";
-import { createApp } from "../dist/index.js";
+import { createApp } from "../ts/index.ts";
 import { freePort } from "./helpers.ts";
 
 // ---------------------------------------------------------------------------

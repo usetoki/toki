@@ -30,3 +30,14 @@ pub fn parse(host: [*c]const u8, host_len: usize, port: i32, out: *anyopaque) bo
 pub fn name(addr: *const anyopaque, dst: []u8) void {
     _ = uv.uv_ip_name(addr, dst.ptr, dst.len);
 }
+
+/// Raw address bytes of a sockaddr — no port, no formatting — for hash keying on the
+/// per-packet/per-accept paths where an ntop round trip is wasted work. 4 bytes for
+/// IPv4 (sin_addr at offset 4), 16 for IPv6 (sin6_addr at offset 8, past flowinfo).
+/// AF_INET is 2 on every platform: byte 0 on Linux/Windows (LE u16 family), byte 1 on
+/// the BSDs (u8 len, then u8 family). No AF_INET6 value puts a 2 in either byte.
+pub fn ipBytes(addr: *const anyopaque) []const u8 {
+    const bytes: [*]const u8 = @ptrCast(addr);
+    if (bytes[0] == 2 or bytes[1] == 2) return bytes[4..8];
+    return bytes[8..24];
+}

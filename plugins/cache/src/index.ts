@@ -1,9 +1,9 @@
-export { cache } from "./cache.js";
-export type { CacheOptions } from "./cache.js";
-export { MemoryStore } from "./store.js";
-export type { CacheStore, CacheEntry, MemoryStoreOptions } from "./store.js";
-export { RedisStore } from "./redis-store.js";
-export type { RedisClient, RedisStoreOptions } from "./redis-store.js";
-export { MemcachedStore } from "./memcached-store.js";
-export type { MemcachedClient, MemcachedStoreOptions } from "./memcached-store.js";
-export { defaultKey } from "./key.js";
+export { cache } from "./cache.ts";
+export type { CacheOptions } from "./cache.ts";
+export { MemoryStore } from "./store.ts";
+export type { CacheStore, CacheEntry, MemoryStoreOptions } from "./store.ts";
+export { RedisStore } from "./redis-store.ts";
+export type { RedisClient, RedisStoreOptions } from "./redis-store.ts";
+export { MemcachedStore } from "./memcached-store.ts";
+export type { MemcachedClient, MemcachedStoreOptions } from "./memcached-store.ts";
+export { defaultKey } from "./key.ts";

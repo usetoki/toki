@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { createApp, reply, securityHeaders, corsHeaders, corsPreflight } from "../dist/index.js";
+import { createApp, reply, securityHeaders, corsHeaders, corsPreflight } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import net from "node:net";
 import { after, test } from "node:test";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 import { delay, freePort } from "./helpers.ts";
 
 const app = createApp({ requestTimeoutMs: 200 });

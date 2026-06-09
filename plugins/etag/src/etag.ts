@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { TokiInstance, TokiRequest, TokiResponse } from "@usetoki/toki";
-import { type EtagAlgorithm, hasher } from "./hash.js";
+import { type EtagAlgorithm, hasher } from "./hash.ts";
 
 export interface EtagOptions {
   /** Emit a weak validator (`W/"…"`) instead of a strong one. Default `false`. */

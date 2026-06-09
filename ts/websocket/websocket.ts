@@ -1,6 +1,6 @@
 import { constants, deflateRawSync, inflateRawSync } from "node:zlib";
-import { native } from "../native/native.js";
-import type { TokiRequest } from "../http/request.js";
+import { native } from "../native/native.ts";
+import type { TokiRequest } from "../http/request.ts";
 
 const encoder = new TextEncoder();
 const EMPTY = new Uint8Array(0);

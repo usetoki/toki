@@ -2,7 +2,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { reply } from "@usetoki/toki";
 import type { CookieOptions, TokiInstance, TokiRequest } from "@usetoki/toki";
 import { createCookies } from "@usetoki/toki-cookie";
-import { originAllowed } from "./origin.js";
+import { originAllowed } from "./origin.ts";
 
 declare module "@usetoki/toki" {
   interface TokiRequest {

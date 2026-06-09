@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp } from "@usetoki/toki";
-import { proxy } from "../dist/index.js";
+import { proxy } from "../src/index.ts";
 
 // an upstream that echoes back what it received
 const echo = (async (url: string | URL, init?: RequestInit) => {

@@ -1,4 +1,4 @@
-import type { SessionData } from "./codec.js";
+import type { SessionData } from "./codec.ts";
 
 /** A per-request session backed entirely by an encrypted cookie. */
 export interface Session {

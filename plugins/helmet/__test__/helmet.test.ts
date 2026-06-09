@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { helmet } from "../dist/index.js";
+import { helmet } from "../src/index.ts";
 
 const app = createApp({ logger: false });
 

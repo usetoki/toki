@@ -1,5 +1,5 @@
-import { newSessionId } from "./id.js";
-import type { SessionData } from "./store.js";
+import { newSessionId } from "./id.ts";
+import type { SessionData } from "./store.ts";
 
 export interface Session {
   readonly id: string;

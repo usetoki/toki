@@ -1,5 +1,5 @@
-import type { CipherState } from "./noise/cipher-state.js";
-import type { TransportPair } from "./noise/handshake-state.js";
+import type { CipherState } from "./noise/cipher-state.ts";
+import type { TransportPair } from "./noise/handshake-state.ts";
 
 // A live, authenticated Noise session over a datagram transport. Each datagram carries an
 // explicit 8-byte counter (UDP reorders and drops, so the AEAD nonce can't be implicit).

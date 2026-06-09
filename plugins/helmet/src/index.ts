@@ -1,4 +1,4 @@
-export { helmet } from "./helmet.js";
-export type { HelmetOptions } from "./helmet.js";
-export { buildCsp, DEFAULT_CSP } from "./csp.js";
-export type { CspDirectives } from "./csp.js";
+export { helmet } from "./helmet.ts";
+export type { HelmetOptions } from "./helmet.ts";
+export { buildCsp, DEFAULT_CSP } from "./csp.ts";
+export type { CspDirectives } from "./csp.ts";

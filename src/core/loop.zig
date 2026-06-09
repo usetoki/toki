@@ -275,8 +275,8 @@ pub fn drain(stream: *anyopaque, conn: *Conn) void {
         const body: ?[]const u8 = if (head.content_length > 0) active[head_end..total] else null;
         const ip = std.mem.sliceTo(&conn.peer_ip, 0);
         // native 429 before the request ever reaches JS
-        if (ratelimit.enabled() and ratelimit.exceeded(ip, conn.last_read)) {
-            const retry = ratelimit.retryAfterSeconds(ip, conn.last_read);
+        if (ratelimit.http.enabled() and ratelimit.http.exceeded(ip, conn.last_read)) {
+            const retry = ratelimit.http.retryAfterSeconds(ip, conn.last_read);
             off += response.renderRateLimited(eng.cork[off..], retry, head.keep_alive);
             cursor = total;
             continue;

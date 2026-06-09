@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { CacheEntry, CacheStore } from "./store.js";
+import type { CacheEntry, CacheStore } from "./store.ts";
 
 /** Minimal memcached surface. memjs matches with a thin wrapper; see the README. */
 export interface MemcachedClient {

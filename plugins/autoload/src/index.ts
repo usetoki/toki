@@ -1,3 +1,3 @@
-export { autoload } from "./autoload.js";
-export type { AutoloadOptions } from "./autoload.js";
-export { routePrefix, joinPrefix } from "./route-path.js";
+export { autoload } from "./autoload.ts";
+export type { AutoloadOptions } from "./autoload.ts";
+export { routePrefix, joinPrefix } from "./route-path.ts";

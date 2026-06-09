@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { secureSession } from "../dist/index.js";
+import { secureSession } from "../src/index.ts";
 
 const app = createApp({ logger: false });
 secureSession(app, { secret: "0123456789abcdef-rolling-secret", maxAge: 1, rolling: true });

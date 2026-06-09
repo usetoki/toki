@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { HandlerResult, Middleware, TokiRequest } from "@usetoki/toki";
-import { MemoryStore, type Store, type StoreHit } from "./store.js";
+import { MemoryStore, type Store, type StoreHit } from "./store.ts";
 
 /** The limit state for the current request, handed to a custom `message`. */
 export interface RateLimitInfo {

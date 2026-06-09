@@ -1,8 +1,9 @@
 # @usetoki/toki-ratelimiter
 
 Flexible rate limiting for [toki](https://usetoki.github.io/toki/) — per route, per
-key, in plain JavaScript. A middleware you can attach exactly where you want, with a
-custom key function and a pluggable store.
+key, in plain JavaScript. HTTP requests (`rateLimit`), raw TCP connections
+(`tcpRateLimit`), and UDP datagrams (`udpRateLimit`), all over the same pluggable
+stores — so one Redis counter can budget a client across every transport.
 
 ```bash
 npm install @usetoki/toki-ratelimiter
@@ -56,19 +57,70 @@ rateLimit({
 });
 ```
 
+## Raw TCP
+
+`tcpRateLimit(options, handler)` wraps a `createTcpServer` connection handler and
+counts accepted connections per key (the peer IP by default). Over the limit the
+connection is destroyed — or hand it `onLimit` to say goodbye on the wire instead.
+
+```ts
+import { createTcpServer } from "@usetoki/toki";
+import { tcpRateLimit } from "@usetoki/toki-ratelimiter";
+
+const server = createTcpServer(
+  tcpRateLimit(
+    { max: 20, windowMs: 60_000, onLimit: (socket) => socket.end("BUSY\r\n") },
+    (socket) => socket.on("data", (chunk) => socket.write(chunk)),
+  ),
+);
+server.listen(9000);
+```
+
+With the default `MemoryStore` the verdict is synchronous and an admitted connection
+reaches the handler as the bare socket — zero added cost. With an async store (Redis),
+bytes arriving while the verdict is in flight are buffered and replayed in order.
+
+> `createTcpServer` also takes a native `rateLimit` listen option — a per-IP accept
+> guard inside the Zig engine that resets floods **before the TLS handshake**. They
+> compose: the native guard absorbs volume, this one enforces policy.
+
+## UDP
+
+`udpRateLimit(options, onMessage)` wraps a `createUdpServer` message handler and
+counts datagrams per key (the sender IP by default). Over-limit datagrams are dropped
+silently — replying to one would hand a spoofing attacker an amplifier. `onLimit`
+lets you observe the drops.
+
+```ts
+import { createUdpServer } from "@usetoki/toki";
+import { udpRateLimit } from "@usetoki/toki-ratelimiter";
+
+const server = createUdpServer(
+  udpRateLimit({ max: 50, windowMs: 1_000 }, (msg, rinfo, socket) => {
+    socket.send(msg, rinfo.port, rinfo.address); // echo
+  }),
+);
+server.bind(9001);
+```
+
+> The engine-side twin is `createUdpServer`'s native `rateLimit` bind option, which
+> drops over-limit packets before they ever cross into JS.
+
 ## Options
 
 | Option | Default | Notes |
 | --- | --- | --- |
-| `max` | — | requests allowed per window, per key |
+| `max` | — | hits allowed per window, per key |
 | `windowMs` | — | window length in ms |
-| `keyGenerator` | `req => req.ip` | bucket key for a request |
+| `keyGenerator` | `req => req.ip` | bucket key (`socket` for TCP, `rinfo` for UDP) |
 | `skip` | — | return `true` to bypass limiting |
-| `statusCode` | `429` | status for a blocked request |
-| `message` | JSON `Too Many Requests` | string, or a builder from the limit info |
-| `standardHeaders` | `true` | emit draft `RateLimit-*` headers |
-| `legacyHeaders` | `false` | emit legacy `X-RateLimit-*` headers |
+| `statusCode` | `429` | HTTP only: status for a blocked request |
+| `message` | JSON `Too Many Requests` | HTTP only: string, or a builder from the limit info |
+| `standardHeaders` | `true` | HTTP only: emit draft `RateLimit-*` headers |
+| `legacyHeaders` | `false` | HTTP only: emit legacy `X-RateLimit-*` headers |
+| `onLimit` | destroy / drop | TCP & UDP only: hook replacing the default over-limit action |
 | `store` | a fresh `MemoryStore` | swap for a shared/Redis-backed `Store` |
+| `onStoreError` | `"open"` | `"open"` admits when the store throws; `"closed"` rejects |
 
 ## Stores
 

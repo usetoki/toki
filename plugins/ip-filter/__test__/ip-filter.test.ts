@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TokiRequest } from "@usetoki/toki";
-import { inCidr, ipFilter, parseCidr, parseIp } from "../dist/index.js";
+import { inCidr, ipFilter, parseCidr, parseIp } from "../src/index.ts";
 
 // a request stub — ipFilter only reads `ip` and `headers`
 function request(ip: string, headers: Record<string, string> = {}): TokiRequest {

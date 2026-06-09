@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
-import { createApp, reply } from "../dist/index.js";
+import { createApp, reply } from "../ts/index.ts";
 
 // app.cors() registers an OPTIONS /* wildcard. Regression: that wildcard must not turn a
 // GET miss into a 405, nor shadow the static-file / not-found fallback — while real

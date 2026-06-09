@@ -1,10 +1,10 @@
-import { joinPaths, RouteGroup } from "../http/group.js";
-import { reply } from "../http/response.js";
-import type { StaticOptions } from "../http/static.js";
-import { corsHeaders, corsPreflight, type CorsOptions } from "../security/middleware.js";
-import type { WebSocketHandler, WebSocketOptions } from "../websocket/websocket.js";
-import type { Toki } from "./app.js";
-import { contentTypeMatcher } from "./pipeline.js";
+import { joinPaths, RouteGroup } from "../http/group.ts";
+import { reply } from "../http/response.ts";
+import type { StaticOptions } from "../http/static.ts";
+import { corsHeaders, corsPreflight, type CorsOptions } from "../security/middleware.ts";
+import type { WebSocketHandler, WebSocketOptions } from "../websocket/websocket.ts";
+import type { Toki } from "./app.ts";
+import { contentTypeMatcher } from "./pipeline.ts";
 import type {
   BodyParser,
   ContentTypeParserEntry,
@@ -19,7 +19,7 @@ import type {
   RouteOptions,
   SerializationHook,
   TimeoutHook,
-} from "./types.js";
+} from "./types.ts";
 
 export interface Route {
   readonly method: RouteMethod;
@@ -72,10 +72,13 @@ export class Scope {
   readonly plugins: PluginEntry[] = [];
   errorHandler?: ErrorHandler;
 
-  constructor(
-    readonly parent: Scope | undefined,
-    readonly prefix: string,
-  ) {}
+  readonly parent: Scope | undefined;
+  readonly prefix: string;
+
+  constructor(parent: Scope | undefined, prefix: string) {
+    this.parent = parent;
+    this.prefix = prefix;
+  }
 
   get root(): Toki {
     return this.parent ? this.parent.root : (this as unknown as Toki);

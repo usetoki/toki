@@ -1,5 +1,5 @@
-import type { TokiRequest } from "../http/request.js";
-import type { RouteSchema } from "../http/schema.js";
+import type { TokiRequest } from "../http/request.ts";
+import type { RouteSchema } from "../http/schema.ts";
 
 /** Methods toki routes natively. Any token is accepted via {@link Toki.route}. */
 export type RouteMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";

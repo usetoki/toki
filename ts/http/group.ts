@@ -1,4 +1,4 @@
-import type { Handler, Middleware, RouteMethod } from "../core/types.js";
+import type { Handler, Middleware, RouteMethod } from "../core/types.ts";
 
 export function joinPaths(prefix: string, path: string): string {
   const left = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;

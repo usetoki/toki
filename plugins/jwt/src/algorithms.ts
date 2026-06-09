@@ -8,7 +8,7 @@ import {
   timingSafeEqual,
   verify as cryptoVerify,
 } from "node:crypto";
-import type { JwtAlgorithm, KeyInput } from "./types.js";
+import type { JwtAlgorithm, KeyInput } from "./types.ts";
 
 type Family = "hmac" | "rsa" | "pss" | "ecdsa" | "eddsa";
 

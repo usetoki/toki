@@ -1,4 +1,4 @@
-import type { SessionData, SessionStore } from "./store.js";
+import type { SessionData, SessionStore } from "./store.ts";
 
 /** Minimal memcached surface. Modern memjs matches with a thin wrapper; see the README. */
 export interface MemcachedClient {

@@ -1,7 +1,7 @@
 // HMAC-SHA JWT (HS256/384/512). signing stays in node:crypto's native C; no win re-doing SHA in Zig
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { reply } from "../http/response.js";
-import type { Middleware } from "../core/types.js";
+import { reply } from "../http/response.ts";
+import type { Middleware } from "../core/types.ts";
 
 const ALGORITHMS = { HS256: "sha256", HS384: "sha384", HS512: "sha512" } as const;
 export type JwtAlgorithm = keyof typeof ALGORITHMS;

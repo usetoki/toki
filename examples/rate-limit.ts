@@ -1,7 +1,7 @@
 // run: node examples/rate-limit.ts
 
 import assert from "node:assert/strict";
-import { createApp } from "../dist/index.js";
+import { createApp } from "../ts/index.ts";
 
 const app = createApp({ logger: false });
 

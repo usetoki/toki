@@ -1,4 +1,4 @@
-import type { BeginResult, IdempotencyRecord, IdempotencyStore } from "./store.js";
+import type { BeginResult, IdempotencyRecord, IdempotencyStore } from "./store.ts";
 
 /** Minimal ioredis-compatible surface (also KeyDB / Valkey / Upstash). */
 export interface RedisClient {

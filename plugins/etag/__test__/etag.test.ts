@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createApp, reply } from "@usetoki/toki";
-import { etag } from "../dist/index.js";
+import { etag } from "../src/index.ts";
 
 const app = createApp({ logger: false });
 

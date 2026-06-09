@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import net from "node:net";
 import { after, describe, test } from "node:test";
-import { createTcpServer, type TcpSocket } from "../dist/index.js";
+import { createTcpServer, type TcpSocket } from "../ts/index.ts";
 
 // ---------------------------------------------------------------------------
 // server under test

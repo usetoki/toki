@@ -1,5 +1,5 @@
 import { createHash, hkdfSync } from "node:crypto";
-import { CipherState } from "./cipher-state.js";
+import { CipherState } from "./cipher-state.ts";
 
 // SymmetricState (Noise spec §5.2) with SHA-256. Tracks the chaining key `ck` and the
 // running transcript hash `h`, and folds DH outputs and handshake bytes into both.

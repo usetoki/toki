@@ -2,7 +2,7 @@ import { readdir, stat } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Handler, PluginOptions, RouteMethod, TokiInstance, TokiPlugin } from "@usetoki/toki";
-import { joinPrefix, routePrefix } from "./route-path.js";
+import { joinPrefix, routePrefix } from "./route-path.ts";
 
 const METHODS = ["get", "post", "put", "patch", "delete", "head", "options"] as const;
 

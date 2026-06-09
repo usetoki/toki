@@ -6,6 +6,7 @@ const std = @import("std");
 const napi = @import("../ffi/napi.zig");
 const uv = @import("../ffi/uv.zig");
 const addr = @import("addr.zig");
+const ratelimit = @import("../security/ratelimit.zig");
 
 const alloc = std.heap.c_allocator;
 
@@ -25,6 +26,12 @@ var socket: [uv.udp_size]u8 align(16) = undefined;
 var bound = false;
 var send_pool: std.heap.MemoryPool(SendReq) = .empty;
 var recv_scratch: [recv_scratch_size]u8 = undefined;
+
+// per-source datagram guard: an over-limit packet is dropped right here, before the
+// handle scope, the Buffer copy, and the dispatch into JS. Off (max == 0) by default.
+// This caps what a source can make the JS thread chew through; the packet has still
+// crossed the kernel, so it is abuse control, not a line-rate DDoS shield.
+var guard: ratelimit.Limiter = .{};
 
 fn opaqueOf(p: anytype) *anyopaque {
     return @ptrCast(p);
@@ -49,6 +56,15 @@ pub fn bind(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var bind_flags: c_uint = 0;
     if (optBool(e, argv[2], "reuseAddr")) bind_flags |= uv.UDP_REUSEADDR;
     const recvmmsg = optBool(e, argv[2], "recvmmsg");
+    guard.init(alloc);
+    guard.max = 0;
+    guard.window_ms = 0;
+    if (optInt(e, argv[2], "rateLimitMax")) |v| {
+        if (v > 0) guard.max = @intCast(v);
+    }
+    if (optInt(e, argv[2], "rateLimitWindowMs")) |v| {
+        if (v > 0) guard.window_ms = @intCast(v);
+    }
 
     _ = napi.napi_create_reference(e, argv[3], 1, &dispatch_ref);
 
@@ -98,6 +114,13 @@ fn onRecv(handle: *anyopaque, nread: isize, buf: *const uv.Buf, from: ?*const an
     // nread == 0 with an addr is a legitimate empty datagram (delivered). nread < 0 is an error.
     if (nread < 0) return;
     const sender = from orelse return;
+
+    // drop over-limit sources before any N-API work; keyed on raw address bytes
+    if (guard.enabled()) {
+        const now = uv.uv_now(loop.?);
+        guard.maybeSweep(now);
+        if (guard.exceeded(addr.ipBytes(sender), now)) return;
+    }
 
     var scope: napi.HandleScope = undefined;
     _ = napi.napi_open_handle_scope(env, &scope);
@@ -182,6 +205,7 @@ pub fn close(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         _ = uv.uv_udp_recv_stop(opaqueOf(&socket));
         uv.uv_close(opaqueOf(&socket), null);
         bound = false;
+        guard.reset();
     }
     return undefinedValue();
 }
@@ -221,4 +245,15 @@ fn optBool(e: napi.Env, options: napi.Value, name: [*c]const u8) bool {
     var out: bool = false;
     _ = napi.napi_get_value_bool(e, value, &out);
     return out;
+}
+
+fn optInt(e: napi.Env, options: napi.Value, name: [*c]const u8) ?c_int {
+    var value: napi.Value = undefined;
+    _ = napi.napi_get_named_property(e, options, name, &value);
+    var kind: c_int = 0;
+    _ = napi.napi_typeof(e, value, &kind);
+    if (kind != napi.valuetype.number) return null;
+    var out: i32 = 0;
+    _ = napi.napi_get_value_int32(e, value, &out);
+    return @intCast(out);
 }

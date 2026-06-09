@@ -1,6 +1,6 @@
 import { reply } from "@usetoki/toki";
 import type { Middleware, TokiRequest } from "@usetoki/toki";
-import { type Cidr, inCidr, parseCidr, parseIp } from "./cidr.js";
+import { type Cidr, inCidr, parseCidr, parseIp } from "./cidr.ts";
 
 export interface IpFilterOptions {
   /** Allow-list of IPs/CIDRs. When set, an address must match one of these to pass. */

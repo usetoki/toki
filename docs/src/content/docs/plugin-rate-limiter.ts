@@ -3,11 +3,12 @@ import type { DocPage } from "../../types";
 export const rateLimiterPluginPage: DocPage = {
   slug: "plugin-rate-limiter",
   title: "Rate limiter",
-  description: "Per-route, per-key rate limiting with memory, Redis, KeyDB, and memcached stores.",
+  description:
+    "Per-key rate limiting for HTTP routes, raw TCP connections, and UDP datagrams, with memory, Redis, KeyDB, and memcached stores.",
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-ratelimiter` caps how many requests a key may make per time window. Use it when one route needs a tighter budget than the rest (a login endpoint, a password-reset, an expensive search) or to meter an API per user or per API key rather than per IP. Each limiter owns its own counter, so different routes never share a budget unless you tell them to.",
+      text: "`@usetoki/toki-ratelimiter` caps how many hits a key may make per time window — HTTP requests via `rateLimit`, raw TCP connections via [`tcpRateLimit`](#tcp), UDP datagrams via [`udpRateLimit`](#udp). Use it when one route needs a tighter budget than the rest (a login endpoint, a password-reset, an expensive search) or to meter an API per user or per API key rather than per IP. Each limiter owns its own counter, so different routes never share a budget unless you tell them to — and all three limiters speak the same `Store`, so one Redis counter can span every transport.",
     },
     {
       kind: "callout",
@@ -106,6 +107,106 @@ app.use(rateLimit({ max: 600, windowMs: 60_000, keyGenerator: (req) => \`\${req.
 });`,
       },
     },
+    { kind: "heading", id: "tcp", text: "Raw TCP connections" },
+    {
+      kind: "paragraph",
+      text: "`tcpRateLimit(options, handler)` wraps a `createTcpServer` connection handler and counts accepted connections per key — the peer IP by default. An over-limit connection is destroyed; give it `onLimit` to say goodbye on the wire, log, or escalate instead.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "tcp.ts",
+        language: "ts",
+        code: `import { createTcpServer } from "@usetoki/toki";
+import { tcpRateLimit } from "@usetoki/toki-ratelimiter";
+
+const server = createTcpServer(
+  tcpRateLimit(
+    {
+      max: 20,
+      windowMs: 60_000,
+      onLimit: (socket) => socket.end("BUSY\\r\\n"), // default: socket.destroy()
+    },
+    (socket) => {
+      socket.on("data", (chunk) => socket.write(chunk));
+    },
+  ),
+);
+server.listen(9000);`,
+      },
+    },
+    {
+      kind: "paragraph",
+      text: "With the default `MemoryStore` the verdict is synchronous and an admitted connection reaches your handler as the bare socket — zero added cost. With an async store (Redis), bytes that arrive while the verdict is in flight are buffered and replayed in order once the connection is admitted, so a fast client loses nothing.",
+    },
+    {
+      kind: "callout",
+      tone: "note",
+      text: "`createTcpServer` also takes a native `rateLimit` listen option — a per-IP accept guard inside the engine that resets floods *before the TLS handshake*. They compose: the native guard absorbs volume, `tcpRateLimit` enforces policy (custom keys, shared stores, graceful goodbyes). See [TCP → Rate limiting accepts](/docs/tcp#rate-limit).",
+    },
+    { kind: "heading", id: "udp", text: "UDP datagrams" },
+    {
+      kind: "paragraph",
+      text: "`udpRateLimit(options, onMessage)` wraps a `createUdpServer` message handler and counts datagrams per key — the sender IP by default. An over-limit datagram is dropped silently; `onLimit` lets you observe the drop. Replying to an over-limit datagram is deliberately not the default: a spoofed source would turn your reply into an amplification attack.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "udp.ts",
+        language: "ts",
+        code: `import { createUdpServer } from "@usetoki/toki";
+import { udpRateLimit } from "@usetoki/toki-ratelimiter";
+
+const server = createUdpServer(
+  udpRateLimit(
+    { max: 50, windowMs: 1_000 }, // 50 datagrams per sender per second
+    (msg, rinfo, socket) => {
+      socket.send(msg, rinfo.port, rinfo.address); // echo
+    },
+  ),
+);
+server.bind(9001);`,
+      },
+    },
+    {
+      kind: "paragraph",
+      text: "Key on more than the address when your protocol carries identity — an app-level sender id, a session token from the payload:",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "udp-keys.ts",
+        language: "ts",
+        code: `udpRateLimit(
+  { max: 100, windowMs: 60_000, keyGenerator: (rinfo) => \`\${rinfo.address}:\${rinfo.port}\` },
+  onMessage,
+);`,
+      },
+    },
+    {
+      kind: "callout",
+      tone: "note",
+      text: "The engine-side twin here is `createUdpServer`'s native `rateLimit` bind option, which drops over-limit packets before they cross into JS at all — see [UDP → Rate limiting datagrams](/docs/udp#rate-limit).",
+    },
+    { kind: "heading", id: "shared-budget", text: "One budget across transports" },
+    {
+      kind: "paragraph",
+      text: "All three limiters take the same `store`. Hand them one instance and a client's HTTP requests, TCP connections, and datagrams all draw down a single budget — per process with a shared `MemoryStore`, fleet-wide with a `RedisStore`.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "shared.ts",
+        language: "ts",
+        code: `import { MemoryStore, rateLimit, tcpRateLimit, udpRateLimit } from "@usetoki/toki-ratelimiter";
+
+const store = new MemoryStore();
+
+app.use(rateLimit({ max: 100, windowMs: 60_000, store }));
+const tcpHandler = tcpRateLimit({ max: 100, windowMs: 60_000, store }, handler);
+const onMessage = udpRateLimit({ max: 100, windowMs: 60_000, store }, handleDatagram);`,
+      },
+    },
     { kind: "heading", id: "options", text: "Options" },
     {
       kind: "table",
@@ -127,6 +228,10 @@ app.use(rateLimit({ max: 600, windowMs: 60_000, keyGenerator: (req) => \`\${req.
       kind: "callout",
       tone: "tip",
       text: "`onStoreError` is the availability-vs-abuse dial. Default `\"open\"` keeps your API up when Redis blips, at the cost of letting a flood slip through. `\"closed\"` blocks every request while the store is down: no flood, but an outage takes the route with it. Pick per route.",
+    },
+    {
+      kind: "paragraph",
+      text: "`tcpRateLimit` and `udpRateLimit` share `max`, `windowMs`, `keyGenerator`, `skip`, `store`, and `onStoreError`. The HTTP response options (`statusCode`, `message`, the header flags) don't apply on a raw socket; in their place each takes an `onLimit` hook — `(socket, info)` for TCP, `(msg, rinfo, info)` for UDP.",
     },
     { kind: "heading", id: "stores", text: "Stores" },
     {

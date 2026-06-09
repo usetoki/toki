@@ -11,6 +11,7 @@ const napi = @import("../ffi/napi.zig");
 const uv = @import("../ffi/uv.zig");
 const addr = @import("addr.zig");
 const tlsmod = @import("../tls/tls.zig");
+const ratelimit = @import("../security/ratelimit.zig");
 
 const alloc = std.heap.c_allocator;
 
@@ -52,6 +53,8 @@ const Conn = struct {
     // peer address is read lazily: getpeername + the JS object are built only when the
     // handler first touches socket.remoteAddress/port/authorized (most accepts never do).
     peer_recorded: bool,
+    // dropped by the accept guard before JS ever saw it; onClose skips the dispatch.
+    rejected: bool,
     // per-conn cipher state, null on a plaintext conn. The socket sees ciphertext;
     // app data is encrypted on write and decrypted on read through this.
     tls: ?*tlsmod.State,
@@ -86,6 +89,10 @@ var eof_poll_ms: u64 = default_eof_poll_ms;
 // set at listen() when a cert/key pair is supplied; the TLS config is process-global
 // (one server per process), same as the HTTPS path.
 var tls_enabled = false;
+
+// per-IP accept guard, checked before any TLS state exists — a flood gets reset without
+// ever costing a handshake or a JS dispatch. Off (max == 0) unless listen options say so.
+var guard: ratelimit.Limiter = .{};
 
 var pool: std.heap.MemoryPool(Conn) = .empty;
 var write_pool: std.heap.MemoryPool(WriteReq) = .empty;
@@ -166,6 +173,15 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     eof_poll_ms = default_eof_poll_ms;
     if (optInt(e, argv[2], "eofPollMs")) |v| {
         eof_poll_ms = if (v >= 0) @intCast(v) else 0;
+    }
+    guard.init(alloc);
+    guard.max = 0;
+    guard.window_ms = 0;
+    if (optInt(e, argv[2], "rateLimitMax")) |v| {
+        if (v > 0) guard.max = @intCast(v);
+    }
+    if (optInt(e, argv[2], "rateLimitWindowMs")) |v| {
+        if (v > 0) guard.window_ms = @intCast(v);
     }
 
     _ = napi.napi_create_reference(e, argv[3], 1, &dispatch_ref);
@@ -261,6 +277,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .remote_port = 0,
         .remote_ip = [_]u8{0} ** 46,
         .peer_recorded = false,
+        .rejected = false,
         .tls = null,
         .tls_announced = false,
         .next = null,
@@ -271,6 +288,28 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
     if (uv.uv_accept(srv, opaqueOf(&conn.handle)) != 0) {
         closeConn(conn);
         return;
+    }
+    // accept guard: over-limit peers are reset here, before the TLS state (and so the
+    // handshake's key exchange) exists and before JS hears about the connection. Keyed
+    // on raw address bytes — no ntop on the reject path. A getpeername failure fails
+    // open: the guard protects the server, it must never turn away a readable socket
+    // on bookkeeping grounds.
+    if (guard.enabled()) {
+        var storage: [128]u8 align(8) = undefined;
+        var namelen: c_int = storage.len;
+        if (uv.uv_tcp_getpeername(opaqueOf(&conn.handle), &storage, &namelen) == 0) {
+            const now = uv.uv_now(loop.?);
+            guard.maybeSweep(now);
+            if (guard.exceeded(addr.ipBytes(&storage), now)) {
+                conn.rejected = true;
+                closeConn(conn);
+                return;
+            }
+            // getpeername is already paid for; record the peer so a later tcpPeer is free
+            addr.name(&storage, &conn.remote_ip);
+            conn.remote_port = addr.portOf(&storage);
+            conn.peer_recorded = true;
+        }
     }
     if (no_delay) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
     conns.put(alloc, conn.id, conn) catch {
@@ -671,10 +710,13 @@ fn onClose(handle: *anyopaque) callconv(.c) void {
     _ = conns.remove(conn.id);
     removeConn(conn);
 
-    var scope: napi.HandleScope = undefined;
-    _ = napi.napi_open_handle_scope(env, &scope);
-    defer _ = napi.napi_close_handle_scope(env, scope);
-    dispatch(conn.id, ev_close, undefinedValue());
+    // a guard-rejected conn never reached JS; don't spend an N-API call closing it there
+    if (!conn.rejected) {
+        var scope: napi.HandleScope = undefined;
+        _ = napi.napi_open_handle_scope(env, &scope);
+        defer _ = napi.napi_close_handle_scope(env, scope);
+        dispatch(conn.id, ev_close, undefinedValue());
+    }
 
     if (conn.tls) |st| {
         tlsmod.freeState(st);
@@ -690,6 +732,7 @@ pub fn closeServer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
     if (listening and !closing) {
         closing = true; // stays set until onServerClose fires, blocking a racing re-listen
         listening = false;
+        guard.reset();
         uv.uv_close(opaqueOf(&server), &onServerClose);
         if (eof_timer_active) {
             uv.uv_close(opaqueOf(&eof_timer), &onEofTimerClose);

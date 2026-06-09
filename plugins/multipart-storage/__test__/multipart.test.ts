@@ -10,7 +10,7 @@ import {
   MultipartError,
   multipart,
   type Storage,
-} from "../dist/index.js";
+} from "../src/index.ts";
 
 const BOUNDARY = "----tokitest";
 

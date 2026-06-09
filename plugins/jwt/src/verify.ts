@@ -1,8 +1,8 @@
-import { isAlgorithm, verifyData } from "./algorithms.js";
-import { decode, decodeJson } from "./base64url.js";
-import { validateClaims } from "./claims.js";
-import { JwtError } from "./errors.js";
-import type { JwtAlgorithm, JwtHeader, JwtPayload, KeyInput, KeyResolver } from "./types.js";
+import { isAlgorithm, verifyData } from "./algorithms.ts";
+import { decode, decodeJson } from "./base64url.ts";
+import { validateClaims } from "./claims.ts";
+import { JwtError } from "./errors.ts";
+import type { JwtAlgorithm, JwtHeader, JwtPayload, KeyInput, KeyResolver } from "./types.ts";
 
 export interface VerifyOptions {
   /** allowed algorithms — REQUIRED; the token's alg must be one of these (guards against

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
-import { createView, type ViewEngine } from "../dist/index.js";
+import { createView, type ViewEngine } from "../src/index.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "toki-view-"));
 writeFileSync(join(dir, "hello.html"), "Hi {{name}}!");

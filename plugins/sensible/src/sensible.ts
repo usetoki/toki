@@ -1,5 +1,5 @@
 import type { TokiInstance } from "@usetoki/toki";
-import { problemJson, type ProblemOptions } from "./problem.js";
+import { problemJson, type ProblemOptions } from "./problem.ts";
 
 /**
  * Install the RFC 9457 problem+json error handler on a scope. Throw an `httpErrors.*`

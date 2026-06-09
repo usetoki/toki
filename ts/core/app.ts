@@ -1,13 +1,13 @@
-import { inject, type InjectOptions, type InjectResponse } from "../http/inject.js";
-import { resolveLogger } from "./logger.js";
-import { Scope, type Route } from "./scope.js";
+import { inject, type InjectOptions, type InjectResponse } from "../http/inject.ts";
+import { resolveLogger } from "./logger.ts";
+import { Scope, type Route } from "./scope.ts";
 import {
   native,
   type NativeRequest,
   type NativeResponse,
   type ServerOptions,
   type StaticEntry,
-} from "../native/native.js";
+} from "../native/native.ts";
 import {
   isThenable,
   materialize,
@@ -15,12 +15,12 @@ import {
   runBefore,
   runSerialization,
   validationStep,
-} from "./pipeline.js";
-import { TokiRequest } from "../http/request.js";
-import { isStreamResponse, isTokiResponse, reply, toNative } from "../http/response.js";
-import type { JSONSchema } from "../http/schema.js";
-import { TokiWebSocket, WS_EVENT, type WebSocketHandler } from "../websocket/websocket.js";
-import { buildStaticEntries, type StaticOptions } from "../http/static.js";
+} from "./pipeline.ts";
+import { TokiRequest } from "../http/request.ts";
+import { isStreamResponse, isTokiResponse, reply, toNative } from "../http/response.ts";
+import type { JSONSchema } from "../http/schema.ts";
+import { TokiWebSocket, WS_EVENT, type WebSocketHandler } from "../websocket/websocket.ts";
+import { buildStaticEntries, type StaticOptions } from "../http/static.ts";
 import type {
   ContentTypeParserEntry,
   ErrorHandler,
@@ -35,7 +35,7 @@ import type {
   StreamResponse,
   TimeoutHook,
   TokiOptions,
-} from "./types.js";
+} from "./types.ts";
 
 // TLS cert/key accepted as PEM text or raw bytes; the native side reads a Buffer.
 function toPem(value: string | Uint8Array): Buffer {
