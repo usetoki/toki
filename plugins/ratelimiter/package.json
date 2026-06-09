@@ -1,7 +1,7 @@
 {
   "name": "@usetoki/toki-ratelimiter",
-  "version": "0.1.3",
-  "description": "Flexible per-route, per-key rate limiting for toki — a JS limiter with custom keys and pluggable stores.",
+  "version": "0.2.0",
+  "description": "Flexible rate limiting for toki — HTTP routes, raw TCP connections, and UDP datagrams, with custom keys and pluggable stores.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
@@ -17,7 +17,9 @@
     "ratelimiter",
     "throttle",
     "per-route",
-    "middleware"
+    "middleware",
+    "tcp",
+    "udp"
   ],
   "type": "module",
   "main": "dist/index.js",
