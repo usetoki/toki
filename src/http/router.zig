@@ -30,8 +30,9 @@ pub const Scratch = struct {
     allow: [256]u8 = undefined,
     params: [max_params]Param = undefined,
     // decoded param/wildcard values accumulate here. percent-decoding never grows the
-    // output, and the whole request head (so the path too) must fit engine.read_buf_size
-    // (17 KiB) — sizing this to match guarantees a long param is never silently truncated.
+    // output, and the whole request head (path included) already has to fit
+    // engine.read_buf_size (17 KiB). matching that size means a long param can't be
+    // silently truncated.
     decoded: [17 * 1024]u8 = undefined,
 };
 
@@ -115,9 +116,9 @@ pub const RouteTable = struct {
             if (entry.value_ptr.get(path) != null) n = pushUnique(&allowed, n, entry.key_ptr.*);
         }
         for (self.dynamic) |route| {
-            // a trailing `*` catch-all is a fallback, not a precise resource — it must not
-            // advertise its method for 405 (else e.g. `OPTIONS /*` from cors() turns every
-            // unmatched GET into a 405 and shadows the static-file / not-found fallback).
+            // a trailing `*` catch-all is a fallback, not a precise resource. don't let it
+            // advertise its method for 405: otherwise `OPTIONS /*` from cors() turns every
+            // unmatched GET into a 405 and shadows the static-file / not-found fallback.
             if (endsWithWildcard(route.segments)) continue;
             if (matchPattern(route.segments, path, sc) != null) n = pushUnique(&allowed, n, route.method);
         }

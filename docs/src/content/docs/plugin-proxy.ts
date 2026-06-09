@@ -7,7 +7,7 @@ export const proxyPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-proxy` turns a route into a reverse proxy. It forwards the request to an upstream service and streams the response body straight back — nothing is buffered in the gateway, so a 2 GB download costs the same memory as a 2 KB one. Hop-by-hop headers are stripped on both legs, the `X-Forwarded-*` chain is set from the real peer, and an upstream that's unreachable or too slow becomes a clean `502`. Reach for it when toki is the edge in front of internal services, or when you want to add caching, rate limiting, or a circuit breaker at the gateway without touching the upstream.",
+      text: "`@usetoki/toki-proxy` turns a route into a reverse proxy. It forwards the request to an upstream service and streams the response body straight back. Nothing is buffered in the gateway, so a 2 GB download costs the same memory as a 2 KB one. Hop-by-hop headers are stripped on both legs, the `X-Forwarded-*` chain is set from the real peer, and an upstream that's unreachable or too slow becomes a clean `502`. Use it when toki is the edge in front of internal services, or to add caching, rate limiting, or a circuit breaker at the gateway without touching the upstream.",
     },
     {
       kind: "code",
@@ -53,7 +53,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "tip",
-      text: "The query string rides along automatically — `/api/users?page=2` arrives at the upstream as `/users?page=2`. `rewritePath` only sees the path, never the query.",
+      text: "The query string rides along automatically: `/api/users?page=2` arrives at the upstream as `/users?page=2`. `rewritePath` only sees the path, never the query.",
     },
     {
       kind: "heading",
@@ -84,7 +84,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "`timeoutMs` aborts the upstream call (the abort also covers a stalled response stream). On abort or any connection error the client gets a `502 Bad Gateway` — never a hung request.",
+      text: "`timeoutMs` aborts the upstream call (the abort also covers a stalled response stream). On abort or any connection error the client gets a `502 Bad Gateway`, never a hung request.",
     },
     {
       kind: "code",
@@ -175,7 +175,7 @@ app.post("/payments/*", circuitBreaker(forward, { failureThreshold: 0.5 }));`,
     {
       kind: "callout",
       tone: "warning",
-      text: "The proxy pins every request to `upstream`'s origin. A rewritten path that resolves off-origin (`//evil.com/x`, an absolute URL) is rejected with `502` — a `rewritePath` mistake fails closed rather than forwarding to an attacker.",
+      text: "The proxy pins every request to `upstream`'s origin. A rewritten path that resolves off-origin (`//evil.com/x`, an absolute URL) is rejected with `502`, so a `rewritePath` mistake fails closed rather than forwarding to an attacker.",
     },
     {
       kind: "callout",

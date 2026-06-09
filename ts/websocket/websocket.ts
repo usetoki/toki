@@ -38,8 +38,8 @@ type Listener = MessageListener | CloseListener | BufferListener | DrainListener
  * A live WebSocket connection. Attach listeners with {@link TokiWebSocket.on} and
  * send with {@link TokiWebSocket.send}. The `Buffer` handed to the `message`,
  * `ping`, and `pong` listeners is a view over native memory valid only for the
- * duration of the call — copy it (e.g. `Buffer.from(data)` or `data.toString()`)
- * to keep it.
+ * duration of the call. To keep it, copy first (e.g. `Buffer.from(data)` or
+ * `data.toString()`).
  */
 export class TokiWebSocket {
   /** The negotiated subprotocol, or `""` when none was agreed. */

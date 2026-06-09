@@ -7,7 +7,7 @@ export const ssePluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-sse` opens a `text/event-stream` from a handler — a one-way push channel to the browser over a plain HTTP connection. You get a stream handle to `send` events, a heartbeat that stops proxies idling the connection, the client's `Last-Event-ID` for resuming after a drop, and a `signal` that aborts the moment the client disconnects. Reach for it over WebSockets when you only push (live prices, build logs, notifications) — `EventSource` reconnects on its own.",
+      text: "`@usetoki/toki-sse` opens a `text/event-stream` from a handler, a one-way push channel to the browser over a plain HTTP connection. You get a stream handle to `send` events, a heartbeat that stops proxies idling the connection, the client's `Last-Event-ID` for resuming after a drop, and a `signal` that aborts the moment the client disconnects. Prefer it over WebSockets when you only push (live prices, build logs, notifications); `EventSource` reconnects on its own.",
     },
     {
       kind: "code",
@@ -49,7 +49,7 @@ app.get("/clock", (req) =>
     },
     {
       kind: "paragraph",
-      text: "Give each event an `id` and the browser stores it. On reconnect, `EventSource` resends the last id as the `Last-Event-ID` header, which arrives as `stream.lastEventId` — replay from there and the client never misses a beat across a flaky network.",
+      text: "Give each event an `id` and the browser stores it. On reconnect, `EventSource` resends the last id as the `Last-Event-ID` header, which arrives as `stream.lastEventId`. Replay from there and the client never misses a beat across a flaky network.",
     },
     {
       kind: "code",
@@ -74,7 +74,7 @@ app.get("/clock", (req) =>
     },
     {
       kind: "paragraph",
-      text: "`stream.comment(text)` writes a `: …` line — a manual keep-alive or marker the client ignores. `retry` on an event sets how long (ms) the browser waits before reconnecting. CR, LF, and NUL are stripped from `id`, `event`, `comment`, and `retry` so a value can't inject extra frames; multi-line `data` is split across `data:` lines correctly.",
+      text: "`stream.comment(text)` writes a `: …` line: a manual keep-alive or marker the client ignores. `retry` on an event sets how long (ms) the browser waits before reconnecting. CR, LF, and NUL are stripped from `id`, `event`, `comment`, and `retry` so a value can't inject extra frames; multi-line `data` is split across `data:` lines correctly.",
     },
     {
       kind: "code",
@@ -157,7 +157,7 @@ es.addEventListener("price", (e) => {
     {
       kind: "callout",
       tone: "warning",
-      text: "The stream buffers up to 1024 events if the consumer falls behind, then drops the oldest. A producer that pushes faster than the client drains will silently lose old events — pace the producer or rely on `Last-Event-ID` to backfill.",
+      text: "The stream buffers up to 1024 events if the consumer falls behind, then drops the oldest. A producer that pushes faster than the client drains will silently lose old events, so pace the producer or rely on `Last-Event-ID` to backfill.",
     },
     {
       kind: "callout",

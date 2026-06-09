@@ -27,8 +27,8 @@ export interface CacheOptions {
 /**
  * Cache whole responses per route. On a hit the stored response is replayed from the
  * `preHandler`, skipping the handler entirely; on a miss the response is captured in
- * `onSend`. Only safe methods and `200`s are cached by default, and a request asking
- * for `Cache-Control: no-cache`/`no-store` bypasses the cache both ways.
+ * `onSend`. Only safe methods and `200`s are cached by default. A request asking for
+ * `Cache-Control: no-cache`/`no-store` bypasses the cache both ways.
  */
 export function cache(instance: TokiInstance, options: CacheOptions): void {
   const ttlMs = options.ttl * 1000;
@@ -62,7 +62,7 @@ export function cache(instance: TokiInstance, options: CacheOptions): void {
   });
 
   instance.addHook("onSend", async (req, res) => {
-    if (fromCache.has(req)) return undefined; // already a cache hit — don't re-store
+    if (fromCache.has(req)) return undefined; // already a cache hit, don't re-store
     if (!methods.has(req.method) || !statuses.has(res.status) || bypass(req)) return undefined;
     if (privateResponse(req, res)) return undefined; // the handler marked it private/uncacheable
 
@@ -87,7 +87,7 @@ export function cache(instance: TokiInstance, options: CacheOptions): void {
         ttlMs,
       );
     } catch (error) {
-      // caching is best-effort — a store hiccup must not abort an otherwise-good response
+      // caching is best-effort. A store hiccup must not abort an otherwise-good response.
       req.log.error("cache store failed", { error: String(error) });
       return undefined;
     }

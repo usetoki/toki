@@ -1,6 +1,6 @@
 # @usetoki/toki-cache
 
-Route response caching for [toki](https://usetoki.github.io/toki/) — TTL and `Vary` over
+Route response caching for [toki](https://usetoki.github.io/toki/), with TTL and `Vary` over
 an in-memory or Redis store. A cache hit replays the stored response and skips the handler
 entirely.
 
@@ -29,8 +29,8 @@ requests within the TTL get it straight from the store (`X-Cache: HIT`, plus `Ag
 
 ## Stores
 
-In-process by default (bounded, with a periodic sweep). Share a cache across instances
-with the Redis store — bring any ioredis-style client:
+In-process by default (bounded, with a periodic sweep). To share a cache across instances,
+use the Redis store with any ioredis-style client:
 
 ```ts
 import { cache, RedisStore } from "@usetoki/toki-cache";

@@ -192,7 +192,7 @@ test("a HEAD response carries no message body (RFC 9110 §9.3.2)", async () => {
   assert.equal(body, "");
 });
 
-// raw socket so HEAD responses bypass inject's body-rejecting HTTP client; latin1 keeps byte counts exact
+// raw socket so HEAD responses skip inject's body-rejecting HTTP client. latin1 keeps byte counts exact.
 function rawRequest(port: number, requestLine: string): Promise<string> {
   const message = `${requestLine} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n`;
   return new Promise((resolve, reject) => {

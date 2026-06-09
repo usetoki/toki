@@ -2,9 +2,9 @@ import type { CipherState } from "./noise/cipher-state.js";
 import type { TransportPair } from "./noise/handshake-state.js";
 
 // A live, authenticated Noise session over a datagram transport. Each datagram carries an
-// explicit 8-byte counter (UDP reorders and drops, so the AEAD nonce can't be implicit),
-// and the receiver rejects replays and far-future/duplicate counters with a sliding window
-// — the same anti-replay scheme DTLS and IPsec/ESP use.
+// explicit 8-byte counter (UDP reorders and drops, so the AEAD nonce can't be implicit).
+// The receiver rejects replays and far-future/duplicate counters with a sliding window,
+// the same anti-replay scheme DTLS and IPsec/ESP use.
 
 const COUNTER_BYTES = 8;
 const WINDOW = 1024; // accept reordering up to this many datagrams behind the high-water mark
@@ -24,7 +24,7 @@ class ReplayFilter {
       this.#bits.add(n);
       return true;
     }
-    if (n <= this.#high - BigInt(WINDOW)) return false; // too old — outside the window
+    if (n <= this.#high - BigInt(WINDOW)) return false; // too old, outside the window
     if (this.#bits.has(n)) return false; // already seen
     this.#bits.add(n);
     return true;
@@ -63,7 +63,7 @@ export class NoiseSession {
   }
 
   /** Open a transport datagram. Returns the plaintext, or `null` if it's forged, replayed,
-   *  too old, or malformed — a bad datagram is dropped, never delivered. */
+   *  too old, or malformed. A bad datagram is dropped, never delivered. */
   open(wire: Uint8Array): Buffer | null {
     if (wire.length < COUNTER_BYTES) return null;
     const header = Buffer.from(wire.subarray(0, COUNTER_BYTES));

@@ -1,5 +1,5 @@
 //! Zero-copy HTTP/1.1 request-head parser. ParsedHead fields slice the caller's
-//! read buffer; nothing is allocated. Body isn't parsed here — caller buffers
+//! read buffer; nothing is allocated. The body isn't parsed here. Caller buffers
 //! content_length bytes after head_end.
 
 const std = @import("std");
@@ -89,10 +89,11 @@ pub fn parse(buf: []const u8, max_headers: usize) ParseError!ParsedHead {
         const value = std.mem.trim(u8, hline[colon + 1 ..], " \t");
 
         if (std.ascii.eqlIgnoreCase(name, "content-length")) {
-            // RFC 9112 §6.3: reject two Content-Length fields with different values — a
-            // front-end and the origin disagreeing on body length is a smuggling desync.
-            // Content-Length is 1*DIGIT — parseInt would also accept a leading '+'/'-', so
-            // reject any non-digit byte (a stricter front-end could read '+5' differently).
+            // RFC 9112 §6.3: two Content-Length fields with different values is a hard
+            // error. A front-end and the origin disagreeing on body length is a smuggling
+            // desync. Content-Length is 1*DIGIT; parseInt would also accept a leading
+            // '+'/'-', so reject any non-digit byte — a stricter front-end could read '+5'
+            // differently.
             if (value.len == 0) return error.BadRequest;
             for (value) |c| if (!std.ascii.isDigit(c)) return error.BadRequest;
             const n = std.fmt.parseInt(usize, value, 10) catch return error.BadRequest;
@@ -100,9 +101,8 @@ pub fn parse(buf: []const u8, max_headers: usize) ParseError!ParsedHead {
             content_length = n;
             seen_content_length = true;
         } else if (std.ascii.eqlIgnoreCase(name, "transfer-encoding")) {
-            // the engine frames bodies by Content-Length only; accepting a transfer
-            // coding it doesn't decode would let the chunk framing be read as body and
-            // open a request-smuggling desync, so reject it outright
+            // bodies are framed by Content-Length only. accept a coding we don't decode and
+            // the chunk framing gets read as body — a request-smuggling desync. reject.
             return error.BadRequest;
         } else if (std.ascii.eqlIgnoreCase(name, "connection")) {
             // may be a comma list; close wins over keep-alive

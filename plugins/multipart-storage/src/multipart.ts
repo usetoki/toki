@@ -55,7 +55,7 @@ export async function multipart<T>(
       fields[part.name] = Buffer.from(part.data).toString("utf8");
       continue;
     }
-    if (part.filename === "") continue; // an empty file input — nothing was uploaded
+    if (part.filename === "") continue; // empty file input, nothing was uploaded
     if (files.length >= maxFiles) throw new MultipartError(413, `too many files (max ${maxFiles})`);
     if (part.data.byteLength > maxFileBytes) {
       throw new MultipartError(413, `"${part.filename}" exceeds the ${maxFileBytes}-byte limit`);

@@ -70,8 +70,7 @@ export function loadEnv<S extends EnvSchema>(
   return deepFreeze(config) as Env<S>;
 }
 
-// Object.freeze is shallow — a json() value would stay mutable. Freeze the whole tree so
-// the config is genuinely immutable.
+// Object.freeze is shallow, so a json() value would stay mutable. Freeze the whole tree.
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
     Object.freeze(value);

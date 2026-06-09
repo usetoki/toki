@@ -18,8 +18,8 @@ export interface IpFilterOptions {
 /**
  * Allow/deny requests by IP or CIDR. Mount on a route's `preHandler`, or `app.use` it
  * to guard a whole scope. `deny` always wins; with an `allow` list set, anything not
- * matched is rejected (default-deny). Lists are parsed once, up front — an invalid
- * entry throws at setup, not mid-request.
+ * matched is rejected (default-deny). Lists are parsed once up front, so an invalid
+ * entry throws at setup rather than mid-request.
  */
 export function ipFilter(options: IpFilterOptions = {}): Middleware {
   const allow = compile(options.allow);
@@ -31,7 +31,7 @@ export function ipFilter(options: IpFilterOptions = {}): Middleware {
   return (req) => {
     const ip = parseIp(clientIp(req, trustProxy));
     const blocked =
-      ip === null || // an address we can't parse is never trusted
+      ip === null || // unparseable address is never trusted
       deny.some((cidr) => inCidr(ip, cidr)) ||
       (allow.length > 0 && !allow.some((cidr) => inCidr(ip, cidr)));
     return blocked ? reply.text(message, status) : undefined;

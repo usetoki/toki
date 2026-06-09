@@ -8,8 +8,8 @@ import { SymmetricState } from "./symmetric-state.js";
 //   <- e, ee, s, es
 //   -> s, se
 //
-// XX gives mutual authentication with identity hiding (each static key is sent encrypted),
-// and the ephemeral DH (`ee`) gives forward secrecy. After the three messages both sides
+// XX gives mutual authentication with identity hiding (each static key is sent encrypted).
+// The ephemeral DH (`ee`) gives forward secrecy. After the three messages both sides
 // Split() into a pair of transport CipherStates.
 
 export const PROTOCOL_NAME = "Noise_XX_25519_AESGCM_SHA256";

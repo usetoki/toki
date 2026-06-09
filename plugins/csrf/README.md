@@ -1,6 +1,6 @@
 # @usetoki/toki-csrf
 
-CSRF protection for [toki](https://usetoki.github.io/toki/) — signed double-submit tokens
+CSRF protection for [toki](https://usetoki.github.io/toki/): signed double-submit tokens
 with optional origin checks. Built on `@usetoki/toki-cookie`.
 
 ```bash
@@ -30,7 +30,7 @@ with `403`. The HMAC signature stops an attacker forging the cookie; it's `HttpO
 default.
 
 The token is read from the `x-csrf-token` (or `csrf-token`) header, then a `_csrf` form
-field — override with `getToken`.
+field. Override with `getToken`.
 
 ## Origin checks
 

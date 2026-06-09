@@ -7,7 +7,7 @@ export const etagPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-etag` hashes each GET/HEAD body into an `ETag` header. When the client sends that tag back as `If-None-Match`, toki answers `304 Not Modified` with no body, so the payload never crosses the wire. Static files already get native validators — reach for this when a handler builds the body itself (a rendered page, a JSON document, a serialized list).",
+      text: "`@usetoki/toki-etag` hashes each GET/HEAD body into an `ETag` header. When the client sends that tag back as `If-None-Match`, toki answers `304 Not Modified` with no body, so the payload never crosses the wire. Static files already get native validators; this is for when a handler builds the body itself (a rendered page, a JSON document, a serialized list).",
     },
     {
       kind: "code",
@@ -65,7 +65,7 @@ app.get("/feed", () => reply.json(buildFeed()));
     },
     {
       kind: "paragraph",
-      text: "The default `fnv1a` is allocation-free and fast: a 32-bit hash prefixed with the body length, which makes a collision between two different bodies vanishingly unlikely — all a cache validator needs. If you'd rather use a crypto digest (to match an existing system, say), pick `sha1`, `md5`, or `sha256`; those route through `node:crypto`.",
+      text: "The default `fnv1a` is allocation-free and fast: a 32-bit hash prefixed with the body length, which makes a collision between two different bodies vanishingly unlikely. That's all a cache validator needs. If you'd rather use a crypto digest (to match an existing system, say), pick `sha1`, `md5`, or `sha256`; those route through `node:crypto`.",
     },
     {
       kind: "code",
@@ -105,7 +105,7 @@ app.get("/feed", () => reply.json(buildFeed()));
         "Only `200` GET/HEAD responses — an error or redirect is never turned into a `304`.",
         "A handler that set its own `ETag` (on the response or staged via `setResponseHeader`) is left untouched.",
         "`If-None-Match: *` matches any current tag; a comma-separated list matches if any entry does.",
-        "Streaming responses are skipped — there's no materialized body to hash.",
+        "Streaming responses are skipped: there's no materialized body to hash.",
       ],
     },
     {

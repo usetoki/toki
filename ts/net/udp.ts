@@ -48,7 +48,7 @@ export function createUdpServer(
       if (active) throw new Error("toki: a UDP server is already bound in this process");
       const dispatch = (data: Uint8Array, rinfo: RemoteInfo): void => {
         if (secure === undefined) {
-          // native hands us a private, V8-owned copy of the datagram — safe to retain
+          // native hands us a private, V8-owned copy of the datagram; safe to retain
           onMessage(data as Buffer, rinfo, socket);
           return;
         }

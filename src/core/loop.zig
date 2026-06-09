@@ -84,8 +84,8 @@ pub fn onConnection(server: *anyopaque, status: c_int) callconv(.c) void {
     armRead(conn);
 }
 
-// peer ip captured once at accept, for req.ip. The V8 string is built here and held
-// by a reference so every request on this connection reuses it instead of re-encoding.
+// peer ip captured once at accept, for req.ip. Build the V8 string here and pin it
+// with a reference so every request on this connection reuses it instead of re-encoding.
 fn recordPeerIp(conn: *Conn) void {
     var storage: [128]u8 align(8) = undefined;
     var namelen: c_int = storage.len;
@@ -144,7 +144,7 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
 // finish the handshake, then decrypt buffered records straight into the plaintext
 // buffer and run the normal HTTP/WS pipeline on them. records decrypt in place, so if
 // an async handler suspends, undecrypted records stay in st.in and are picked up on
-// resume — nothing is stranded.
+// resume. nothing is stranded.
 fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
     if (!st.established) {
         const h = tlsmod.handshake(st, eng.tls_out[0..]);
@@ -159,13 +159,13 @@ fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
     while (tlsmod.recordReady(st)) {
         var active = eng.activeBuf(conn);
         if (active.len - conn.filled < tlsmod.in_size) {
-            // no room for a full record yet — drain/slide/grow, then retry
+            // no room for a full record yet; drain/slide/grow, then retry
             const space_before = active.len - conn.filled;
             if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
             if (conn.closing or conn.awaiting) return; // leftover records stay encrypted
             active = eng.activeBuf(conn);
             if (active.len - conn.filled <= space_before) {
-                // buffer full of an incomplete request bigger than we'll hold — drop it
+                // buffer full of an incomplete request bigger than we'll hold; drop it
                 closeConn(stream);
                 return;
             }
@@ -204,7 +204,7 @@ pub fn drain(stream: *anyopaque, conn: *Conn) void {
     var off: usize = 0;
     // cursor is the absolute offset of the next request's head. Pipelined requests
     // advance it without consuming, so the buffer is slid exactly once (at exit) rather
-    // than per request — turning an O(n^2) re-scan + memmove into O(n).
+    // than per request. that turns an O(n^2) re-scan + memmove into O(n).
     var cursor: usize = 0;
     var keep_alive = true;
 
@@ -382,7 +382,7 @@ fn readJsResponse(env: napi.Env, value: napi.Value) request.Response {
 
 // frame into the cork at off; if it won't fit, flush the cork and write head+body
 // straight out (handles bodies larger than the cork). a HEAD response carries the
-// would-be Content-Length but no body bytes (RFC 9110 §9.3.2) — sending them would
+// would-be Content-Length but no body bytes (RFC 9110 §9.3.2). sending them would
 // desync keep-alive framing.
 fn emitResponse(stream: *anyopaque, off: *usize, status: u16, headers: []const u8, body: []const u8, keep_alive: bool, is_head: bool) void {
     if (is_head) {
@@ -513,9 +513,9 @@ pub fn writeAll(stream: *anyopaque, bytes: []const u8) void {
 
 // fast path: one synchronous uv_try_write, zero heap. only a short write falls
 // back to a queued uv_write of the unsent tail. Once anything is queued (socket
-// backpressure), every later write must queue too: uv_try_write bypasses libuv's
+// backpressure), every later write must queue too. uv_try_write bypasses libuv's
 // FIFO write queue, so letting it run ahead of already-queued bytes would reorder
-// the stream — corrupting TLS records (bad MAC) and HTTP framing alike.
+// the stream, corrupting TLS records (bad MAC) and HTTP framing alike.
 fn rawWriteAll(stream: *anyopaque, bytes: []const u8) void {
     const conn: *Conn = @ptrCast(@alignCast(stream));
     if (conn.queued_bytes != 0) {

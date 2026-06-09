@@ -1,6 +1,6 @@
 // A spec describes one variable: how to coerce it, an optional default, and an
 // optional closed set of allowed values. `default` being present (even as `undefined`)
-// is what makes a variable optional — absence then yields the default instead of an error.
+// is what marks a variable optional; absence then yields the default instead of erroring.
 export interface Spec<T> {
   // `default: undefined` is a valid, meaningful value (marks the var optional), so the
   // type must admit it explicitly under exactOptionalPropertyTypes.

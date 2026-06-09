@@ -14,7 +14,7 @@ function sha256(...parts: Uint8Array[]): Buffer {
 }
 
 // Noise HKDF (§4.3): extract with salt=chaining_key, then expand with empty info into
-// `num` 32-byte outputs — which is exactly HKDF-Expand, so node's hkdfSync gives it to us.
+// `num` 32-byte outputs. That's exactly HKDF-Expand, so node's hkdfSync covers it.
 function hkdf(chainingKey: Uint8Array, ikm: Uint8Array, num: 2 | 3): Buffer[] {
   const out = Buffer.from(hkdfSync("sha256", ikm, chainingKey, EMPTY, num * HASHLEN));
   const parts: Buffer[] = [];

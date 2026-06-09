@@ -31,7 +31,7 @@ export function auth(strategies: Strategy | Strategy[], options: AuthOptions = {
         continue;
       }
       user = result;
-      if (!allOf) break; // anyOf: first success wins
+      if (!allOf) break; // anyOf: stop at the first that passes
     }
     if (user == null) return fail(req, challenges, reject);
     req.user = user;

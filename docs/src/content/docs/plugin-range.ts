@@ -7,7 +7,7 @@ export const rangePluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-range` serves a buffer or a file while honoring the request's `Range` header — the mechanism video players use to seek and download managers use to resume. Static files on disk already do this natively; reach for `sendRange` when the bytes come from somewhere a handler controls: a generated PDF, an object you fetched from storage, a file at a path you resolved at request time.",
+      text: "`@usetoki/toki-range` serves a buffer or a file while honoring the request's `Range` header, the mechanism video players use to seek and download managers use to resume. Static files on disk already do this natively; reach for `sendRange` when the bytes come from somewhere a handler controls: a generated PDF, an object you fetched from storage, a file at a path you resolved at request time.",
     },
     {
       kind: "code",
@@ -49,7 +49,7 @@ app.get("/report.pdf", (req) =>
     },
     {
       kind: "paragraph",
-      text: "Pass a path and `sendRange` opens the file once before committing any header — so a missing file becomes a clean error, never a truncated `206`. A range read pulls exactly the requested bytes from the open fd; a full request streams the file instead of buffering it. Either way the fd closes when the response ends.",
+      text: "Pass a path and `sendRange` opens the file once before committing any header, so a missing file becomes a clean error, never a truncated `206`. A range read pulls exactly the requested bytes from the open fd; a full request streams the file instead of buffering it. Either way the fd closes when the response ends.",
     },
     {
       kind: "code",
@@ -65,7 +65,7 @@ app.get("/report.pdf", (req) =>
     {
       kind: "callout",
       tone: "warning",
-      text: "Never interpolate a raw path param into the filesystem path — `req.params.id` could be `../../etc/passwd`. Validate or map the id to a known file first (an allowlist, a lookup, `path.basename`).",
+      text: "Never interpolate a raw path param into the filesystem path: `req.params.id` could be `../../etc/passwd`. Validate or map the id to a known file first (an allowlist, a lookup, `path.basename`).",
     },
     {
       kind: "heading",
@@ -87,7 +87,7 @@ app.get("/report.pdf", (req) =>
     },
     {
       kind: "paragraph",
-      text: "All three `bytes=` forms are handled — `start-end`, `start-` (open-ended), and `-suffix` (the last N bytes). A multi-range request or a malformed header falls back to the full entity, which is always a valid answer to a Range request.",
+      text: "All three `bytes=` forms are handled: `start-end`, `start-` (open-ended), and `-suffix` (the last N bytes). A multi-range request or a malformed header falls back to the full entity, which is always a valid answer to a Range request.",
     },
     {
       kind: "heading",

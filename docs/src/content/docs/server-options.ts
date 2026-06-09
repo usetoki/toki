@@ -7,7 +7,7 @@ export const serverOptionsPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Server tunables are split in two. `createApp(options)` sets per-app behavior that lives for the process — the logger and the request timeout. `app.listen(port, options)` sets per-socket behavior — bind address, limits, timeouts, TLS. Every native limit is configurable here; there are no hidden magic numbers.",
+      text: "Server tunables are split in two. `createApp(options)` sets per-app behavior that lives for the process: the logger and the request timeout. `app.listen(port, options)` sets per-socket behavior — bind address, limits, timeouts, TLS. Every native limit is configurable here; there are no hidden magic numbers.",
     },
     { kind: "heading", id: "listen", text: "listen(port, options)" },
     {
@@ -119,7 +119,7 @@ process.on("SIGTERM", () => handle.close());`,
     { kind: "heading", id: "reuseport", text: "Scaling across processes with reusePort" },
     {
       kind: "paragraph",
-      text: "`reusePort` lets every worker in a cluster bind the same port; the kernel spreads incoming connections across them. Each worker is its own process with its own engine — there is no shared memory, so anything stateful (a rate-limit `Map`, an in-process cache) is per-worker.",
+      text: "`reusePort` lets every worker in a cluster bind the same port; the kernel spreads incoming connections across them. Each worker is its own process with its own engine. There is no shared memory, so anything stateful (a rate-limit `Map`, an in-process cache) is per-worker.",
     },
     {
       kind: "code",
@@ -142,12 +142,12 @@ if (cluster.isPrimary) {
     {
       kind: "callout",
       tone: "warning",
-      text: "`reusePort` is Linux/BSD only. On other platforms a second bind to the same port fails. Keep one `listen` per process — Toki's engine is process-global, so a second `listen()` in the same process clobbers the first.",
+      text: "`reusePort` is Linux/BSD only. On other platforms a second bind to the same port fails. Keep one `listen` per process: Toki's engine is process-global, so a second `listen()` in the same process clobbers the first.",
     },
     { kind: "heading", id: "unix", text: "Unix-domain sockets" },
     {
       kind: "paragraph",
-      text: "Bind a unix socket for a same-host reverse proxy — no TCP port, no loopback round-trip. The `port` argument is ignored. `req.ip` is an empty string for unix connections (there is no peer address), which also means the native per-IP rate limiter can't key on the caller.",
+      text: "Bind a unix socket for a same-host reverse proxy: no TCP port, no loopback round-trip. The `port` argument is ignored. `req.ip` is an empty string for unix connections (there is no peer address), which also means the native per-IP rate limiter can't key on the caller.",
     },
     {
       kind: "code",
@@ -160,7 +160,7 @@ if (cluster.isPrimary) {
     {
       kind: "callout",
       tone: "tip",
-      text: "Pass `0` as the port whenever the address is decided elsewhere — `unixPath`, an ephemeral test port, or a `reusePort` worker. Read the actual bound TCP port back from the returned handle's `.port`.",
+      text: "Pass `0` as the port whenever the address is decided elsewhere: `unixPath`, an ephemeral test port, or a `reusePort` worker. Read the actual bound TCP port back from the returned handle's `.port`.",
     },
   ],
 };

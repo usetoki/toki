@@ -61,7 +61,7 @@ interface CompiledRoute {
   readonly defaultStatus?: number;
 }
 
-// shared by every streaming response; TextEncoder is stateless across encode() calls
+// shared by every streaming response; encode() keeps no state between calls
 const streamEncoder = new TextEncoder();
 // must match `not_found_index` in Zig
 const NOT_FOUND_INDEX = 0xffffffff;
@@ -90,8 +90,8 @@ function asArray<T>(value: T | T[] | undefined): T[] {
 /**
  * The application. Register routes (optionally with a validation schema and
  * route-scoped hooks), global hooks, middleware, and plugins, then
- * {@link Toki.listen}. The pipeline stays synchronous until a step returns a
- * `Promise`, keeping the common sync request on the fast path.
+ * {@link Toki.listen}. The pipeline runs synchronously until a step returns a
+ * `Promise`; the common sync request never leaves the fast path.
  */
 export class Toki extends Scope {
   readonly #routes: Route[] = [];
@@ -356,8 +356,8 @@ export class Toki extends Scope {
         return undefined;
       }
       if (isStreamResponse(outcome)) {
-        // engine suspends the connection only on the `undefined` we return below,
-        // so drive the stream on the next microtask, not now
+        // engine only suspends the connection on the `undefined` returned below.
+        // drive the stream on the next microtask, not now.
         const id = raw.dispatchId;
         queueMicrotask(() => this.#driveSafe(id, req, outcome));
         return undefined;

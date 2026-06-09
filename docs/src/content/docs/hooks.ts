@@ -7,11 +7,11 @@ export const hooksPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "A hook runs at a fixed point around a handler. Register one with `addHook(name, fn)` on the app or any scope. Hooks let you add cross-cutting behaviour — auth, timing, header injection, response rewriting — without touching the handler. Each hook is scoped: it runs only for routes in the scope that registered it, and outer scopes run before inner ones.",
+      text: "A hook runs at a fixed point around a handler. Register one with `addHook(name, fn)` on the app or any scope. Hooks let you add cross-cutting behaviour (auth, timing, header injection, response rewriting) without touching the handler. Each hook is scoped: it runs only for routes in the scope that registered it, and outer scopes run before inner ones.",
     },
     {
       kind: "paragraph",
-      text: "Hooks come in three shapes. `onRequest`, `preParsing`, `preValidation`, and `preHandler` receive the request and may *short-circuit* by returning a `reply.*` value — the handler and remaining steps are skipped. `preSerialization` receives a plain return value and returns the payload to encode. `onResponse` and `onSend` receive the built response and may return a replacement.",
+      text: "Hooks come in three shapes. `onRequest`, `preParsing`, `preValidation`, and `preHandler` receive the request and may *short-circuit* by returning a `reply.*` value; the handler and remaining steps are then skipped. `preSerialization` receives a plain return value and returns the payload to encode. `onResponse` and `onSend` receive the built response and may return a replacement.",
     },
     { kind: "heading", id: "order", text: "Execution order" },
     {
@@ -35,7 +35,7 @@ export const hooksPage: DocPage = {
     {
       kind: "callout",
       tone: "note",
-      text: "`onResponse` runs before `onSend`, not after — both see the built response, so order them by what each needs to read or rewrite. `preSerialization` only fires for plain values bound for JSON; a `reply.text(...)` or a built `reply` skips it.",
+      text: "`onResponse` runs before `onSend`, not after. Both see the built response, so order them by what each needs to read or rewrite. `preSerialization` only fires for plain values bound for JSON; a `reply.text(...)` or a built `reply` skips it.",
     },
     { kind: "heading", id: "basics", text: "Tapping the lifecycle" },
     {
@@ -115,7 +115,7 @@ app.addHook("onResponse", (req, res) => {
     { kind: "heading", id: "transforming", text: "Transforming the response" },
     {
       kind: "paragraph",
-      text: "`preSerialization` sees the plain value a handler returned (before it becomes a response) and returns the value to encode. `onSend` sees the built response — status, content type, body, headers — and may return a replacement built with `reply.*`. To add a header without rebuilding the body, stage it earlier with `req.setResponseHeader`; staged headers are merged onto the outgoing response.",
+      text: "`preSerialization` sees the plain value a handler returned (before it becomes a response) and returns the value to encode. `onSend` sees the built response — status, content type, body, headers — and may return a replacement built with `reply.*`. To add a header without rebuilding the body, stage it earlier with `req.setResponseHeader`; staged headers merge onto the outgoing response.",
     },
     {
       kind: "code",
@@ -210,7 +210,7 @@ app.addHook("onTimeout", (req) => {
     {
       kind: "callout",
       tone: "warning",
-      text: "The request buffer is engine-owned and valid only during the synchronous part of a hook. Read `req.body` / `req.text()` before the first `await`. Async short-circuits are fine — just capture what you need up front.",
+      text: "The request buffer is engine-owned and valid only during the synchronous part of a hook. Read `req.body` / `req.text()` before the first `await`. Async short-circuits are fine; capture what you need up front.",
     },
   ],
 };

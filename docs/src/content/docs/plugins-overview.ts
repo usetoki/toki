@@ -3,11 +3,11 @@ import type { DocPage } from "../../types";
 export const pluginsOverviewPage: DocPage = {
   slug: "plugins-overview",
   title: "Official plugins",
-  description: "The 21 first-party packages that extend toki — security, sessions, HTTP, and infra.",
+  description: "The 21 first-party packages that extend toki: security, sessions, HTTP, and infra.",
   blocks: [
     {
       kind: "paragraph",
-      text: "Official plugins are separate npm packages that build on toki's public hook and middleware API — the same surface you'd use to write your own (see [Plugins & encapsulation](/docs/plugins)). They're pure TypeScript, depend on `@usetoki/toki` as a peer, and are versioned independently of the core. There are 21 of them, grouped below by what they do.",
+      text: "Official plugins are separate npm packages that build on toki's public hook and middleware API. That's the same surface you'd use to write your own (see [Plugins & encapsulation](/docs/plugins)). They're pure TypeScript, depend on `@usetoki/toki` as a peer, and are versioned independently of the core. There are 21 of them, grouped below by what they do.",
     },
     { kind: "heading", id: "security-and-auth", text: "Security & auth" },
     {
@@ -45,7 +45,7 @@ export const pluginsOverviewPage: DocPage = {
         ],
         [
           "`@usetoki/toki-secure-session`",
-          "Stateless sessions sealed into an encrypted cookie — no store, ~4 KB cap",
+          "Stateless sessions sealed into an encrypted cookie, no store, ~4 KB cap",
         ],
         [
           "`@usetoki/toki-cache`",

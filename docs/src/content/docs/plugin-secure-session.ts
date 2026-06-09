@@ -7,7 +7,7 @@ export const secureSessionPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "The whole session lives in one encrypted cookie (AES-256-GCM). There's no server-side store to run, nothing to revoke, and nothing to share between instances — every box can read the session because the key is the only state. Reach for it on small sessions and horizontally-scaled apps where you'd rather not stand up Redis just to remember a user id.",
+      text: "The whole session lives in one encrypted cookie (AES-256-GCM). There's no server-side store to run, nothing to revoke, and nothing to share between instances: every box can read the session because the key is the only state. Use it for small sessions and horizontally-scaled apps where you'd rather not stand up Redis just to remember a user id.",
     },
     {
       kind: "code",
@@ -97,7 +97,7 @@ app.listen(3000);`,
     { kind: "heading", id: "expiry-and-rolling", text: "Expiry and rolling sessions" },
     {
       kind: "paragraph",
-      text: "`maxAge` is the lifetime in seconds (default one day) and is enforced both in the cookie attributes and inside the sealed payload, so a re-dated cookie can't outlive its server-side expiry. Set `rolling: true` to slide the window forward on every response — handy for \"keep me signed in while active\" without an absolute timeout you have to babysit.",
+      text: "`maxAge` is the lifetime in seconds (default one day) and is enforced both in the cookie attributes and inside the sealed payload, so a re-dated cookie can't outlive its server-side expiry. Set `rolling: true` to slide the window forward on every response. Handy for \"keep me signed in while active\" without an absolute timeout you have to babysit.",
     },
     {
       kind: "code",
@@ -200,7 +200,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "warning",
-      text: "Browsers cap a cookie near 4 KB and silently drop anything larger. If a sealed session would cross that limit, `secureSession` throws on save instead of letting the cookie vanish — that's your signal to move to `@usetoki/toki-session` with a server-side store. Keep the cookie to an id and a few flags, not a shopping cart.",
+      text: "Browsers cap a cookie near 4 KB and silently drop anything larger. If a sealed session would cross that limit, `secureSession` throws on save instead of letting the cookie vanish. That's your signal to move to `@usetoki/toki-session` with a server-side store. Keep the cookie to an id and a few flags, not a shopping cart.",
     },
     { kind: "heading", id: "vs-toki-session", text: "Secure session vs. toki-session" },
     {

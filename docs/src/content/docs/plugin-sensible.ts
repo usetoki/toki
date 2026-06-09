@@ -7,7 +7,7 @@ export const sensiblePluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-sensible` gives you a set of HTTP error constructors, an `assert` helper, and an error handler that renders any thrown error as RFC 9457 `application/problem+json`. Throw from anywhere in a handler and the right status and body come out — with internal 5xx messages kept off the wire. Reach for it when you want consistent, machine-readable error responses without writing a try/catch in every route.",
+      text: "`@usetoki/toki-sensible` gives you a set of HTTP error constructors, an `assert` helper, and an error handler that renders any thrown error as RFC 9457 `application/problem+json`. Throw from anywhere in a handler and the right status and body come out, with internal 5xx messages kept off the wire. Use it when you want consistent, machine-readable error responses without writing a try/catch in every route.",
     },
     {
       kind: "heading",
@@ -96,7 +96,7 @@ throw httpErrors.unauthorized("token expired", {
     },
     {
       kind: "paragraph",
-      text: "`details` are merged into the problem document as RFC 9457 extension members — perfect for a field-level validation report. Use `createError(status, message, options)` for any status that doesn't have a named constructor.",
+      text: "`details` are merged into the problem document as RFC 9457 extension members, which is perfect for a field-level validation report. Use `createError(status, message, options)` for any status that doesn't have a named constructor.",
     },
     {
       kind: "code",
@@ -168,7 +168,7 @@ throw createError(422, "validation failed", {
     {
       kind: "callout",
       tone: "warning",
-      text: "A non-serializable `details` (a bigint, a circular reference) won't crash the handler — it falls back to the standard problem members alone. Keep `details` JSON-safe so your extension fields actually reach the client.",
+      text: "A non-serializable `details` (a bigint, a circular reference) won't crash the handler; it falls back to the standard problem members alone. Keep `details` JSON-safe so your extension fields actually reach the client.",
     },
   ],
 };

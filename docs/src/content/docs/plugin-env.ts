@@ -8,7 +8,7 @@ export const envPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-env` validates and coerces `process.env` against a small schema at startup. A missing or malformed variable fails fast — on boot, not mid-request three days later. You get back a frozen, fully-typed config object: `PORT` is a `number`, `NODE_ENV` is the literal union you declared. It's envalid-style with no JSON-schema dependency, which keeps it tiny and gives precise inference.",
+      text: "`@usetoki/toki-env` validates and coerces `process.env` against a small schema at startup. A missing or malformed variable fails fast, on boot, not mid-request three days later. You get back a frozen, fully-typed config object: `PORT` is a `number`, `NODE_ENV` is the literal union you declared. It's envalid-style with no JSON-schema dependency, which keeps it tiny and gives precise inference.",
     },
     {
       kind: "heading",
@@ -66,7 +66,7 @@ app.listen(env.PORT);`,
     },
     {
       kind: "paragraph",
-      text: "Seven validators cover the common shapes. Each coerces the raw string and rejects garbage — `num` is decimal-only (no `0x1a`, no empty-string-as-zero) and refuses non-finite values, `port` enforces 1–65535, `url` runs the WHATWG parser.",
+      text: "Seven validators cover the common shapes. Each coerces the raw string and rejects garbage: `num` is decimal-only (no `0x1a`, no empty-string-as-zero) and refuses non-finite values, `port` enforces 1–65535, `url` runs the WHATWG parser.",
     },
     {
       kind: "table",

@@ -31,8 +31,8 @@ export interface DiskStorageOptions {
 }
 
 /**
- * Write each part to a directory. The default name is random — the client's filename is
- * never trusted as a path — and the resolved target is confined to `dir`, so a crafted
+ * Write each part to a directory. The default name is random (the client's filename is
+ * never trusted as a path), and the resolved target is confined to `dir` so a crafted
  * name can't escape it.
  */
 export function diskStorage(options: DiskStorageOptions): Storage<DiskFile> {

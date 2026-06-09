@@ -7,7 +7,7 @@ export const viewPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-view` renders templates to an HTML response. Reach for it when you serve server-rendered pages — a marketing site, an admin panel, transactional email previews — instead of shipping JSON to a client framework. It's engine-agnostic: bring eta, ejs, or handlebars (your dependency, not ours). It loads files, compiles them once, caches the compiled result, and confines every template name to the views directory so a name can never escape it.",
+      text: "`@usetoki/toki-view` renders templates to an HTML response. Use it for server-rendered pages (a marketing site, an admin panel, transactional email previews) instead of shipping JSON to a client framework. It's engine-agnostic: bring eta, ejs, or handlebars (your dependency, not ours). It loads files, compiles them once, caches the compiled result, and confines every template name to the views directory so a name can never escape it.",
     },
     {
       kind: "heading",
@@ -63,7 +63,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "Three thin adapters bridge the popular engines to toki's `ViewEngine` interface. Pass the imported instance or module — the adapter wires up its compile API.",
+      text: "Three thin adapters bridge the popular engines to toki's `ViewEngine` interface. Pass the imported instance or module, and the adapter wires up its compile API.",
     },
     {
       kind: "code",
@@ -112,7 +112,7 @@ createView({ engine: handlebars(await import("handlebars")), root, ext: ".hbs" }
     },
     {
       kind: "paragraph",
-      text: "`ViewEngine` is one method. `compile(source, path)` returns a `Renderer` — a function from data to a string (or a promise of one). Anything that turns a string template into HTML fits.",
+      text: "`ViewEngine` is one method. `compile(source, path)` returns a `Renderer`: a function from data to a string (or a promise of one). Anything that turns a string template into HTML fits.",
     },
     {
       kind: "code",
@@ -154,7 +154,7 @@ const view = createView({ engine: mustache, root: viewsDir, ext: ".mustache" });
     {
       kind: "callout",
       tone: "tip",
-      text: "Concurrent first-hits on the same template compile once, not N times — the cache stores the compile promise, so the second request awaits the first.",
+      text: "Concurrent first-hits on the same template compile once, not N times. The cache stores the compile promise, so the second request awaits the first.",
     },
   ],
 };

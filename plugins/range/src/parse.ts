@@ -3,8 +3,8 @@ export type RangeSpec = { readonly start: number; readonly end: number } | "inva
 
 /**
  * Parse a `Range` header against the entity `size`. Supports a single `bytes=` range in
- * all three forms — `start-end`, `start-`, `-suffix`. Anything else (a multi-range
- * request, a malformed value) returns `null`, so the caller serves the full entity, which
+ * all three forms: `start-end`, `start-`, `-suffix`. Anything else (a multi-range
+ * request, a malformed value) returns `null` and the caller serves the full entity, which
  * is always a valid response to a Range request.
  */
 export function parseRange(header: string, size: number): RangeSpec {

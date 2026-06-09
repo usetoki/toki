@@ -1,9 +1,9 @@
 // run: node examples/tls.ts
 //
-// Direct HTTPS termination — no reverse proxy. Pass a PEM cert chain + private key
+// Direct HTTPS termination, no reverse proxy. Pass a PEM cert chain + private key
 // (RSA or EC) as `tls` to `listen`, and toki terminates TLS 1.3 in the native engine.
-// Here we mint a throwaway self-signed cert with openssl to keep the example
-// self-contained; in production you'd load real cert/key files.
+// This mints a throwaway self-signed cert with openssl to stay self-contained; in
+// production you'd load real cert/key files.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";

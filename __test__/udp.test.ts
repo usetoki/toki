@@ -8,10 +8,10 @@ import { createUdpServer, type RemoteInfo } from "../dist/index.js";
 // server under test
 // ---------------------------------------------------------------------------
 
-// One UDP socket per process — the native engine is a singleton. node --test runs
-// this file in its own process, so a single bound socket serves the whole suite.
+// One UDP socket per process. The native engine is a singleton, and node --test
+// runs this file in its own process, so a single bound socket serves the suite.
 //
-// The server is a plain echo: it sends every datagram straight back to its sender.
+// The server is a plain echo: every datagram goes straight back to its sender.
 // Tests that need extra accounting read the shared trackers below.
 
 const HOST = "127.0.0.1";
@@ -34,7 +34,7 @@ after(() => {
 });
 
 // ---------------------------------------------------------------------------
-// client helpers — Node's built-in dgram client
+// client helpers (Node's built-in dgram client)
 // ---------------------------------------------------------------------------
 
 // a bound udp4 client with a promise-based receive.
@@ -64,9 +64,9 @@ function echo(c: dgram.Socket, data: Uint8Array | string, ms = 1000): Promise<Bu
 
 // The kernel caps a single UDP datagram. Linux allows ~64 KiB; macOS defaults to
 // net.inet.udp.maxdgram = 9216 and rejects anything larger with EMSGSIZE on send()
-// (in BOTH directions — plain node:dgram fails the same way). Probe the real ceiling
-// once so the "large datagram" test exercises the biggest datagram this OS permits
-// instead of falsely failing on a platform limit.
+// (both directions — plain node:dgram fails identically). Probe the real ceiling
+// once, so the "large datagram" test uses the biggest datagram this OS permits
+// rather than falsely failing on a platform limit.
 async function largestDeliverable(): Promise<number> {
   const probe = dgram.createSocket("udp4");
   await new Promise<void>((resolve) => {
@@ -77,7 +77,7 @@ async function largestDeliverable(): Promise<number> {
     new Promise((resolve) => {
       probe.send(Buffer.alloc(n), self, HOST, (err) => resolve(!err));
     });
-  // candidates from large to small; pick the first the kernel accepts on send().
+  // try large to small; take the first the kernel accepts on send()
   let best = 1024;
   for (const n of [60000, 32000, 16000, 9216, 4096, 1024]) {
     // eslint-disable-next-line no-await-in-loop
@@ -145,10 +145,8 @@ describe("udp — payload integrity", () => {
     c.close();
   });
 
-  // Linux delivers ~60 KiB; macOS caps a single datagram at net.inet.udp.maxdgram
-  // (9216 by default) and rejects more with EMSGSIZE — a kernel limit that hits plain
-  // node:dgram identically, not a toki bug. So round-trip the largest size this OS
-  // actually permits, which is still a genuinely large datagram.
+  // Round-trip the largest datagram this OS permits (see largestDeliverable above):
+  // ~60 KiB on Linux, 9216 on stock macOS. Still a genuinely large datagram either way.
   test("a large datagram round-trips intact (largest the OS allows)", async () => {
     const c = await makeClient();
     const size = bigSize;
@@ -229,8 +227,8 @@ describe("udp — burst", () => {
     }
 
     await done;
-    // loopback loss is effectively nil; demand the overwhelming majority back and
-    // require that whatever arrived was an in-range, unique sequence number.
+    // loopback loss is effectively nil. Demand the overwhelming majority back, and
+    // require everything that arrived to be an in-range, unique sequence number.
     assert.ok(seen.size >= count * 0.95, `expected >= ${count * 0.95} echoes, got ${seen.size}`);
     for (const n of seen) assert.ok(n >= 0 && n < count, `out-of-range sequence ${n}`);
     c.close();

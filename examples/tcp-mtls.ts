@@ -39,7 +39,7 @@ try {
     "-subj",
     "/CN=Toki Demo CA",
   ]);
-  // Server leaf — CN/SAN localhost so the client can verify the hostname.
+  // Server leaf: CN/SAN localhost so the client can verify the hostname.
   sh([
     "req",
     "-newkey",
@@ -71,7 +71,7 @@ try {
     "-out",
     p("srv-cert.pem"),
   ]);
-  // Client leaf — its identity is the CN; the server verifies it chains to our CA.
+  // Client leaf. Its identity is the CN; the server verifies it chains to our CA.
   sh([
     "req",
     "-newkey",
@@ -111,8 +111,8 @@ const srvKey = readFileSync(p("srv-key.pem"));
 const cliCert = readFileSync(p("cli-cert.pem"));
 const cliKey = readFileSync(p("cli-key.pem"));
 
-// Server-side bookkeeping: how many connections reached the handler, and the authorized
-// flag we saw. With rejectUnauthorized, only verified clients ever get here.
+// Server-side bookkeeping: how many connections reached the handler, and the last
+// authorized flag. With rejectUnauthorized, only verified clients ever get here.
 let handlerCount = 0;
 let lastAuthorized = false;
 
@@ -156,7 +156,7 @@ console.log(
 
 // --- a client with NO cert: the server rejects it at the handshake. In TLS 1.3 the client
 // sends its (empty) certificate in the final flight, so its connect callback can fire before
-// the server resets — "rejected" means no echo arrives and the handler never runs. ---
+// the server resets. "rejected" here means no echo arrives and the handler never runs. ---
 const countBefore = handlerCount;
 const rejected = await new Promise<boolean>((resolve) => {
   const sock = tls.connect({ host: HOST, port, ca: caCert, servername: "localhost" }, () =>

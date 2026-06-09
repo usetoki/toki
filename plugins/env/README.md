@@ -1,7 +1,7 @@
 # @usetoki/toki-env
 
-Validate and coerce environment variables at boot into a typed, frozen config — for
-[toki](https://usetoki.github.io/toki/), with zero dependencies. Catch a missing or
+Validate and coerce environment variables at boot into a typed, frozen config. For
+[toki](https://usetoki.github.io/toki/), zero dependencies. Catch a missing or
 malformed variable on startup, not at 3am in production.
 
 ```bash

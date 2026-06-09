@@ -6,7 +6,7 @@ export interface ViewEngine {
   compile(source: string, path: string): Renderer;
 }
 
-// Thin adapters over the popular engines. The engine itself is your dependency — pass the
+// Thin adapters over the popular engines. The engine itself is your dependency: pass the
 // imported module/instance, and these bridge its compile API to ViewEngine.
 
 /** [eta](https://eta.js.org): pass an `Eta` instance — `eta(new Eta({ views: "..." }))`. */

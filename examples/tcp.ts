@@ -11,18 +11,18 @@ const server = createTcpServer((socket) => {
   const who = `${socket.remoteAddress}:${socket.remotePort}`;
   console.log(`connect ${who}`);
 
-  // Per-connection state: a text buffer we split on newlines, plus a backpressure flag.
+  // Per-connection state: a text buffer split on newlines, plus a backpressure flag.
   let buffer = "";
   let paused = false;
   const outbox: string[] = [];
 
-  // Write through the queue so we never push past a full send buffer.
+  // Queue writes so we don't push past a full send buffer.
   const send = (line: string): void => {
     if (paused) {
       outbox.push(line);
       return;
     }
-    // write returns false when the socket buffer backed up — stop and wait for "drain".
+    // write() returns false once the socket buffer backs up. stop and wait for "drain".
     if (!socket.write(line)) paused = true;
   };
 

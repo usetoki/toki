@@ -28,7 +28,7 @@ app.use(tag);`,
     { kind: "heading", id: "order", text: "Where middleware runs" },
     {
       kind: "paragraph",
-      text: "Middleware sits in the request lifecycle between the early hooks and the handler — after `onRequest` and `preParsing`, before `preValidation`, the route schema, and `preHandler`. Within a scope, middleware runs in registration order; across scopes, outer before inner.",
+      text: "Middleware sits in the request lifecycle between the early hooks and the handler: after `onRequest` and `preParsing`, before `preValidation`, the route schema, and `preHandler`. Within a scope, middleware runs in registration order; across scopes, outer before inner.",
     },
     {
       kind: "table",

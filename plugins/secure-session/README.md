@@ -1,7 +1,7 @@
 # @usetoki/toki-secure-session
 
-Stateless sessions for [toki](https://usetoki.github.io/toki/) — the whole session lives in
-an encrypted cookie (AES-256-GCM), so there's no server-side store to run. Great for small
+Stateless sessions for [toki](https://usetoki.github.io/toki/). The whole session lives in
+an encrypted cookie (AES-256-GCM), so there's no server-side store to run. Good for small
 sessions and horizontally-scaled apps.
 
 ```bash

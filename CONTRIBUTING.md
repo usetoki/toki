@@ -12,7 +12,7 @@ Thanks for your interest in improving Toki.
   framework core; the rest is the public surface.
 - `__test__/` — tests (`node:test`, run as `.ts`). `examples/` — runnable samples.
 
-The native engine is allocation-free on the hot path and must stay that way — keep
+The native engine is allocation-free on the hot path and must stay that way. Keep
 per-request work that touches V8 objects on the TypeScript side, where V8's own
 fast paths beat crossing the N-API boundary. See the boundary rule in the README.
 

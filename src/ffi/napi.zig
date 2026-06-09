@@ -1,4 +1,4 @@
-//! Hand-declared N-API extern surface — avoids translate-c on the C headers.
+//! Hand-declared N-API extern surface, so we skip translate-c on the C headers.
 //! Symbols resolve against the host Node process at dlopen (`-fallow-shlib-undefined`).
 //! All N-API handles are opaque pointers, modeled as `?*anyopaque`.
 
@@ -26,7 +26,7 @@ pub const valuetype = struct {
     pub const function: c_int = 7;
 };
 
-// external-buffer finalizer; always null since we own the backing memory — see request.zig
+// external-buffer finalizer; always null since the engine owns the backing memory (see request.zig)
 pub const Finalize = ?*const fn (Env, ?*anyopaque, ?*anyopaque) callconv(.c) void;
 
 pub extern fn napi_create_function(env: Env, utf8name: [*c]const u8, length: usize, cb: Callback, data: ?*anyopaque, result: *Value) c_int;

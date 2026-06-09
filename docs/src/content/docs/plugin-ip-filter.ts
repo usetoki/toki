@@ -7,7 +7,7 @@ export const ipFilterPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-ip-filter` allows or denies requests by IP address or CIDR range. Reach for it to lock an admin panel to your office network, gate an internal API to a VPC range, or drop a handful of abusive addresses. It parses both IPv4 and IPv6 (and IPv4-mapped IPv6), has no dependencies, and validates every rule once at setup rather than mid-request.",
+      text: "`@usetoki/toki-ip-filter` allows or denies requests by IP address or CIDR range. Use it to lock an admin panel to your office network, gate an internal API to a VPC range, or drop a handful of abusive addresses. It parses both IPv4 and IPv6 (and IPv4-mapped IPv6), has no dependencies, and validates every rule once at setup rather than mid-request.",
     },
     {
       kind: "code",
@@ -20,7 +20,7 @@ export const ipFilterPluginPage: DocPage = {
     { kind: "heading", id: "quick-start", text: "Quick start" },
     {
       kind: "paragraph",
-      text: "Mount it on a single route's `preHandler`, or `app.use` it to guard a whole scope. An `allow` list is default-deny — anything not matched is rejected. A `deny` list is default-allow — only matches are rejected.",
+      text: "Mount it on a single route's `preHandler`, or `app.use` it to guard a whole scope. An `allow` list is default-deny: anything not matched is rejected. A `deny` list is default-allow, so only matches are rejected.",
     },
     {
       kind: "code",
@@ -85,7 +85,7 @@ app.use(
     {
       kind: "callout",
       tone: "warning",
-      text: "Only set `trustProxy` when a proxy you control terminates the connection. `X-Forwarded-For` is client-supplied — if requests can reach your app directly, an attacker spoofs the header and walks straight past the filter.",
+      text: "Only set `trustProxy` when a proxy you control terminates the connection. `X-Forwarded-For` is client-supplied: if requests can reach your app directly, an attacker spoofs the header and walks straight past the filter.",
     },
     { kind: "heading", id: "options", text: "Options" },
     {
@@ -112,7 +112,7 @@ app.use(
     { kind: "heading", id: "helpers", text: "Exported helpers" },
     {
       kind: "paragraph",
-      text: "`parseIp`, `parseCidr`, and `inCidr` are exported if you want to build your own checks — geo-routing, audit logging, a custom allow-list in a handler. `parseIp` and `parseCidr` return `null` on malformed input rather than throwing.",
+      text: "`parseIp`, `parseCidr`, and `inCidr` are exported if you want to build your own checks: geo-routing, audit logging, a custom allow-list in a handler. `parseIp` and `parseCidr` return `null` on malformed input rather than throwing.",
     },
     {
       kind: "code",

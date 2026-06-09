@@ -32,7 +32,7 @@ export interface MemoryStoreOptions {
 /**
  * In-process cache with a bounded size and a periodic sweep, so memory tracks live
  * entries rather than growing without limit. Writes move a key to the newest slot;
- * once `max` is exceeded the least-recently-written key is dropped.
+ * past `max`, the least-recently-written key is dropped.
  */
 export class MemoryStore implements CacheStore {
   readonly #entries = new Map<string, CacheEntry>();

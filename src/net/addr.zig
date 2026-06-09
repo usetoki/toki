@@ -1,6 +1,6 @@
 //! Socket-address helpers shared by the TCP and UDP servers. The port lives at byte
-//! offset 2 of every sockaddr_in / sockaddr_in6 on every platform, so we read it from
-//! the raw bytes — no struct overlay, no alignment assumption on a kernel-supplied ptr.
+//! offset 2 of every sockaddr_in / sockaddr_in6 on every platform, so read it from the
+//! raw bytes: no struct overlay, no alignment assumption on a kernel-supplied ptr.
 
 const std = @import("std");
 const uv = @import("../ffi/uv.zig");
@@ -9,8 +9,8 @@ fn opaqueOf(p: anytype) *anyopaque {
     return @ptrCast(p);
 }
 
-/// Host port (native byte order) from a sockaddr the kernel/libuv handed us. sin_port /
-/// sin6_port are both 16-bit network-order at offset 2 — read the two bytes directly.
+/// Host port (native byte order) from a sockaddr the kernel/libuv handed us. sin_port and
+/// sin6_port are both 16-bit network-order at offset 2; read the two bytes directly.
 pub fn portOf(addr: *const anyopaque) u16 {
     const bytes: [*]const u8 = @ptrCast(addr);
     return (@as(u16, bytes[2]) << 8) | bytes[3];

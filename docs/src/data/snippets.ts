@@ -89,7 +89,7 @@ const TCP_TLS_SNIPPET: Snippet = {
   code: `import { readFileSync } from "node:fs";
 import { createTcpServer } from "@usetoki/toki";
 
-// TLS 1.3 is terminated in the native engine — the handler only sees plaintext.
+// TLS 1.3 is terminated in the native engine; the handler only sees plaintext.
 const server = createTcpServer(
   (socket) => {
     // socket.authorized is true once a client cert verified against the CA below.

@@ -1,7 +1,7 @@
 import type { TokiRequest } from "@usetoki/toki";
 
 // Hop-by-hop headers (RFC 7230 §6.1) plus the framing ones the upstream client manages
-// itself — never forwarded on either leg.
+// itself. Never forwarded on either leg.
 const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
@@ -35,7 +35,7 @@ export function requestHeaders(
     headers.set(name, value);
   }
 
-  // When this gateway is the edge, a client-supplied X-Forwarded-For is spoofed input —
+  // When this gateway is the edge, a client-supplied X-Forwarded-For is spoofed input, so
   // overwrite it with the real peer. Only extend the chain when sitting behind a proxy we trust.
   const forwardedFor = req.headers.get("x-forwarded-for");
   headers.set(

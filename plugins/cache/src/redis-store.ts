@@ -12,8 +12,8 @@ export interface RedisStoreOptions {
   prefix?: string;
 }
 
-// A compact JSON envelope; the body rides as base64 so binary survives the round trip
-// and the server's PX TTL expires the key in lockstep with the entry.
+// Compact JSON envelope. Body rides as base64 so binary survives the round trip; the
+// server's PX TTL expires the key in lockstep with the entry.
 interface Wire {
   s: number;
   c: string;
@@ -24,7 +24,7 @@ interface Wire {
   e: number;
 }
 
-/** {@link CacheStore} backed by Redis — cached responses are shared across instances. */
+/** {@link CacheStore} backed by Redis, so cached responses are shared across instances. */
 export class RedisStore implements CacheStore {
   readonly #client: RedisClient;
   readonly #prefix: string;

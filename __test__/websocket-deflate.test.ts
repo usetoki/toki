@@ -6,8 +6,8 @@ import { constants, deflateRawSync, inflateRawSync } from "node:zlib";
 import { createApp } from "../dist/index.js";
 import { freePort } from "./helpers.ts";
 
-// permessage-deflate runs per process with its own app (the native engine is a
-// singleton), so this lives in a separate file from the main websocket tests.
+// permessage-deflate needs its own app, and the native engine is a singleton, so
+// it lives in a separate file (= separate process) from the main websocket tests.
 const app = createApp();
 app.ws("/echo", (socket) => {
   socket.on("message", (data, isBinary) => {

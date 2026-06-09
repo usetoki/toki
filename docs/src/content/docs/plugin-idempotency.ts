@@ -7,7 +7,7 @@ export const idempotencyPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-idempotency` makes a mutating request safe to retry. Reach for it on anything that must not happen twice — charging a card, sending an email, placing an order — where a flaky network or an over-eager client might fire the same request again. A request carrying an `Idempotency-Key` runs at most once: the first execution's response is stored, and every later retry with the same key replays it instead of running the handler again.",
+      text: "`@usetoki/toki-idempotency` makes a mutating request safe to retry. Use it on anything that must not happen twice (charging a card, sending an email, placing an order) where a flaky network or an over-eager client might fire the same request again. A request carrying an `Idempotency-Key` runs at most once: the first execution's response is stored, and every later retry with the same key replays it instead of running the handler again.",
     },
     {
       kind: "code",
@@ -73,7 +73,7 @@ app.register((api) => {
     { kind: "heading", id: "required", text: "Require the header" },
     {
       kind: "paragraph",
-      text: "Set `required: true` to reject a participating method with `400` when the `Idempotency-Key` header is missing — useful when every write on a scope must be idempotent.",
+      text: "Set `required: true` to reject a participating method with `400` when the `Idempotency-Key` header is missing. Useful when every write on a scope must be idempotent.",
     },
     {
       kind: "code",
@@ -89,7 +89,7 @@ app.register((api) => {
     { kind: "heading", id: "stores", text: "Stores" },
     {
       kind: "paragraph",
-      text: "In-process by default — capped (the key is attacker-controlled, so a flood of unique keys can't grow memory without bound) and swept. For more than one instance you want a shared store so a retry that lands on a different node still dedups. Both shared stores reserve the key atomically (Redis `SET NX`, memcached `add`), so two concurrent retries can't both run.",
+      text: "In-process by default: capped (the key is attacker-controlled, so a flood of unique keys can't grow memory without bound) and swept. For more than one instance you want a shared store so a retry that lands on a different node still dedups. Both shared stores reserve the key atomically (Redis `SET NX`, memcached `add`), so two concurrent retries can't both run.",
     },
     {
       kind: "code",

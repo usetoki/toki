@@ -38,7 +38,7 @@ export interface CsrfOptions {
  * Signed double-submit CSRF protection. `req.csrfToken()` issues a random token, signs
  * it into a cookie, and returns the raw value for the page to send back (a hidden form
  * field or a header). On every unsafe request the submitted token must equal the one
- * unsealed from the cookie — and, optionally, the Origin must be trusted. The HMAC
+ * unsealed from the cookie, and (optionally) the Origin must be trusted. The HMAC
  * signature stops an attacker forging the cookie; the cookie is `HttpOnly` by default.
  */
 export function csrf(instance: TokiInstance, options: CsrfOptions): void {

@@ -7,7 +7,7 @@ export const multipartStoragePluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-multipart-storage` parses a `multipart/form-data` request, collects the plain fields, and hands each file part to a pluggable storage backend — one at a time, as a view into the request buffer, with no extra copy. Size, count, and type limits are enforced as parts are read, so a bad upload is rejected before it ever reaches your store. Reach for it on any form that uploads a file: an avatar, a CSV import, a batch of attachments.",
+      text: "`@usetoki/toki-multipart-storage` parses a `multipart/form-data` request, collects the plain fields, and hands each file part to a pluggable storage backend. Parts go one at a time, as a view into the request buffer, with no extra copy. Size, count, and type limits are enforced as parts are read, so a bad upload is rejected before it ever reaches your store. Use it on any form that uploads a file: an avatar, a CSV import, a batch of attachments.",
     },
     {
       kind: "heading",
@@ -55,7 +55,7 @@ app.post("/avatar", async (req) => {
     },
     {
       kind: "paragraph",
-      text: "A `diskStorage` result is `{ field, filename, contentType, size, path }` — `path` is the absolute path on disk, `filename` is the (untrusted) client name, kept only as metadata.",
+      text: "A `diskStorage` result is `{ field, filename, contentType, size, path }`. `path` is the absolute path on disk; `filename` is the (untrusted) client name, kept only as metadata.",
     },
     {
       kind: "heading",
@@ -167,7 +167,7 @@ sensible(app); // a MultipartError now comes out as application/problem+json`,
     {
       kind: "callout",
       tone: "warning",
-      text: "The request body is buffered by the engine up to `maxBodyBytes`. The default is small — raise it in `listen({ maxBodyBytes })` to match your largest expected upload, or large files are truncated before `multipart` ever sees them.",
+      text: "The request body is buffered by the engine up to `maxBodyBytes`. The default is small, so raise it in `listen({ maxBodyBytes })` to match your largest expected upload, or large files are truncated before `multipart` ever sees them.",
     },
     {
       kind: "callout",

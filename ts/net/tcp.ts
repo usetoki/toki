@@ -11,7 +11,7 @@ export interface TcpSocket {
    *  server's `tls.ca`. `false` on a plaintext connection, or a TLS connection where no valid
    *  client cert was presented (only reachable without `rejectUnauthorized`). */
   readonly authorized: boolean;
-  /** Send bytes. Returns `false` when the send buffer is backed up — stop writing and
+  /** Send bytes. Returns `false` when the send buffer is backed up: stop writing and
    *  resume on `drain`. A string is encoded as UTF-8. */
   write(data: Uint8Array | string): boolean;
   /** Flush queued writes, optionally send a final chunk, then half-close (FIN). */
@@ -67,7 +67,7 @@ const enum Ev {
   End = 4,
 }
 
-// One raw TCP server per process — the native engine is a singleton, so a second
+// One raw TCP server per process. The native engine is a singleton, so a second
 // listener would clobber the first. Mirrors the HTTP `app.listen` rule.
 let active = false;
 
@@ -97,7 +97,7 @@ class Socket implements TcpSocket {
 
   // Peer fields are read lazily: a handler that never inspects the address costs no
   // getpeername and no native object build. An empty result (the connection closed before
-  // anyone asked) is cached too, so we ask native at most once.
+  // anyone asked) is cached too, so native is hit at most once.
   #fetchPeer(): RemoteInfo {
     return (this.#peer ??= native.tcpPeer(this.#id) ?? EMPTY_PEER);
   }
@@ -221,7 +221,7 @@ export function createTcpServer(
         return;
       }
       case Ev.Data:
-        // native already hands us a private, V8-owned copy — safe to retain
+        // native already hands us a private, V8-owned copy; safe to retain
         sockets.get(id)?.emitData(arg as Buffer);
         return;
       case Ev.Drain:

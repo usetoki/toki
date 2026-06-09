@@ -1,5 +1,5 @@
 //! Shared engine state, connection lifecycle, buffer helpers.
-//! Imports neither loop.zig nor server.zig — keep it that way to avoid cycles.
+//! Imports neither loop.zig nor server.zig. Keep it that way to avoid cycles.
 
 const std = @import("std");
 const napi = @import("../ffi/napi.zig");
@@ -53,7 +53,7 @@ pub var conn_list: ?*Conn = null;
 pub var server_closing: bool = false;
 pub var sweep_timer: [uv.timer_size]u8 align(16) = undefined;
 
-/// O(1) same-size slot allocator — no malloc churn, no fragmentation
+/// O(1) same-size slot allocator: no malloc churn, no fragmentation
 pub var conn_pool: std.heap.MemoryPool(Conn) = .empty;
 
 /// in-flight async handlers: dispatch id → conn awaiting a response
@@ -75,7 +75,7 @@ pub var max_ws_message: usize = 16 * 1024 * 1024;
 /// offer permessage-deflate (RFC 7692) when a client requests it
 pub var ws_compression: bool = false;
 
-/// reused scratch; single thread → safe statics, zero per-request alloc
+/// reused scratch. single thread, so statics are safe and there's zero per-request alloc
 pub var cork: [cork_size]u8 = undefined;
 pub var headers_scratch: [read_buf_size]u8 = undefined;
 /// TLS ciphertext scratch: a handshake reply flight, or one batch of encrypted
@@ -88,7 +88,7 @@ pub var route_scratch: router.Scratch = .{};
 pub var resp_body: []u8 = &.{};
 
 /// uv handle leads, so a *uv handle is the same address as the *Conn (libuv puts
-/// data at offset 0; we recover Conn by cast)
+/// data at offset 0; recover Conn by cast)
 pub const Conn = struct {
     tcp: [uv.tcp_size]u8 align(16),
     read_buf: [read_buf_size]u8,
@@ -110,7 +110,7 @@ pub const Conn = struct {
     pending_is_head: bool,
     /// loop time (ms) of last read; sweep uses it to find stalled requests
     last_read: u64,
-    /// cold-path bytes not yet flushed — backpressure signal handed to JS so a
+    /// cold-path bytes not yet flushed. backpressure signal handed to JS so a
     /// producer can pause when the socket is full
     queued_bytes: usize,
     /// null-terminated; exposed to JS as req.ip

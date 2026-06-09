@@ -15,8 +15,8 @@ export interface JwksOptions {
 
 type Jwk = JsonWebKey & { kid?: string };
 
-/** A key resolver that fetches a JWKS, caches the keys by `kid`, and refetches when a
- *  token presents an unknown kid (rate-limited) — so rotated keys are picked up. */
+/** A key resolver that fetches a JWKS, caches the keys by `kid`, and refetches (rate-limited)
+ *  when a token presents an unknown kid. Picks up rotated keys. */
 export function createJwksResolver(options: JwksOptions): KeyResolver {
   const cacheMaxAge = options.cacheMaxAge ?? 600_000;
   const cooldown = options.cooldown ?? 30_000;

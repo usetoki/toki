@@ -1,5 +1,5 @@
-// IP/CIDR matching on integer addresses. v4 is a 32-bit value, v6 a 128-bit BigInt;
-// an IPv4-mapped v6 address (::ffff:1.2.3.4) collapses to plain v4 so a dual-stack
+// IP/CIDR matching on integer addresses. v4 is a 32-bit value, v6 a 128-bit BigInt.
+// An IPv4-mapped v6 address (::ffff:1.2.3.4) collapses to plain v4 so a dual-stack
 // peer matches IPv4 rules. No allocation on the match path beyond the BigInt math.
 
 const V4_BITS = 32n;

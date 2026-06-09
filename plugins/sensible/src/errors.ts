@@ -80,8 +80,8 @@ export function createError(
 export function isHttpError(value: unknown): value is HttpError {
   if (value instanceof HttpError) return true;
   if (typeof value !== "object" || value === null) return false;
-  // a real HTTP error status — rejects NaN/Infinity, out-of-range, and 2xx/3xx that would
-  // otherwise reach the wire as a garbage status or silently swallow a programming error
+  // require a real 4xx/5xx status. Rejects NaN/Infinity, out-of-range, and 2xx/3xx that
+  // would otherwise reach the wire as a garbage status or swallow a programming error.
   const status = (value as { statusCode?: unknown }).statusCode;
   return typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599;
 }

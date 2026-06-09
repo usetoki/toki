@@ -1,7 +1,7 @@
 # Examples
 
 One runnable file per feature. Each builds an app, exercises the feature, checks
-the result with `node:assert`, prints a line, and exits — so they double as smoke
+the result with `node:assert`, prints a line, and exits, so they double as smoke
 tests. Build first (`npm run build`), then run any of them:
 
 ```sh
@@ -34,7 +34,7 @@ node examples/routing.ts
 ## Networking
 
 Raw TCP/UDP, TLS, and the secure-UDP layer. The TLS examples mint throwaway certs with
-`openssl` and skip cleanly if it isn't installed.
+`openssl`, and skip cleanly if it isn't installed.
 
 | File | Shows |
 |---|---|

@@ -7,7 +7,7 @@ export const httpsPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Pass a PEM certificate chain and private key as `tls` to `listen` and toki terminates HTTPS in the native engine — handshake, encryption, and decryption all run in Zig. No nginx or Caddy in front required.",
+      text: "Pass a PEM certificate chain and private key as `tls` to `listen` and toki terminates HTTPS in the native engine: handshake, encryption, and decryption all run in Zig. No nginx or Caddy in front required.",
     },
     {
       kind: "code",
@@ -81,7 +81,7 @@ app.listen(443, { tls: { cert, key } }); // PEM strings, no files needed`,
     { kind: "heading", id: "redirect", text: "Redirecting HTTP to HTTPS" },
     {
       kind: "paragraph",
-      text: "Serve HTTPS on 443 and run a tiny plain-HTTP listener on 80 that 301-redirects every request to its HTTPS URL. `setNotFoundHandler` catches every path the redirect server has no route for — i.e. all of them — so one handler covers the whole site. Run it in its own process; there is one `listen` per process. `req.hostname` is the `Host` header without the port and `req.path` is the path without the query, so rebuild the target from those.",
+      text: "Serve HTTPS on 443 and run a tiny plain-HTTP listener on 80 that 301-redirects every request to its HTTPS URL. `setNotFoundHandler` catches every path the redirect server has no route for (i.e. all of them), so one handler covers the whole site. Run it in its own process; there is one `listen` per process. `req.hostname` is the `Host` header without the port and `req.path` is the path without the query, so rebuild the target from those.",
     },
     {
       kind: "code",
@@ -114,7 +114,7 @@ redirect.listen(80); // no tls — this listener is intentionally plaintext`,
     { kind: "heading", id: "wss", text: "WebSockets over TLS (wss)" },
     {
       kind: "paragraph",
-      text: "Nothing extra to do — the same `app.ws` route serves `wss://` once TLS is on. Frames are encrypted on the same connection.",
+      text: "Nothing extra to do: the same `app.ws` route serves `wss://` once TLS is on. Frames are encrypted on the same connection.",
     },
     {
       kind: "code",
@@ -133,7 +133,7 @@ app.listen(443, { tls: { cert, key } });
     { kind: "heading", id: "everything", text: "Streaming and static files" },
     {
       kind: "paragraph",
-      text: "Streaming responses (`reply.stream`) and static files (`app.static`) ride over TLS unchanged — every byte the engine sends is encrypted at the single write path, so no feature needs to know about TLS.",
+      text: "Streaming responses (`reply.stream`) and static files (`app.static`) ride over TLS unchanged. Every byte the engine sends is encrypted at the single write path, so no feature needs to know about TLS.",
     },
     {
       kind: "callout",

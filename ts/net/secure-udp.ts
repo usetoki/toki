@@ -8,10 +8,10 @@ export { generateKeyPair, keyPairFromPrivateRaw, type KeyPair } from "./noise/dh
 export { NoiseSession } from "./noise-session.js";
 
 // Encrypted, authenticated UDP sessions built on the Noise XX handshake (X25519 + AES-256-GCM
-// + SHA-256) — the WireGuard-style way to secure connectionless traffic when DTLS isn't
+// + SHA-256). The WireGuard-style way to secure connectionless traffic when DTLS isn't
 // available. Each peer runs a mutual-auth handshake (forward secrecy via ephemeral DH), then
 // exchanges replay-protected transport datagrams. This is NOT DTLS (no wire interop) and not
-// a stream — it's a per-peer secure datagram session.
+// a stream; it's a per-peer secure datagram session.
 
 const HANDSHAKE = 1;
 const TRANSPORT = 2;
@@ -103,7 +103,7 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
       if (peer === undefined) {
         // At the half-open cap, evict the OLDEST pending handshake to make room. Just dropping
         // the newcomer would let an attacker pin `pending` at the cap with spoofed msg1s and
-        // lock out every new legitimate peer — this keeps the table bounded AND live.
+        // lock out every new legitimate peer. Evicting keeps the table bounded AND live.
         if (pending >= maxPending) evictOldestPending();
         peer = { hs: new HandshakeState(false, options.staticKey), session: null, lastSeen: now() };
         peers.set(key, peer);
@@ -130,7 +130,7 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
         const written = peer.hs!.writeMessage();
         sendRaw(Buffer.concat([Buffer.from([HANDSHAKE]), written.message]), r.port, r.address);
       } catch {
-        // a malformed/forged/duplicate handshake datagram: abandon the in-progress handshake
+        // malformed/forged/duplicate handshake datagram: abandon the in-progress handshake
         // but keep any established session intact (never tear it down on unauthenticated input).
         peer.hs = null;
         pending -= 1;

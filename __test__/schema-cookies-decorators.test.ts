@@ -636,10 +636,10 @@ interface ValidationError {
 }
 
 {
-  // ReDoS guard: a catastrophic-backtracking pattern run against a long attacker string
-  // would pin the event loop. schema.ts caps the input length (the schema's maxLength, or
-  // PATTERN_INPUT_CAP=4096) and fails without running the regex. The proof is that this
-  // test *finishes promptly* — a regression would hang the suite, not just flip an assert.
+  // ReDoS guard. A catastrophic-backtracking pattern against a long attacker string
+  // would pin the event loop. schema.ts caps the input length (the schema's maxLength,
+  // else PATTERN_INPUT_CAP=4096) and fails without ever running the regex. Note the
+  // tell: a regression here hangs the whole suite, it doesn't just flip an assert.
   const app = createApp();
   app.post(
     "/redos",

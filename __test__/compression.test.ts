@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { brotliDecompressSync, gunzipSync } from "node:zlib";
 import { compression, createApp, reply } from "../dist/index.js";
 
-// inject() does not auto-decompress, so unwrap wire bytes ourselves.
+// inject() doesn't auto-decompress, so unwrap the wire bytes by hand.
 const decode = (encoding: string | undefined, raw: Buffer): string => {
   if (encoding === "br") return brotliDecompressSync(raw).toString("utf8");
   if (encoding === "gzip") return gunzipSync(raw).toString("utf8");

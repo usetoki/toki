@@ -11,7 +11,7 @@ export const introductionPage: DocPage = {
     },
     {
       kind: "paragraph",
-      text: "The engine runs on Node's own libuv loop and calls handlers synchronously on the JS thread — no worker threads, no `ThreadsafeFunction`, no cross-thread hop. On the plaintext benchmark it sustains ~99k req/s at ~49 MB RSS on a single thread. You write ordinary `async` functions; toki keeps them on a synchronous fast path until one actually returns a `Promise`.",
+      text: "The engine runs on Node's own libuv loop and calls handlers synchronously on the JS thread: no worker threads, no `ThreadsafeFunction`, no cross-thread hop. On the plaintext benchmark it sustains ~99k req/s at ~49 MB RSS on a single thread. You write ordinary `async` functions; toki keeps them on a synchronous fast path until one actually returns a `Promise`.",
     },
     { kind: "heading", id: "hello-world", text: "Hello, world" },
     {
@@ -35,7 +35,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "Run it with `node server.ts` — Node 22+ strips the types and runs the file directly, no build step. See [Installation](/docs/installation) for the supported versions and platforms.",
+      text: "Run it with `node server.ts`. Node 22+ strips the types and runs the file directly, no build step. See [Installation](/docs/installation) for the supported versions and platforms.",
     },
     { kind: "heading", id: "feature-surface", text: "Feature surface" },
     {
@@ -107,7 +107,7 @@ app.listen(3000);`,
     { kind: "heading", id: "what-runs-where", text: "What runs where" },
     {
       kind: "paragraph",
-      text: "The shared, heavy logic is native: HTTP parsing, routing, the MIME table, ETag and header assembly, static serving, WebSocket framing, and compression negotiation. The TypeScript layer is the developer API plus the unavoidable Node bits — the handler pipeline and `zlib` for compression.",
+      text: "The shared, heavy logic is native: HTTP parsing, routing, the MIME table, ETag and header assembly, static serving, WebSocket framing, and compression negotiation. The TypeScript layer is the developer API plus the unavoidable Node bits: the handler pipeline and `zlib` for compression.",
     },
     {
       kind: "paragraph",
@@ -116,7 +116,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "note",
-      text: "You never touch Zig. It ships as a prebuilt native addon for 11 platforms and loads automatically — `npm install` fetches the right one.",
+      text: "You never touch Zig. It ships as a prebuilt native addon for 11 platforms and loads automatically; `npm install` fetches the right one.",
     },
     { kind: "heading", id: "scope", text: "Scope: one server per process" },
     {

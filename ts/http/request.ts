@@ -19,8 +19,8 @@ interface RequestContext {
 
 /**
  * An incoming request handed to a handler. Query/headers parsed lazily.
- * Backed by an engine-owned buffer — valid only during the handler call;
- * read the body before any `await`.
+ * Backed by an engine-owned buffer that's only valid during the handler call.
+ * Read the body before any `await`.
  */
 export class TokiRequest {
   /** The HTTP method, e.g. `"GET"`. */
@@ -65,8 +65,8 @@ export class TokiRequest {
   }
 
   // Look up one header by lowercased name without building the full Headers object.
-  // The common getters (host, cookie, content-type) read a single header, so this
-  // keeps them off the Headers-construction path; `req.headers` stays a real Headers.
+  // host/cookie/content-type each read a single header; this keeps them off the
+  // Headers-construction path. `req.headers` still returns a real Headers.
   #header(name: string): string | null {
     const raw = this.#raw.rawHeaders;
     let i = 0;
@@ -193,8 +193,8 @@ export class TokiRequest {
   /**
    * Body parsed by the matching content-type parser, falling back to built-ins
    * (JSON/text/forms) else raw bytes. Cached; `undefined` when no body. `T` unchecked.
-   * Memoizes the in-flight promise, so concurrent callers collapse onto one parse — a
-   * side-effectful custom parser runs exactly once.
+   * The in-flight promise is memoized so concurrent callers collapse onto one parse.
+   * A side-effectful custom parser therefore runs exactly once.
    */
   async parseBody<T = unknown>(): Promise<T> {
     return (this.#parsePromise ??= Promise.resolve(this.#runParse())) as Promise<T>;

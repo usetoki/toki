@@ -7,7 +7,7 @@ export const requestPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Every handler receives a `TokiRequest`. Hot fields — `method`, `path`, `body`, `ip` — are plain properties set once. Query, headers, params, and cookies are parsed lazily on first access, so a handler that never touches them pays nothing.",
+      text: "Every handler receives a `TokiRequest`. Hot fields (`method`, `path`, `body`, `ip`) are plain properties set once. Query, headers, params, and cookies are parsed lazily on first access, so a handler that never touches them pays nothing.",
     },
     { kind: "heading", id: "basics", text: "Basics" },
     {
@@ -35,7 +35,7 @@ export const requestPage: DocPage = {
     { kind: "heading", id: "params", text: "Path parameters" },
     {
       kind: "paragraph",
-      text: "`req.params` holds the values captured by the route pattern. A `:name` segment lands under that name; a trailing `*` lands under `\"*\"`. The record is frozen and null-prototype, and an absent key reads as `undefined` — so values are typed `string | undefined`. See [Routing](/docs/routing) for the patterns.",
+      text: "`req.params` holds the values captured by the route pattern. A `:name` segment lands under that name; a trailing `*` lands under `\"*\"`. The record is frozen and null-prototype, and an absent key reads as `undefined`, so values are typed `string | undefined`. See [Routing](/docs/routing) for the patterns.",
     },
     {
       kind: "code",
@@ -72,7 +72,7 @@ app.get("/search", (req) => {
     { kind: "heading", id: "headers", text: "Headers" },
     {
       kind: "paragraph",
-      text: "`req.headers` is a Web `Headers` object — case-insensitive lookups, `get`, `has`, and iteration. Reading a header is cheap; toki builds the full `Headers` object only on first access.",
+      text: "`req.headers` is a Web `Headers` object: case-insensitive lookups, `get`, `has`, and iteration. Reading a header is cheap; toki builds the full `Headers` object only on first access.",
     },
     {
       kind: "code",
@@ -95,7 +95,7 @@ app.get("/search", (req) => {
     { kind: "heading", id: "body", text: "Reading the body" },
     {
       kind: "paragraph",
-      text: "The raw body is on `req.body` as a `Uint8Array` (or `null`). Convenience readers decode it: `req.text()` returns a UTF-8 string (or `\"\"`), and `req.json<T>()` parses it — `T` is an unchecked assertion that throws on malformed input.",
+      text: "The raw body is on `req.body` as a `Uint8Array` (or `null`). Convenience readers decode it: `req.text()` returns a UTF-8 string (or `\"\"`), and `req.json<T>()` parses it. `T` is an unchecked assertion that throws on malformed input.",
     },
     {
       kind: "code",
@@ -113,7 +113,7 @@ app.get("/search", (req) => {
     {
       kind: "callout",
       tone: "warning",
-      text: "`req.body` is a view over an engine-owned buffer, valid only during the synchronous handler call. Read it (or anything derived from it like `req.text()`) before your first `await` — afterwards the bytes may be gone.",
+      text: "`req.body` is a view over an engine-owned buffer, valid only during the synchronous handler call. Read it (or anything derived from it like `req.text()`) before your first `await`; afterwards the bytes may be gone.",
     },
     {
       kind: "paragraph",
@@ -139,7 +139,7 @@ app.get("/search", (req) => {
     { kind: "heading", id: "forms", text: "Forms and content-type parsing" },
     {
       kind: "paragraph",
-      text: "`req.form` parses a urlencoded or multipart body into `{ fields, files }`, or `null` for any other content type. Files arrive as `{ name, filename, contentType, data }` with `data` a `Uint8Array`. For pluggable parsers selected by content type, use `await req.parseBody<T>()` — it consults registered parsers, falls back to JSON/text/forms, else returns the raw bytes, and memoizes so a side-effectful parser runs once.",
+      text: "`req.form` parses a urlencoded or multipart body into `{ fields, files }`, or `null` for any other content type. Files arrive as `{ name, filename, contentType, data }` with `data` a `Uint8Array`. For pluggable parsers selected by content type, use `await req.parseBody<T>()`. It consults registered parsers, falls back to JSON/text/forms, else returns the raw bytes, and memoizes so a side-effectful parser runs once.",
     },
     {
       kind: "code",
@@ -186,7 +186,7 @@ app.post("/ingest", async (req) => {
     },
     {
       kind: "paragraph",
-      text: "`req.setCookie` and `req.clearCookie` build on `appendResponseHeader` — see [Cookies](/docs/cookies). To build the response body itself, see [The response](/docs/response).",
+      text: "`req.setCookie` and `req.clearCookie` build on `appendResponseHeader` (see [Cookies](/docs/cookies)). To build the response body itself, see [The response](/docs/response).",
     },
   ],
 };

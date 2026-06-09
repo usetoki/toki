@@ -1,7 +1,7 @@
 import { hkdfSync } from "node:crypto";
 
-// Separate keys for signing and sealing are derived from each secret via HKDF, so a
-// secret is never used raw and the two purposes can't cross-contaminate.
+// Separate signing and sealing keys, derived from each secret via HKDF. A secret is
+// never used raw, and the two purposes can't cross-contaminate.
 const SIGN_INFO = Buffer.from("toki-cookie/sign");
 const SEAL_INFO = Buffer.from("toki-cookie/seal");
 const KEY_LEN = 32; // HMAC-SHA256 key + AES-256 key

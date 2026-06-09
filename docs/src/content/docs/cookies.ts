@@ -51,7 +51,7 @@ export const cookiesPage: DocPage = {
     },
     {
       kind: "paragraph",
-      text: "Set more than one in a row — each is its own `Set-Cookie` line:",
+      text: "Set more than one in a row, each its own `Set-Cookie` line:",
     },
     {
       kind: "code",
@@ -69,7 +69,7 @@ export const cookiesPage: DocPage = {
     { kind: "heading", id: "clearing", text: "Clearing cookies" },
     {
       kind: "paragraph",
-      text: "`req.clearCookie(name, options?)` expires a cookie by setting it empty with `Max-Age=0` and an epoch `Expires`. Pass the same `path` (and `domain`) you set it with — a browser only removes a cookie when the scope matches.",
+      text: "`req.clearCookie(name, options?)` expires a cookie by setting it empty with `Max-Age=0` and an epoch `Expires`. Pass the same `path` (and `domain`) you set it with; a browser only removes a cookie when the scope matches.",
     },
     {
       kind: "code",
@@ -109,12 +109,12 @@ export const cookiesPage: DocPage = {
     },
     {
       kind: "paragraph",
-      text: "Core cookies are unsigned — the value is whatever you write. For tamper-evident, encrypted session cookies use the [secure-session](/docs/plugin-secure-session) plugin, which signs and seals the payload for you.",
+      text: "Core cookies are unsigned: the value is whatever you write. For tamper-evident, encrypted session cookies use the [secure-session](/docs/plugin-secure-session) plugin, which signs and seals the payload for you.",
     },
     { kind: "heading", id: "standalone", text: "Standalone helpers" },
     {
       kind: "paragraph",
-      text: "The underlying functions are exported from `@usetoki/toki` for use outside a request — parsing a stored `Cookie` string, or building a `Set-Cookie` value to attach elsewhere.",
+      text: "The underlying functions are exported from `@usetoki/toki` for use outside a request: parsing a stored `Cookie` string, or building a `Set-Cookie` value to attach elsewhere.",
     },
     {
       kind: "code",

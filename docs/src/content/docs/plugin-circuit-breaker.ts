@@ -7,7 +7,7 @@ export const circuitBreakerPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-circuit-breaker` wraps a handler so one sick dependency doesn't drag the whole route down with it. While the downstream is healthy the handler runs as normal. Once its failure rate over a rolling window crosses your threshold, the breaker opens and requests fast-fail with `503` and a `Retry-After` header — no more piling connections onto something that's already struggling. After a cooldown it lets a single probe through to decide whether to close again. Reach for it around any call that can fail or hang: an upstream HTTP service, a database, a third-party API.",
+      text: "`@usetoki/toki-circuit-breaker` wraps a handler so one sick dependency doesn't drag the whole route down with it. While the downstream is healthy the handler runs as normal. Once its failure rate over a rolling window crosses your threshold, the breaker opens and requests fast-fail with `503` and a `Retry-After` header. No more piling connections onto something that's already struggling. After a cooldown it lets a single probe through to decide whether to close again. Wrap it around any call that can fail or hang: an upstream HTTP service, a database, a third-party API.",
     },
     {
       kind: "code",
@@ -80,7 +80,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "warning",
-      text: "`timeoutMs` makes the breaker move on, but it can't cancel the underlying call — the handler keeps running in the background. Use an `AbortSignal` inside your handler if you also need to stop the upstream work itself.",
+      text: "`timeoutMs` makes the breaker move on, but it can't cancel the underlying call: the handler keeps running in the background. Use an `AbortSignal` inside your handler if you also need to stop the upstream work itself.",
     },
     {
       kind: "heading",
@@ -89,7 +89,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "Without a `fallback`, an open breaker returns `503` and a failing call re-throws. Add a `fallback` to serve something useful instead — stale cache, a default, an empty list. It runs both when the breaker is open and when the wrapped call fails.",
+      text: "Without a `fallback`, an open breaker returns `503` and a failing call re-throws. Add a `fallback` to serve something useful instead: stale cache, a default, an empty list. It runs both when the breaker is open and when the wrapped call fails.",
     },
     {
       kind: "code",
@@ -112,7 +112,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "The `onOpen` / `onHalfOpen` / `onClose` hooks fire on each transition — wire them to logs or metrics so you see a dependency degrade in real time. A throw inside a hook can't corrupt the breaker; it's swallowed after the state has already changed.",
+      text: "The `onOpen` / `onHalfOpen` / `onClose` hooks fire on each transition. Wire them to logs or metrics so you see a dependency degrade in real time. A throw inside a hook can't corrupt the breaker; it's swallowed after the state has already changed.",
     },
     {
       kind: "code",

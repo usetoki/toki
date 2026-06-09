@@ -11,8 +11,8 @@ export interface ProxyOptions {
   headers?: Record<string, string>;
   /** Request headers to drop before forwarding. */
   stripHeaders?: string[];
-  /** Trust an inbound `X-Forwarded-For` and append to it. Off by default: the header is
-   *  overwritten with the real peer, so a client can't forge the forwarded chain. */
+  /** Trust an inbound `X-Forwarded-For` and append to it. Off by default; the header is
+   *  overwritten with the real peer so a client can't forge the forwarded chain. */
   trustProxy?: boolean;
   /** Abort the upstream call after this many ms. */
   timeoutMs?: number;

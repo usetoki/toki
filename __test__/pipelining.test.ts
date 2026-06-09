@@ -4,8 +4,8 @@ import { after, before, describe, test } from "node:test";
 import { createApp, reply } from "../dist/index.js";
 import { delay, freePort } from "./helpers.ts";
 
-// node:http never pipelines, so these drive a raw socket to exercise the drain's
-// cursor path: many complete requests delivered in a single write.
+// node:http never pipelines, so these drive a raw socket to hit the drain's cursor
+// path: several complete requests delivered in one write.
 const app = createApp();
 app.get("/a", () => reply.text("AAA"));
 app.get("/b", () => reply.text("BBBB"));

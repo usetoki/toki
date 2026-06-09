@@ -15,7 +15,7 @@ const sock = createUdpServer((msg, rinfo, socket) => {
   bytes += msg.length;
   console.log(`recv ${msg.length}B from ${rinfo.address}:${rinfo.port}`);
 
-  // Empty datagrams are delivered too — treat them as a plain echo.
+  // Empty datagrams are delivered too; treat them as a plain echo.
   if (msg.toString("utf8").trim().toUpperCase() === "STATS") {
     socket.send(`packets=${packets} bytes=${bytes}\n`, rinfo.port, rinfo.address);
     return;

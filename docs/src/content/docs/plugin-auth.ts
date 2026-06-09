@@ -7,7 +7,7 @@ export const authPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-auth` turns one or more auth strategies into a middleware. On success it sets `req.user` and lets the request through; on failure it replies `401` with a `WWW-Authenticate` challenge. Reach for it when you want HTTP Basic, bearer tokens, or API keys without wiring the header parsing yourself — and when you want to combine strategies (try a bearer token, fall back to an API key) in one line.",
+      text: "`@usetoki/toki-auth` turns one or more auth strategies into a middleware. On success it sets `req.user` and lets the request through; on failure it replies `401` with a `WWW-Authenticate` challenge. Use it for HTTP Basic, bearer tokens, or API keys without wiring up the header parsing yourself, or to combine strategies (try a bearer token, fall back to an API key) in one line.",
     },
     {
       kind: "code",
@@ -48,12 +48,12 @@ app.get(
     {
       kind: "callout",
       tone: "warning",
-      text: "Compare passwords and keys with `safeEqual`, not `===`. It's a constant-time compare; a plain `===` leaks how many leading characters matched and opens a timing side-channel.",
+      text: "Compare passwords and keys with `safeEqual`, not `===`. It's a constant-time compare. A plain `===` leaks how many leading characters matched, which opens a timing side-channel.",
     },
     { kind: "heading", id: "bearer", text: "Bearer tokens" },
     {
       kind: "paragraph",
-      text: "`bearer` reads `Authorization: Bearer <token>` and hands you the token. Verify it however you like — a session lookup, a database row, an opaque token store.",
+      text: "`bearer` reads `Authorization: Bearer <token>` and hands you the token. Verify it however you like: a session lookup, a database row, an opaque token store.",
     },
     {
       kind: "code",
@@ -79,7 +79,7 @@ app.get(
     {
       kind: "callout",
       tone: "tip",
-      text: "For JWT bearer tokens — asymmetric keys (RS/ES/EdDSA) or a remote JWKS — use [`@usetoki/toki-jwt`](/docs/plugin-jwt) instead of hand-rolling verification inside `bearer`.",
+      text: "For JWT bearer tokens (asymmetric keys like RS/ES/EdDSA, or a remote JWKS) use [`@usetoki/toki-jwt`](/docs/plugin-jwt) instead of hand-rolling verification inside `bearer`.",
     },
     { kind: "heading", id: "api-key", text: "API keys" },
     {
@@ -103,7 +103,7 @@ app.get("/data", { preHandler: guard }, (req) => reply.json(req.user));`,
     { kind: "heading", id: "compose", text: "Composing strategies" },
     {
       kind: "paragraph",
-      text: "Pass an array to try several strategies. The default mode is `\"anyOf\"` — the first strategy to return a user wins. Use `\"allOf\"` to require every strategy to pass (e.g. a valid API key *and* Basic credentials for an internal service).",
+      text: "Pass an array to try several strategies. The default mode is `\"anyOf\"`: the first strategy to return a user wins. Use `\"allOf\"` to require every strategy to pass (e.g. a valid API key *and* Basic credentials for an internal service).",
     },
     {
       kind: "code",

@@ -7,7 +7,7 @@ export const rateLimiterPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-ratelimiter` caps how many requests a key may make per time window. Reach for it when one route needs a tighter budget than the rest — a login endpoint, a password-reset, an expensive search — or when you want to meter an API per user or per API key rather than per IP. Each limiter owns its own counter, so different routes never share a budget unless you tell them to.",
+      text: "`@usetoki/toki-ratelimiter` caps how many requests a key may make per time window. Use it when one route needs a tighter budget than the rest (a login endpoint, a password-reset, an expensive search) or to meter an API per user or per API key rather than per IP. Each limiter owns its own counter, so different routes never share a budget unless you tell them to.",
     },
     {
       kind: "callout",
@@ -74,7 +74,7 @@ app.use(rateLimit({ max: 600, windowMs: 60_000, keyGenerator: (req) => \`\${req.
     { kind: "heading", id: "skip", text: "Skipping trusted traffic" },
     {
       kind: "paragraph",
-      text: "`skip` runs before the counter. Return `true` to wave a request through untouched — health checks, an internal service, an allow-listed key.",
+      text: "`skip` runs before the counter. Return `true` to wave a request through untouched: health checks, an internal service, an allow-listed key.",
     },
     {
       kind: "code",
@@ -126,7 +126,7 @@ app.use(rateLimit({ max: 600, windowMs: 60_000, keyGenerator: (req) => \`\${req.
     {
       kind: "callout",
       tone: "tip",
-      text: "`onStoreError` is the availability-vs-abuse dial. Default `\"open\"` keeps your API up when Redis blips (a flood could slip through). `\"closed\"` blocks every request while the store is down (no flood, but an outage takes the route with it). Pick per route.",
+      text: "`onStoreError` is the availability-vs-abuse dial. Default `\"open\"` keeps your API up when Redis blips, at the cost of letting a flood slip through. `\"closed\"` blocks every request while the store is down: no flood, but an outage takes the route with it. Pick per route.",
     },
     { kind: "heading", id: "stores", text: "Stores" },
     {
@@ -149,12 +149,12 @@ app.use(rateLimit({ max: 600, windowMs: 60_000, keyGenerator: (req) => \`\${req.
     {
       kind: "callout",
       tone: "warning",
-      text: "`MemoryStore` runs a sweep timer. If you construct one yourself (instead of letting `rateLimit` make its own), call `store.close()` on shutdown to release the interval — otherwise tests and graceful shutdowns can hang.",
+      text: "`MemoryStore` runs a sweep timer. If you construct one yourself (instead of letting `rateLimit` make its own), call `store.close()` on shutdown to release the interval. Otherwise tests and graceful shutdowns can hang.",
     },
     { kind: "heading", id: "redis", text: "Redis / KeyDB / Valkey / Upstash" },
     {
       kind: "paragraph",
-      text: "All speak the Redis protocol, so one store covers them. `RedisStore` runs a fixed Lua script server-side (`INCR` + `PEXPIRE` + `PTTL`) — one race-free round trip per hit. The key and window are passed as parameters, nothing is interpolated. `ioredis` matches the expected client shape directly.",
+      text: "All speak the Redis protocol, so one store covers them. `RedisStore` runs a fixed Lua script server-side (`INCR` + `PEXPIRE` + `PTTL`): one race-free round trip per hit. The key and window are passed as parameters, nothing is interpolated. `ioredis` matches the expected client shape directly.",
     },
     {
       kind: "code",
@@ -199,7 +199,7 @@ const store = new RedisStore({
     {
       kind: "callout",
       tone: "warning",
-      text: "memcached can't report a key's remaining TTL, so `resetAt` (and thus `Retry-After`) is the full window length — an upper bound, not the exact time left. The counter still expires server-side at the real TTL, so the window itself is correct.",
+      text: "memcached can't report a key's remaining TTL, so `resetAt` (and thus `Retry-After`) is the full window length: an upper bound, not the exact time left. The counter still expires server-side at the real TTL, so the window itself is correct.",
     },
     {
       kind: "code",

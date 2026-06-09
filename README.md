@@ -17,7 +17,7 @@
 </p>
 
 The engine runs on Node's **own libuv loop** and calls handlers **synchronously** on
-the JS thread — no worker threads, no `ThreadsafeFunction`, no cross-thread hop. On
+the JS thread: no worker threads, no `ThreadsafeFunction`, no cross-thread hop. On
 the plaintext benchmark it sustains ~99k req/s at ~49 MB RSS on a single thread.
 
 ```ts
@@ -157,8 +157,8 @@ HTTP/2 is not offered (put it behind a reverse proxy if you need it).
 ## 🔭 WebSockets
 
 `app.ws(path, handler)` registers a WebSocket endpoint. The handler runs once per
-connection with the live socket and the upgrade request; the framing, masking,
-fragmentation, ping/pong, and close handshake all run in native code, so handlers
+connection with the live socket and the upgrade request. Framing, masking,
+fragmentation, ping/pong, and the close handshake all run in native code, so handlers
 only ever see complete messages.
 
 ```ts
@@ -179,7 +179,7 @@ app.ws("/chat", { protocols: ["chat"] }, (socket, req) => {
 - **State:** `socket.data` is a free-form per-connection bag; `socket.protocol` is the
   negotiated subprotocol.
 - **Compression:** set `wsCompression: true` in `listen` to offer `permessage-deflate`
-  (RFC 7692). It's negotiated per connection and applied transparently — handlers send
+  (RFC 7692). It's negotiated per connection and applied transparently; handlers send
   and receive plain data.
 - The `Buffer` passed to `message` / `ping` / `pong` is a view over native memory
   valid only during the call — copy it (`Buffer.from(data)` / `data.toString()`) to keep it.
@@ -188,8 +188,8 @@ A plain `GET` to a WebSocket path (no `Upgrade` header) gets `426 Upgrade Requir
 
 ## 🔌 TCP & UDP
 
-Beyond HTTP, the engine exposes raw **TCP** and **UDP** servers on the same libuv loop —
-no extra thread, the same try-write-then-queue backpressure, and a connection that costs
+Beyond HTTP, the engine exposes raw **TCP** and **UDP** servers on the same libuv loop.
+No extra thread, the same try-write-then-queue backpressure, and a connection that costs
 about what the kernel charges (no per-socket HTTP buffer).
 
 ```ts
@@ -213,8 +213,8 @@ and UDP docs for the full API.
 
 ## 🔌 Plugins
 
-Official, first-party plugins — each its own `@usetoki/*` package, installed on demand.
-A plugin is just a function you call on the app (or any scope) to extend that scope.
+Official, first-party plugins, each its own `@usetoki/*` package, installed on demand.
+A plugin is a function you call on the app (or any scope) to extend that scope.
 
 **Auth & security**
 
@@ -265,10 +265,10 @@ TypeScript layer is the developer API plus the unavoidable Node bits (the handle
 pipeline, `fs`/`zlib` for static assets).
 
 That line is drawn on purpose, and it's measured. Building a parsed request object in
-Zig and handing it to V8 means ~20 N-API calls per request — slower than letting V8's
-own C++ `URLSearchParams` / `Headers` / `JSON` do it. So query/header/cookie/JSON
-parsing and schema validation stay in TypeScript: crossing the N-API boundary to
-"go native" there would make it slower, which is the opposite of the point.
+Zig and handing it to V8 costs ~20 N-API calls per request, which is slower than letting
+V8's own C++ `URLSearchParams` / `Headers` / `JSON` do it. So query/header/cookie/JSON
+parsing and schema validation stay in TypeScript. Crossing the N-API boundary to go
+native there would only make it slower.
 
 ## 🔧 Build from source
 

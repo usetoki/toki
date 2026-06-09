@@ -19,7 +19,7 @@ interface Wire {
   r?: { s: number; c: string; b: string; h?: ReadonlyArray<readonly [string, string]> };
 }
 
-/** {@link IdempotencyStore} backed by Redis — keys are shared across every instance. */
+/** {@link IdempotencyStore} backed by Redis, so keys are shared across every instance. */
 export class RedisStore implements IdempotencyStore {
   readonly #client: RedisClient;
   readonly #prefix: string;
@@ -42,7 +42,7 @@ export class RedisStore implements IdempotencyStore {
     if (reserved !== null) return { state: "new" };
 
     const raw = await this.#client.get(k);
-    if (raw === null) return { state: "new" }; // it expired between the SET and the GET — race to retry
+    if (raw === null) return { state: "new" }; // expired between the SET and the GET; race to retry
     let wire: Wire;
     try {
       wire = JSON.parse(raw) as Wire;

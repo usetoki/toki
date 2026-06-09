@@ -115,7 +115,7 @@ export function contentTypeMatcher(type: string | RegExp): (contentType: string)
   return (contentType) => contentType.startsWith(lower);
 }
 
-// pipeline runners — each stays sync until a step returns a Promise, then chains
+// pipeline runners. each stays sync until a step returns a Promise, then chains.
 
 export function runBefore(
   steps: readonly Middleware[],

@@ -7,7 +7,7 @@ export const compressionPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`compression()` is a response hook that compresses string response bodies. It reads the request's `Accept-Encoding`, picks `br` over `gzip`, runs `zlib` off the event loop (on the libuv thread pool), and replaces the body — setting `Content-Encoding` and `Vary: Accept-Encoding` for you. Register it once and every eligible response shrinks.",
+      text: "`compression()` is a response hook that compresses string response bodies. It reads the request's `Accept-Encoding`, picks `br` over `gzip`, runs `zlib` off the event loop (on the libuv thread pool), and replaces the body, setting `Content-Encoding` and `Vary: Accept-Encoding` for you. Register it once and every eligible response shrinks.",
     },
     {
       kind: "code",
@@ -28,7 +28,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "note",
-      text: "`compression()` returns a `ResponseHook`, so it fits either response phase. `onResponse` runs first and is the usual choice; `onSend` runs last, right before the bytes go out. Pick one — registering on both would compress twice.",
+      text: "`compression()` returns a `ResponseHook`, so it fits either response phase. `onResponse` runs first and is the usual choice; `onSend` runs last, right before the bytes go out. Pick one; registering on both would compress twice.",
     },
     { kind: "heading", id: "options", text: "Options" },
     {
@@ -42,7 +42,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "The defaults favor speed over ratio — sensible for bodies compressed fresh on every request. Raise the levels if your responses are large and CPU is cheap; raise the threshold if you serve many small JSON payloads.",
+      text: "The defaults favor speed over ratio, which suits bodies compressed fresh on every request. Raise the levels if your responses are large and CPU is cheap; raise the threshold if you serve many small JSON payloads.",
     },
     {
       kind: "code",
@@ -73,12 +73,12 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "tip",
-      text: "The negotiator honors quality values, so `Accept-Encoding: gzip, br;q=0` skips brotli and falls back to gzip — matching the native static-file negotiator exactly.",
+      text: "The negotiator honors quality values, so `Accept-Encoding: gzip, br;q=0` skips brotli and falls back to gzip, matching the native static-file negotiator exactly.",
     },
     { kind: "heading", id: "per-route", text: "Compressing one scope" },
     {
       kind: "paragraph",
-      text: "A hook added with `app.addHook` is global. To compress only some routes, add the hook inside a [plugin](/docs/plugins) scope — `register` runs it against a child scope, so the hook applies to that plugin's routes and its children, and nowhere else.",
+      text: "A hook added with `app.addHook` is global. To compress only some routes, add the hook inside a [plugin](/docs/plugins) scope. `register` runs it against a child scope, so the hook applies to that plugin's routes and its children, and nowhere else.",
     },
     {
       kind: "code",

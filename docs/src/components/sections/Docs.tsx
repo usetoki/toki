@@ -30,7 +30,7 @@ export function Docs(): ReactElement {
           <h2 className={styles.title}>Read the full documentation</h2>
           <p className={styles.text}>
             From a five-minute quick start to routing, hooks, plugins, WebSockets, and the native
-            engine — toki is documented end to end, with copy-paste examples throughout.
+            engine, toki is documented end to end, with copy-paste examples throughout.
           </p>
           <div className={styles.links}>
             <ButtonRouterLink to={`/docs/${FIRST_DOC_SLUG}`} variant="primary">

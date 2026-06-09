@@ -1,6 +1,6 @@
 # @usetoki/toki-auth
 
-Multi-strategy authentication for [toki](https://usetoki.github.io/toki/) — HTTP Basic, Bearer,
+Multi-strategy authentication for [toki](https://usetoki.github.io/toki/): HTTP Basic, Bearer,
 and API key, composed with `anyOf` / `allOf`. On success it sets `req.user`; on failure a 401
 (with `WWW-Authenticate`).
 

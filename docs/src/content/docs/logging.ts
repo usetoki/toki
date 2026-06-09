@@ -28,7 +28,7 @@ app.get("/", (req) => {
     { kind: "heading", id: "levels", text: "Levels and output" },
     {
       kind: "paragraph",
-      text: "The built-in console logger writes one JSON object per line. Entries below the configured level are dropped. `error` and `warn` go to stderr; `debug` and `info` go to stdout — so you can route them separately.",
+      text: "The built-in console logger writes one JSON object per line. Entries below the configured level are dropped. `error` and `warn` go to stderr; `debug` and `info` go to stdout, so you can route them separately.",
     },
     {
       kind: "table",
@@ -56,7 +56,7 @@ req.log.error("payment failed", { orderId, error: String(err) });`,
     { kind: "heading", id: "child", text: "Child loggers" },
     {
       kind: "paragraph",
-      text: "`logger.child(bindings)` returns a logger that stamps `bindings` onto every line. Bind a request id once and every entry is correlated, without repeating the field at each call site. `req.log` is the app logger, not pre-bound to the request — derive a child when you want correlation.",
+      text: "`logger.child(bindings)` returns a logger that stamps `bindings` onto every line. Bind a request id once and every entry is correlated, without repeating the field at each call site. `req.log` is the app logger, not pre-bound to the request; derive a child when you want correlation.",
     },
     {
       kind: "code",

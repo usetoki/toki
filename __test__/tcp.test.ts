@@ -7,20 +7,20 @@ import { createTcpServer, type TcpSocket } from "../dist/index.js";
 // server under test
 // ---------------------------------------------------------------------------
 
-// One raw TCP server per process — the native engine is a singleton, so a second
-// listen() would clobber the first. node --test runs this file in its own process.
+// One raw TCP server per process. The native engine is a singleton, so a second
+// listen() clobbers the first; node --test runs this file in its own process.
 //
-// The handler is a dispatcher: the first chunk a connection sends names the
-// behaviour it wants ("echo", "half", "flood", ...). That keeps the whole suite
-// behind a single server while each test drives an isolated connection.
+// The handler is a dispatcher. The first chunk a connection sends names the
+// behaviour it wants ("echo", "half", "flood", ...), so the whole suite sits
+// behind one server while each test drives an isolated connection.
 
 const HOST = "127.0.0.1";
 
-// connections opt into a mode by sending a 1-line command first; everything after
-// the first newline is the payload for that mode.
+// connections opt into a mode with a 1-line command; everything after the first
+// newline is that mode's payload.
 const accepted: TcpSocket[] = []; // every socket the server ever saw
 const retained: Buffer[] = []; // proves the "data" chunk is a safe copy to keep
-let echoConnections = 0; // how many echo conns were opened (isolation accounting)
+let echoConnections = 0; // echo-conn count, for isolation accounting
 let lastClosedMode = ""; // mode of the most recent server-side close
 
 const server = createTcpServer((socket) => {
@@ -61,13 +61,13 @@ const server = createTcpServer((socket) => {
         s.write("part3-after-end");
         return;
       case "flood": {
-        // push enough to overrun the send buffer, then report backpressure / drain
+        // overrun the send buffer, then report whether write() ever pushed back
         const block = Buffer.alloc(64 * 1024, 0x41);
         let sawFalse = false;
         for (let i = 0; i < 64; i++) {
           if (!s.write(block)) sawFalse = true;
         }
-        // tell the client whether write() ever returned false (out of band header)
+        // out-of-band trailer: did write() ever return false?
         s.write(sawFalse ? "\x00B" : "\x00N");
         return;
       }
@@ -110,7 +110,7 @@ after(() => {
 });
 
 // ---------------------------------------------------------------------------
-// client helpers — Node's built-in net client
+// client helpers (Node's built-in net client)
 // ---------------------------------------------------------------------------
 
 // open a connection in `mode`; resolves once connected.
@@ -223,8 +223,8 @@ describe("tcp — payload integrity", () => {
 
 describe("tcp — backpressure", () => {
   test("write() returns false then a 'drain' fires; all bytes still arrive", async () => {
-    // server floods 64 * 64 KiB = 4 MiB; the client reads slowly enough that the
-    // send buffer fills, so write() must return false at least once.
+    // server floods 64 * 64 KiB = 4 MiB. The client reads slowly enough to fill
+    // the send buffer, so write() has to return false at least once.
     const blocks = 64;
     const blockSize = 64 * 1024;
     const dataTotal = blocks * blockSize;
@@ -281,7 +281,7 @@ describe("tcp — chunk retention", () => {
     const payload = Buffer.from("retain-me-长期保留");
     const reply = await roundTrip("retain", payload);
     assert.deepEqual(reply, payload);
-    // the handler pushed its chunk into `retained`; later reads must be unchanged.
+    // handler pushed its chunk into `retained`; reading it back later must match.
     const kept = retained.slice(before);
     assert.ok(kept.length >= 1, "handler should have retained at least one chunk");
     const joined = Buffer.concat(kept);
@@ -321,7 +321,7 @@ describe("tcp — lifecycle", () => {
 
   test("destroy() drops the connection immediately", async () => {
     const c = await open("destroy");
-    // a destroyed peer surfaces as 'close' on the client; no data, fast.
+    // a destroyed peer surfaces as 'close' on the client, fast, with no data
     await new Promise<void>((resolve, reject) => {
       c.on("close", () => resolve());
       setTimeout(() => reject(new Error("destroy did not close the client")), 1000);
@@ -343,8 +343,8 @@ describe("tcp — lifecycle", () => {
 
 describe("tcp — write edge cases", () => {
   test("an empty-string write is a harmless no-op (echo still works after)", async () => {
-    // the client sends "" then "real"; the server echoes both — the empty one
-    // contributes nothing, the connection stays healthy.
+    // client sends "" then "real"; the empty write contributes nothing and the
+    // connection stays healthy, so the echo comes back as just "real".
     const reply = await new Promise<Buffer>((resolve, reject) => {
       const acc: Buffer[] = [];
       const c = net.connect(port, HOST, () => {
@@ -389,7 +389,7 @@ describe("tcp — robustness", () => {
 
 describe("tcp — server.close()", () => {
   test("close() severs all live connections", async () => {
-    // hold two live echo connections, then close the server out from under them.
+    // hold two live echo connections, then close the server out from under them
     const a = await open("echo");
     const b = await open("echo");
     const closedA = once(a, "close");

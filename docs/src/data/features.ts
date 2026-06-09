@@ -5,19 +5,19 @@ export const FEATURES: readonly Feature[] = [
     icon: "⚡",
     title: "Native engine",
     description:
-      "HTTP/1.1 parsing, routing, and I/O run in Zig on Node's own libuv loop — handlers are called synchronously, with no thread hop.",
+      "HTTP/1.1 parsing, routing, and I/O run in Zig on Node's own libuv loop. Handlers are called synchronously, with no thread hop.",
   },
   {
     icon: "🔌",
     title: "Raw TCP",
     description:
-      "createTcpServer opens a libuv-backed listener for your own wire protocol — pooled connections, real backpressure, half-close, low memory.",
+      "createTcpServer opens a libuv-backed listener for your own wire protocol: pooled connections, real backpressure, half-close, low memory.",
   },
   {
     icon: "🔐",
     title: "TLS 1.3 & mTLS",
     description:
-      "Native TLS 1.3 termination (ECDHE + AEAD) for HTTPS and raw TCP — no reverse proxy — with mutual-TLS client certificates on raw sockets.",
+      "Native TLS 1.3 termination (ECDHE + AEAD) for HTTPS and raw TCP, no reverse proxy, with mutual-TLS client certificates on raw sockets.",
   },
   {
     icon: "📡",
@@ -65,7 +65,7 @@ export const FEATURES: readonly Feature[] = [
     icon: "🪶",
     title: "Tiny footprint",
     description:
-      "A single-threaded server in ~49 MB RSS — roughly half of node:http — with no worker threads and no thread-safe function shims.",
+      "A single-threaded server in ~49 MB RSS, roughly half of node:http, with no worker threads and no thread-safe function shims.",
   },
   {
     icon: "🧪",

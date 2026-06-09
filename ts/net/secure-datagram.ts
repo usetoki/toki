@@ -1,10 +1,10 @@
 import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
 
-// Authenticated encryption for connectionless UDP. Each datagram is sealed on its own —
-// there is no handshake and no session (that's DTLS, which the bundled TLS stack doesn't
-// implement). What this gives you is confidentiality + integrity per datagram under a
-// pre-shared 32-byte key: AES-256-GCM with a fresh random nonce, plus an optional
-// anti-replay window. Both ends must share the key.
+// Authenticated encryption for connectionless UDP. Each datagram is sealed on its own.
+// No handshake and no session (that's DTLS, which the bundled TLS stack doesn't implement).
+// You get confidentiality + integrity per datagram under a pre-shared 32-byte key:
+// AES-256-GCM with a fresh random nonce, plus an optional anti-replay window. Both ends
+// must share the key.
 //
 // Wire format:  [12-byte nonce][ciphertext][16-byte GCM tag]
 
@@ -31,7 +31,7 @@ export function sealDatagram(key: Uint8Array, plaintext: Uint8Array): Buffer {
 }
 
 /** Open a sealed datagram. Returns the plaintext, or `null` if it's malformed, was
- *  tampered with, or fails authentication — a bad datagram is dropped, never delivered. */
+ *  tampered with, or fails authentication. A bad datagram is dropped, never delivered. */
 export function openDatagram(key: Uint8Array, sealed: Uint8Array): Buffer | null {
   assertKey(key);
   if (sealed.length < OVERHEAD) return null;
@@ -49,7 +49,7 @@ export function openDatagram(key: Uint8Array, sealed: Uint8Array): Buffer | null
 
 /** A bounded set of recently-seen nonces, so a replayed datagram is rejected once. Best
  *  effort for a connectionless protocol: it bounds memory, so an attacker can eventually
- *  age a captured datagram out and replay it — size the window to your threat model. */
+ *  age a captured datagram out and replay it. Size the window to your threat model. */
 export class ReplayWindow {
   readonly #seen = new Set<string>();
   // a fixed ring of the last #max nonces; evicting the oldest is O(1) (no Array.shift,

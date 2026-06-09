@@ -32,7 +32,7 @@ export interface SecureSessionOptions {
 // browsers cap a cookie near 4 KiB and silently drop anything larger.
 const MAX_COOKIE_BYTES = 4096;
 
-/** Stateless sessions stored entirely in an encrypted cookie — no server-side store.
+/** Stateless sessions stored entirely in an encrypted cookie. No server-side store.
  *  Call it on the app (or any scope) to give `req.session` to that scope's routes. */
 export function secureSession(instance: TokiInstance, options: SecureSessionOptions): void {
   const cookies = createCookies({ secret: options.secret });

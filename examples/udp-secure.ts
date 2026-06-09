@@ -1,6 +1,6 @@
 // A secure UDP echo server: every datagram is sealed with AES-256-GCM under a pre-shared
 // key. Forged, tampered, truncated, wrong-key, or replayed datagrams are dropped before
-// onMessage — the handler only ever sees genuine plaintext.
+// onMessage, so the handler only ever sees genuine plaintext.
 // run:  TOKI_PSK=<64 hex chars> node examples/udp-secure.ts
 //
 // This is authenticated encryption per datagram, NOT DTLS: no handshake, no session, no
@@ -32,9 +32,9 @@ if (key.length !== 32) throw new Error("TOKI_PSK must be 64 hex chars (32 bytes)
 
 const sock = createUdpServer(
   (msg, rinfo, socket) => {
-    // msg is already decrypted + authenticated — a bad datagram never reaches here.
+    // msg is already decrypted + authenticated; a bad datagram never reaches here.
     console.log(`recv ${msg.length}B from ${rinfo.address}:${rinfo.port}`);
-    // The reply is sealed automatically on the way out.
+    // reply gets sealed automatically on the way out
     socket.send(msg, rinfo.port, rinfo.address);
   },
   {

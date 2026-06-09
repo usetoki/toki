@@ -1,4 +1,4 @@
-/** One parsed part. `data` is a view into the request buffer — no copy is made. */
+/** One parsed part. `data` is a view into the request buffer; no copy is made. */
 export interface RawPart {
   readonly name: string;
   readonly filename: string | null;

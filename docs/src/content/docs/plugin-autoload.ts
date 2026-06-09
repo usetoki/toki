@@ -7,7 +7,7 @@ export const autoloadPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-autoload` turns a directory of files into routes. Each file's path becomes its URL, and the file exports one handler per HTTP method — or a `default` plugin for routes that need their own hooks. Reach for it when a central route table gets tedious to maintain and you'd rather see your URLs in the file tree. Files load in sorted order, so registration is deterministic.",
+      text: "`@usetoki/toki-autoload` turns a directory of files into routes. Each file's path becomes its URL, and the file exports one handler per HTTP method, or a `default` plugin for routes that need their own hooks. It's for when a central route table gets tedious to maintain and you'd rather see your URLs in the file tree. Files load in sorted order, so registration is deterministic.",
     },
     {
       kind: "heading",
@@ -45,7 +45,7 @@ export const autoloadPluginPage: DocPage = {
       items: [
         "A plain name maps to itself; an `index` file maps to its directory.",
         "`[id]` becomes a param `:id`; `[...rest]` becomes a catch-all `*` (and must be the last segment).",
-        "Routes register at the exact path — clean URLs, no trailing slash.",
+        "Routes register at the exact path. Clean URLs, no trailing slash.",
       ],
     },
     {
@@ -76,7 +76,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "A route file exports a function per method: `get`, `post`, `put`, `patch`, `head`, `options`, and `delete`. Because `delete` is a reserved word you can't write `export const delete` — define the function and re-export it under the name.",
+      text: "A route file exports a function per method: `get`, `post`, `put`, `patch`, `head`, `options`, and `delete`. Because `delete` is a reserved word you can't write `export const delete`, so define the function and re-export it under the name.",
     },
     {
       kind: "code",
@@ -103,7 +103,7 @@ export { remove as delete }; // 'delete' is reserved — alias it on export`,
     },
     {
       kind: "paragraph",
-      text: "When a route needs its own hooks — auth, a body limit, a rate limiter — default-export a plugin. It's registered under the file's path as its prefix, so its hooks apply to just that subtree.",
+      text: "When a route needs its own hooks (auth, a body limit, a rate limiter) default-export a plugin. It's registered under the file's path as its prefix, so its hooks apply to just that subtree.",
     },
     {
       kind: "code",

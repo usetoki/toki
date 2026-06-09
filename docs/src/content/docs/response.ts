@@ -23,7 +23,7 @@ app.get("/strict", () => reply.json({ id: 1 }, 201)); // explicit status`,
     { kind: "heading", id: "reply", text: "The reply builders" },
     {
       kind: "paragraph",
-      text: "`reply` is a module-level object (import it from `@usetoki/toki`), not a per-request one — it just describes a response. Every builder takes the status last and defaults sensibly.",
+      text: "`reply` is a module-level object (import it from `@usetoki/toki`), not a per-request one; it only describes a response. Every builder takes the status last and defaults sensibly.",
     },
     {
       kind: "table",
@@ -54,7 +54,7 @@ app.get("/old", () => reply.redirect("/new", 301));`,
     { kind: "heading", id: "json", text: "JSON and status codes" },
     {
       kind: "paragraph",
-      text: "`reply.json(data, status)` stringifies `data` and sets `Content-Type: application/json`. Pass the status as the second argument — there is no separate `.status()` or `.code()` call. The engine owns the status line itself; you only choose the number.",
+      text: "`reply.json(data, status)` stringifies `data` and sets `Content-Type: application/json`. Pass the status as the second argument; there is no separate `.status()` or `.code()` call. The engine owns the status line itself; you only choose the number.",
     },
     {
       kind: "code",
@@ -76,7 +76,7 @@ app.get("/orders/:id", (req) => {
     { kind: "heading", id: "headers", text: "Custom headers" },
     {
       kind: "paragraph",
-      text: "Stage response headers from a handler or a `preHandler` hook with `req.setResponseHeader` (replace) and `req.appendResponseHeader` (add a line). They merge into the response. A staged `Content-Type` overrides the builder's default — and is folded into a single `Content-Type` line, never duplicated.",
+      text: "Stage response headers from a handler or a `preHandler` hook with `req.setResponseHeader` (replace) and `req.appendResponseHeader` (add a line). They merge into the response. A staged `Content-Type` overrides the builder's default, folded into a single `Content-Type` line, never duplicated.",
     },
     {
       kind: "code",
@@ -99,7 +99,7 @@ app.get("/manifest", (req) => {
     {
       kind: "callout",
       tone: "note",
-      text: "The engine owns the status line, `Content-Length`, and `Connection` header — you never set those by hand. A CR, LF, or space inside a header name or value is stripped, so a header can't split the wire block.",
+      text: "The engine owns the status line, `Content-Length`, and `Connection` header; you never set those by hand. A CR, LF, or space inside a header name or value is stripped, so a header can't split the wire block.",
     },
     { kind: "heading", id: "redirect", text: "Redirects" },
     {
@@ -122,7 +122,7 @@ app.post("/login", (req) => {
     { kind: "heading", id: "bytes", text: "Sending raw bytes" },
     {
       kind: "paragraph",
-      text: "`reply.bytes(data, contentType?, status?)` sends a `Uint8Array` (or `Buffer`) verbatim — images, generated files, a pre-compressed payload. The content type defaults to `application/octet-stream`; set it to match your data.",
+      text: "`reply.bytes(data, contentType?, status?)` sends a `Uint8Array` (or `Buffer`) verbatim: images, generated files, a pre-compressed payload. The content type defaults to `application/octet-stream`; set it to match your data.",
     },
     {
       kind: "code",
@@ -150,7 +150,7 @@ app.get("/download", (req) => {
     { kind: "heading", id: "stream", text: "Streaming" },
     {
       kind: "paragraph",
-      text: "`reply.stream(source, options?)` hands off a chunked response. `source` is an async/sync iterable or a Node `Readable`; each chunk (bytes or a UTF-8 string) is written as it arrives via `Transfer-Encoding: chunked`. A stream bypasses response hooks and serialization — there is no materialized body. For server-sent events, set `contentType: \"text/event-stream\"`.",
+      text: "`reply.stream(source, options?)` hands off a chunked response. `source` is an async/sync iterable or a Node `Readable`; each chunk (bytes or a UTF-8 string) is written as it arrives via `Transfer-Encoding: chunked`. A stream bypasses response hooks and serialization; there is no materialized body. For server-sent events, set `contentType: \"text/event-stream\"`.",
     },
     {
       kind: "code",

@@ -7,7 +7,7 @@ export const helmetPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-helmet` stages a baseline of hardening headers on every response — CSP, HSTS, frameguard, `nosniff`, cross-origin policies, and more — from one middleware. Reach for it when you want the full helmet header set and real Content-Security-Policy control. Each header is individually configurable, overridable, or disablable, and the header set is computed once at construction, so per request it's just a copy onto the response.",
+      text: "`@usetoki/toki-helmet` stages a baseline of hardening headers on every response (CSP, HSTS, frameguard, `nosniff`, cross-origin policies, and more) from one middleware. Use it when you want the full helmet header set and real Content-Security-Policy control. Each header is individually configurable, overridable, or disablable, and the header set is computed once at construction, so per request it's a copy onto the response.",
     },
     {
       kind: "code",
@@ -158,7 +158,7 @@ app.use(
     {
       kind: "callout",
       tone: "warning",
-      text: "`Cross-Origin-Embedder-Policy` is off by default on purpose — `require-corp` blocks cross-origin images, scripts, and fonts unless they send CORP/CORS headers. Turn it on only after you've confirmed every cross-origin sub-resource opts in, or the page breaks.",
+      text: "`Cross-Origin-Embedder-Policy` is off by default on purpose. `require-corp` blocks cross-origin images, scripts, and fonts unless they send CORP/CORS headers. Turn it on only after you've confirmed every cross-origin sub-resource opts in, or the page breaks.",
     },
     {
       kind: "callout",
@@ -168,7 +168,7 @@ app.use(
     {
       kind: "callout",
       tone: "tip",
-      text: "toki ships a lighter `securityHeaders()` middleware in core for the essentials — see [CORS & security headers](/docs/cors-security). Reach for this plugin when you want the full helmet header set and CSP control.",
+      text: "toki ships a lighter `securityHeaders()` middleware in core for the essentials, see [CORS & security headers](/docs/cors-security). This plugin is the step up when you want the full helmet header set and CSP control.",
     },
   ],
 };

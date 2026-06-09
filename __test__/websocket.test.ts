@@ -10,9 +10,9 @@ import { freePort } from "./helpers.ts";
 // server under test
 // ---------------------------------------------------------------------------
 
-// One app: the native engine holds global server state, so a process serves a
-// single app. The message cap (512 KiB) lets the large-message test through while
-// the oversize test (600 KiB) trips the 1009 path.
+// One app per process: the native engine holds global server state. The 512 KiB
+// message cap lets the large-message test through; the 600 KiB oversize test trips
+// the 1009 path.
 const MAX_WS_MESSAGE = 512 * 1024;
 
 const app = createApp();
@@ -233,9 +233,9 @@ class RawWs {
     return { opcode, payload: Buffer.from(payload), fin };
   }
 
-  // a frame header that declares `declaredLen` but only sends a few payload bytes;
-  // the server rejects oversize frames on the header, so the bulk is never sent and
-  // the close frame comes back cleanly (no RST from unread input)
+  // frame header declaring `declaredLen` but with only a few payload bytes behind it.
+  // The server rejects oversize frames on the header alone, so we never send the bulk
+  // and the close frame comes back clean (no RST from unread input).
   sendOversizeHeader(opcode: number, declaredLen: number): void {
     const head = Buffer.from([
       0x80 | opcode,

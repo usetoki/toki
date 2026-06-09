@@ -2,8 +2,8 @@
 
 Secure HTTP response headers for [toki](https://usetoki.github.io/toki/), in the
 spirit of [helmet](https://helmetjs.github.io). One middleware sets a baseline of
-hardening headers — CSP, HSTS, frameguard, `nosniff`, cross-origin policies, and
-more — each individually configurable or disablable.
+hardening headers (CSP, HSTS, frameguard, `nosniff`, cross-origin policies, and more).
+Each is individually configurable, or can be dropped.
 
 ```bash
 npm install @usetoki/toki-helmet

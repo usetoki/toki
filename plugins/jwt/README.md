@@ -1,6 +1,6 @@
 # @usetoki/toki-jwt
 
-Asymmetric JWT for [toki](https://usetoki.github.io/toki/) — sign and verify **RS/PS/ES/EdDSA**
+Asymmetric JWT for [toki](https://usetoki.github.io/toki/). Sign and verify **RS/PS/ES/EdDSA**
 (and HMAC) with `node:crypto`, plus remote **JWKS** fetch + cache for Auth0 / Cognito / Okta /
 Entra. Complements toki's built-in HMAC `jwtAuth`.
 
@@ -26,7 +26,7 @@ app.get(
 const payload = await verifyJwt(token, publicKeyPem, { algorithms: ["ES256"] });
 ```
 
-`algorithms` is **required** — the token's `alg` must be in the list. That's the guard against
+`algorithms` is **required**: the token's `alg` must be in the list. That's the guard against
 algorithm-confusion attacks (and `alg: none`).
 
 ## Verify against a JWKS

@@ -36,7 +36,7 @@ console.log("listening on http://127.0.0.1:3000");`,
     { kind: "heading", id: "params-and-query", text: "Params and query" },
     {
       kind: "paragraph",
-      text: "Route patterns capture `:name` segments into `req.params`. The query string is a standard `URLSearchParams` on `req.query`. Both parse lazily — you pay only for what you read. See [Routing](/docs/routing) for wildcards and groups.",
+      text: "Route patterns capture `:name` segments into `req.params`. The query string is a standard `URLSearchParams` on `req.query`. Both parse lazily, so you pay only for what you read. See [Routing](/docs/routing) for wildcards and groups.",
     },
     {
       kind: "code",
@@ -58,7 +58,7 @@ app.get("/search", (req) => {
     { kind: "heading", id: "json-body", text: "Reading a JSON body" },
     {
       kind: "paragraph",
-      text: "`req.json<T>()` parses the body as JSON synchronously. The type parameter is an unchecked assertion — for real validation, attach a [schema](/docs/validation). `req.text()` gives you the raw string; `req.parseBody()` picks a parser by content type. See [Body parsing](/docs/body-parsing).",
+      text: "`req.json<T>()` parses the body as JSON synchronously. The type parameter is an unchecked assertion; for real validation, attach a [schema](/docs/validation). `req.text()` gives you the raw string; `req.parseBody()` picks a parser by content type. See [Body parsing](/docs/body-parsing).",
     },
     {
       kind: "code",
@@ -79,7 +79,7 @@ app.get("/search", (req) => {
     { kind: "heading", id: "a-hook", text: "Adding a hook" },
     {
       kind: "paragraph",
-      text: "Hooks run around handlers. `onRequest` fires first — log, authenticate, or short-circuit by returning a response. A `preHandler` that returns a value skips the handler entirely. See [Hooks](/docs/hooks) and [Middleware](/docs/middleware).",
+      text: "Hooks run around handlers. `onRequest` fires first: log, authenticate, or short-circuit by returning a response. A `preHandler` that returns a value skips the handler entirely. See [Hooks](/docs/hooks) and [Middleware](/docs/middleware).",
     },
     {
       kind: "code",
@@ -128,7 +128,7 @@ app.get("/items/:id", (req) => {
     { kind: "heading", id: "a-plugin", text: "Splitting routes into a plugin" },
     {
       kind: "paragraph",
-      text: "A plugin is a function that receives a scope and registers routes/hooks on it. `app.register(plugin, { prefix })` mounts it under a path in its own encapsulated scope — hooks and decorators stay local to that subtree. This is how you keep a growing app organized. See [Plugins](/docs/plugins).",
+      text: "A plugin is a function that receives a scope and registers routes/hooks on it. `app.register(plugin, { prefix })` mounts it under a path in its own encapsulated scope; hooks and decorators stay local to that subtree. This is how you keep a growing app organized. See [Plugins](/docs/plugins).",
     },
     {
       kind: "code",
@@ -170,7 +170,7 @@ app.get("/gone", () => reply.empty(204));           // no body`,
     {
       kind: "callout",
       tone: "note",
-      text: "`app.listen()` is synchronous — it binds the socket and returns once the server is accepting connections. There is no callback to wait for.",
+      text: "`app.listen()` is synchronous: it binds the socket and returns once the server is accepting connections. There is no callback to wait for.",
     },
     { kind: "heading", id: "next", text: "Where to go next" },
     {

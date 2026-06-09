@@ -7,7 +7,7 @@ export const validationPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Attach a JSON Schema to a route via its options. Toki validates the matching parts of the request before your handler runs and replies `400` on failure. The schema is a compact, dependency-free subset of JSON Schema — enough for the shapes real APIs use, not a full draft implementation.",
+      text: "Attach a JSON Schema to a route via its options. Toki validates the matching parts of the request before your handler runs and replies `400` on failure. The schema is a compact, dependency-free subset of JSON Schema: enough for the shapes real APIs use, not a full draft implementation.",
     },
     {
       kind: "code",
@@ -176,7 +176,7 @@ export const validationPage: DocPage = {
     { kind: "heading", id: "response", text: "Response serialization" },
     {
       kind: "paragraph",
-      text: "A `response` schema both documents and serializes the reply — only declared fields are emitted, which is faster than generic `JSON.stringify` and prevents leaking extra fields. It is matched against the response status, so you can shape `200` and `404` differently. It does not validate the handler result; it projects it.",
+      text: "A `response` schema both documents and serializes the reply: only declared fields are emitted, which is faster than generic `JSON.stringify` and prevents leaking extra fields. It is matched against the response status, so you can shape `200` and `404` differently. It does not validate the handler result; it projects it.",
     },
     {
       kind: "code",
@@ -203,12 +203,12 @@ export const validationPage: DocPage = {
     {
       kind: "callout",
       tone: "tip",
-      text: "Response serialization only runs for a plain value returned from the handler at the matched status. A built `reply.json(...)` or `reply.text(...)` is already a finished response and bypasses the schema — return the raw object if you want it projected.",
+      text: "Response serialization only runs for a plain value returned from the handler at the matched status. A built `reply.json(...)` or `reply.text(...)` is already a finished response and bypasses the schema; return the raw object if you want it projected.",
     },
     { kind: "heading", id: "standalone", text: "Standalone helpers" },
     {
       kind: "paragraph",
-      text: "`validate(schema, value)` returns an array of error strings (empty = valid), and `serialize(schema, value)` returns a JSON string projected to the schema. Both are exported for use outside a route — validating a config file, a queue message, or a third-party payload.",
+      text: "`validate(schema, value)` returns an array of error strings (empty = valid), and `serialize(schema, value)` returns a JSON string projected to the schema. Both are exported for use outside a route: validating a config file, a queue message, or a third-party payload.",
     },
     {
       kind: "code",
@@ -236,7 +236,7 @@ const json = serialize(schema, { host: "localhost", port: 5432, pw: "x" });
     {
       kind: "callout",
       tone: "warning",
-      text: "A `pattern` runs against attacker-controlled input. Toki refuses to feed a regex any value longer than the schema's `maxLength` (or 4096 when none is set), failing it instead — a ReDoS guard. Anchor your patterns and avoid nested quantifiers, and always pair `pattern` with a sensible `maxLength`.",
+      text: "A `pattern` runs against attacker-controlled input. As a ReDoS guard, toki refuses to feed a regex any value longer than the schema's `maxLength` (or 4096 when none is set) and fails it instead. Anchor your patterns and avoid nested quantifiers, and always pair `pattern` with a sensible `maxLength`.",
     },
   ],
 };

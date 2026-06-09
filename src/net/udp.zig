@@ -1,6 +1,6 @@
 //! UDP server on Node's libuv loop. Connectionless: one socket, every datagram is
 //! handed to JS with the sender's address; `send` goes straight back out. One socket
-//! per process. No per-flow state lives here — that belongs in user space, by design.
+//! per process. No per-flow state lives here; that belongs in user space, by design.
 
 const std = @import("std");
 const napi = @import("../ffi/napi.zig");
@@ -103,7 +103,7 @@ fn onRecv(handle: *anyopaque, nread: isize, buf: *const uv.Buf, from: ?*const an
     _ = napi.napi_open_handle_scope(env, &scope);
     defer _ = napi.napi_close_handle_scope(env, scope);
 
-    // copy from buf.base (which, with recvmmsg, may be libuv's own ring buffer — never
+    // copy from buf.base (which, with recvmmsg, may be libuv's own ring buffer, never
     // ours) into a V8-owned Buffer the handler can safely keep.
     var data_val: napi.Value = undefined;
     _ = napi.napi_create_buffer_copy(env, @intCast(nread), buf.base, null, &data_val);
@@ -127,7 +127,7 @@ fn rinfo(from: *const anyopaque) napi.Value {
     return obj;
 }
 
-// udpSend(buffer, port, host) — non-blocking try-send, falling back to a queued send
+// udpSend(buffer, port, host): non-blocking try-send, falling back to a queued send
 // when the socket buffer is full. UDP has no flow control; the kernel drops on overflow.
 pub fn send(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var argc: usize = 3;

@@ -2,9 +2,9 @@
 //!
 //! Files are read once at `listen` (by the TypeScript layer), which also
 //! pre-computes gzip/brotli variants for compressible files. Serving is a hash
-//! lookup, an `Accept-Encoding` choice, and a corked write — no per-request I/O,
-//! no compression cost, no JavaScript. No path traversal is possible because only
-//! registered URLs exist. ETag/304 and HEAD are handled here; ranges are not yet.
+//! lookup, an `Accept-Encoding` choice, and a corked write: no per-request I/O,
+//! no compression cost, no JavaScript. Path traversal is impossible — only
+//! registered URLs exist. ETag/304 and HEAD are handled here. Ranges aren't, yet.
 
 const std = @import("std");
 const response = @import("response.zig");
@@ -107,7 +107,8 @@ fn dupeVariant(a: std.mem.Allocator, headers: ?[]const u8, body: ?[]const u8) !?
 }
 
 /// head bytes (in caller's buffer) + body to write after; body empty for 304/HEAD.
-/// body stays separate so caller writes it straight from the arena, any size, never via the cork.
+/// body stays separate so the caller writes it straight from the arena — any size,
+/// never through the cork.
 pub const Rendered = struct {
     head_len: usize,
     body: []const u8,

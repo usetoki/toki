@@ -1,7 +1,7 @@
 //! WebSocket (RFC 6455). The handshake, frame parsing, masking, validation, and
 //! reassembly run in native code; only complete messages and events cross into JS.
 //! Server frames are written unmasked; client frames must be masked and are
-//! unmasked in place. Lives on the same libuv stream as HTTP — once a connection
+//! unmasked in place. Lives on the same libuv stream as HTTP: once a connection
 //! upgrades, reads route here instead of the HTTP drain.
 //!
 //! Protocol conformance: rejects non-zero RSV (no extensions negotiated), reserved
@@ -39,7 +39,7 @@ const close_bad_data = frame.close_bad_data;
 const close_too_big = frame.close_too_big;
 const close_internal = frame.close_internal;
 
-// RFC 6455 §4.2.2 handshake GUID: appended to Sec-WebSocket-Key, then SHA-1 + base64 -> Sec-WebSocket-Accept.
+// RFC 6455 §4.2.2 handshake GUID. Appended to Sec-WebSocket-Key, then SHA-1 + base64 gives Sec-WebSocket-Accept.
 const WS_ACCEPT_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 // event codes handed to the JS dispatcher
@@ -160,7 +160,7 @@ fn writeHandshake(dest: []u8, accept: *const [28]u8, protocol: []const u8, defla
 
 /// Pull complete frames out of the connection buffer and act on each. Mirrors the
 /// HTTP drain's buffering: a frame larger than the inline buffer spills to a heap
-/// buffer sized to it, the rest arriving on later reads.
+/// buffer sized to it, with the rest arriving on later reads.
 pub fn onData(conn: *Conn) void {
     const env = eng.env;
     var scope: napi.HandleScope = undefined;
@@ -365,7 +365,7 @@ fn dispatch(env: napi.Env, ws_id: u32, event: u32, a: napi.Value, b: napi.Value,
     }
 }
 
-// builds a single contiguous frame (header + payload) and writes it in order.
+// build a single contiguous frame (header + payload) and write it in order.
 // server-to-client frames are never masked. rsv1 marks a permessage-deflate payload.
 fn sendFrame(conn: *Conn, opcode: u8, payload: []const u8, rsv1: bool) void {
     if (conn.closing) return;

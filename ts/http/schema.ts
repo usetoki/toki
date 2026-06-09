@@ -1,11 +1,11 @@
 // A compact JSON Schema subset for request validation and response serialization.
 // Dependency-free; covers the shapes real APIs use. Not a full draft implementation.
 
-// A `pattern` is developer-authored but runs against attacker-controlled input, so a
-// catastrophic-backtracking regex would pin the event loop. We can't time-bound a regex
-// in pure Node, but we can refuse to feed it an unbounded string: a value longer than the
-// schema's own maxLength (or this cap, when none is declared) fails without running the
-// regex. Author patterns to be linear (anchored, no nested quantifiers) for input above this.
+// A `pattern` is developer-authored but runs against attacker-controlled input. A
+// catastrophic-backtracking regex would pin the event loop, and pure Node can't
+// time-bound a regex. What we can do is refuse to feed it an unbounded string: a value
+// longer than the schema's own maxLength (or this cap, when none is declared) fails
+// without running the regex. Keep patterns linear (anchored, no nested quantifiers).
 const PATTERN_INPUT_CAP = 4096;
 
 // compile each distinct pattern once instead of per request

@@ -7,12 +7,12 @@ export const jwtPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Toki ships small HMAC-SHA JWT helpers in core: `signJwt` and `verifyJwt` for tokens, `jwtAuth` — a middleware that verifies the `Authorization: Bearer` token and attaches the payload to the request — and the `JwtError` thrown on a bad token. Signing runs on `node:crypto`'s native code; supported algorithms are `HS256`, `HS384`, and `HS512`.",
+      text: "Toki ships small HMAC-SHA JWT helpers in core: `signJwt` and `verifyJwt` for tokens, `jwtAuth` (a middleware that verifies the `Authorization: Bearer` token and attaches the payload to the request), and the `JwtError` thrown on a bad token. Signing runs on `node:crypto`'s native code; supported algorithms are `HS256`, `HS384`, and `HS512`.",
     },
     { kind: "heading", id: "sign-verify", text: "Sign & verify" },
     {
       kind: "paragraph",
-      text: "Both functions take the `secret` as a positional argument — `signJwt(payload, secret, options?)` and `verifyJwt(token, secret, options?)`. `signJwt` always stamps `iat`; the rest of the claims come from `options`.",
+      text: "Both functions take the `secret` as a positional argument: `signJwt(payload, secret, options?)` and `verifyJwt(token, secret, options?)`. `signJwt` always stamps `iat`; the rest of the claims come from `options`.",
     },
     {
       kind: "code",
@@ -188,7 +188,7 @@ app.get("/whoami", (req) => {
     {
       kind: "callout",
       tone: "warning",
-      text: "Keep the secret out of source control — read it from the environment. Tokens are signed, not encrypted: anyone can base64-decode the payload, so never put secrets in it. Use a long, random secret (32+ bytes).",
+      text: "Keep the secret out of source control; read it from the environment. Tokens are signed, not encrypted: anyone can base64-decode the payload, so never put secrets in it. Use a long, random secret (32+ bytes).",
     },
   ],
 };

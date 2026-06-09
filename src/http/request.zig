@@ -119,8 +119,8 @@ fn readStatus(env: napi.Env, obj: napi.Value) u16 {
     var n: u32 = 200;
     _ = napi.napi_get_value_uint32(env, v, &n);
     // status line must be a 3-digit code. NaN/Infinity decode to 0, and out-of-range
-    // values (e.g. 65535, 1000) would emit an invalid line that strict clients reject —
-    // anything outside 100..999 falls back to 500. (custom codes like 799 stay valid.)
+    // values (65535, 1000) emit a line strict clients reject. Anything outside 100..999
+    // falls back to 500; custom codes like 799 stay valid.
     if (n < 100 or n > 999) return 500;
     return @intCast(n);
 }

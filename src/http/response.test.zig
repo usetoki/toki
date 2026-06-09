@@ -217,9 +217,9 @@ test "chunkedHead keeps the status across keep-alive states" {
     );
 }
 
-// a streamed response to a Connection: close request must advertise close: the engine
-// tears the socket down after the final chunk, so keep-alive here would poison the
-// client's next request (it reuses a socket the server already closed -> ECONNRESET).
+// a streamed response to a Connection: close request must advertise close. the engine
+// tears the socket down after the final chunk; keep-alive here would poison the client's
+// next request — it reuses a socket the server already closed, hence ECONNRESET.
 test "chunkedHead honors Connection: close" {
     var buf: [256]u8 = undefined;
     const n = serializeChunkedHead(&buf, 200, "Content-Type: text/event-stream\r\n", false);

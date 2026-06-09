@@ -7,7 +7,7 @@ export const websocketsPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`app.ws(path, handler)` registers a WebSocket endpoint. The handshake, framing, masking, fragmentation, ping/pong, and close handshake all run in native code, so your handler only ever sees complete messages. You get a `TokiWebSocket` per connection and a `TokiRequest` for the upgrade — attach listeners on the socket and you are live.",
+      text: "`app.ws(path, handler)` registers a WebSocket endpoint. The handshake, framing, masking, fragmentation, ping/pong, and close handshake all run in native code, so your handler only ever sees complete messages. You get a `TokiWebSocket` per connection and a `TokiRequest` for the upgrade. Attach listeners on the socket and you are live.",
     },
     {
       kind: "paragraph",
@@ -90,7 +90,7 @@ app.listen(3000);`,
     { kind: "heading", id: "json", text: "JSON messages" },
     {
       kind: "paragraph",
-      text: "WebSocket frames are bytes; a JSON protocol is just `JSON.stringify` on the way out and `JSON.parse` on the way in. Parse defensively — a peer can send anything, and a throw inside a listener that you do not catch will not close the socket for you.",
+      text: "WebSocket frames are bytes; a JSON protocol is `JSON.stringify` on the way out and `JSON.parse` on the way in. Parse defensively. A peer can send anything, and a throw inside a listener that you do not catch will not close the socket for you.",
     },
     {
       kind: "code",
@@ -199,7 +199,7 @@ app.ws("/firehose", (socket) => {
     { kind: "heading", id: "heartbeat", text: "Ping/pong heartbeats" },
     {
       kind: "paragraph",
-      text: "An incoming ping is answered with a pong automatically — you only see the `ping` event if you want it. To detect a half-open connection (a peer that vanished without a close frame), ping on a timer and treat a missing pong as dead.",
+      text: "An incoming ping is answered with a pong automatically; you only see the `ping` event if you want it. To detect a half-open connection (a peer that vanished without a close frame), ping on a timer and treat a missing pong as dead.",
     },
     {
       kind: "code",
@@ -225,7 +225,7 @@ app.ws("/firehose", (socket) => {
     { kind: "heading", id: "compression", text: "permessage-deflate" },
     {
       kind: "paragraph",
-      text: "Set `wsCompression: true` in `listen` to offer `permessage-deflate` (RFC 7692). It is negotiated per connection and applied transparently — handlers send and receive plain data, compression happens underneath. `maxWsMessageBytes` (default 16 MiB) caps the largest accepted message; it also bounds the inflate output, so a compression bomb cannot exhaust memory.",
+      text: "Set `wsCompression: true` in `listen` to offer `permessage-deflate` (RFC 7692). It is negotiated per connection and applied transparently: handlers send and receive plain data, compression happens underneath. `maxWsMessageBytes` (default 16 MiB) caps the largest accepted message; it also bounds the inflate output, so a compression bomb cannot exhaust memory.",
     },
     {
       kind: "code",

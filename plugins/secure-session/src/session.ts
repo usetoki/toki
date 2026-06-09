@@ -27,8 +27,8 @@ export class CookieSession implements Session {
 
   get<T = unknown>(key: string): T | undefined {
     const value = this.#data[key];
-    // return a copy of objects, so mutating the result doesn't change stored data without
-    // an explicit set() — set() is what marks the session dirty and re-seals the cookie
+    // copy objects on the way out: mutating the result must not change stored data without
+    // an explicit set(). set() is what marks the session dirty and re-seals the cookie.
     return (typeof value === "object" && value !== null ? structuredClone(value) : value) as
       | T
       | undefined;

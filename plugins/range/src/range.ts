@@ -56,7 +56,7 @@ async function sendFile(
     return unsatisfiable(req, size);
   }
   if (range === null) {
-    // full file: stream it, so a large file is never fully buffered (the fd closes on end)
+    // full file: stream it so a large file is never fully buffered (fd closes on end)
     return reply.stream(handle.createReadStream(), { contentType });
   }
 

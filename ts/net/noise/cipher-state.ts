@@ -6,7 +6,7 @@ import { createCipheriv, createDecipheriv } from "node:crypto";
 
 export const KEYLEN = 32;
 const TAGLEN = 16;
-// 2^64 - 1 is reserved by the spec to signal "rekey required"; we refuse to reach it.
+// 2^64 - 1 is reserved by the spec to signal "rekey required"; refuse to reach it.
 const NONCE_MAX = (1n << 64n) - 1n;
 
 function nonceBytes(n: bigint): Buffer {
@@ -38,7 +38,7 @@ export class CipherState {
     return Buffer.concat([body, cipher.getAuthTag()]);
   }
 
-  /** Decrypt or throw — a bad tag means the message is forged or out of order. */
+  /** Decrypt or throw. A bad tag means the message is forged or out of order. */
   decryptWithAd(ad: Uint8Array, ciphertext: Uint8Array): Buffer {
     if (this.#key === null) return Buffer.from(ciphertext);
     if (this.#n >= NONCE_MAX) throw new Error("noise: nonce exhausted");

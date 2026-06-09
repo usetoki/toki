@@ -7,7 +7,7 @@ export const staticFilesPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`app.static(urlPrefix, dir, options?)` serves a directory. Files are read once at `listen` and held in memory, then served natively: a hash lookup, an `Accept-Encoding` choice, and a corked write — no per-request I/O and no JavaScript on the hot path. It is the fastest way to ship a built frontend, fonts, images, or any fixed asset set.",
+      text: "`app.static(urlPrefix, dir, options?)` serves a directory. Files are read once at `listen` and held in memory, then served natively: a hash lookup, an `Accept-Encoding` choice, and a corked write. No per-request I/O, no JavaScript on the hot path. It is the fastest way to ship a built frontend, fonts, images, or any fixed asset set.",
     },
     {
       kind: "code",
@@ -39,7 +39,7 @@ app.listen(3000);`,
       items: [
         "Correct MIME types from a native lookup table, with `charset=utf-8` on text types.",
         "`ETag` and `304 Not Modified` on a matching `If-None-Match`, so unchanged assets cost a header round-trip and no body.",
-        "`HEAD` support — headers and `Content-Length`, no body.",
+        "`HEAD` support: headers and `Content-Length`, no body.",
         "Pre-computed gzip and brotli variants for compressible files, negotiated per `Accept-Encoding` with `Vary: Accept-Encoding`. Brotli wins when the client offers both.",
         "Traversal-safe by construction — only the URLs registered at startup exist, so a `../` in a request path matches nothing and cannot escape the directory.",
       ],
@@ -61,7 +61,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "tip",
-      text: "Because variants are built at startup, compression costs nothing per request — the compressed bytes are already in memory. That is why the defaults are the maximum levels (gzip 9, brotli 11): you pay the CPU once at boot, then serve the smallest payload forever.",
+      text: "Because variants are built at startup, compression costs nothing per request; the compressed bytes are already in memory. That is why the defaults are the maximum levels (gzip 9, brotli 11): you pay the CPU once at boot, then serve the smallest payload forever.",
     },
     { kind: "heading", id: "index", text: "Directory index" },
     {
@@ -131,7 +131,7 @@ app.static("/", "./dist", {
     {
       kind: "callout",
       tone: "warning",
-      text: "Files are snapshotted at `listen`. Editing a file on disk after the server starts has no effect until you restart — there is no watch. This is deliberate: it is what makes serving lock-free and I/O-free. In development, restart on change; in production, you deploy a fresh build anyway.",
+      text: "Files are snapshotted at `listen`. Editing a file on disk after the server starts has no effect until you restart; there is no watch. This is deliberate: it is what makes serving lock-free and I/O-free. In development, restart on change; in production, you deploy a fresh build anyway.",
     },
     {
       kind: "callout",

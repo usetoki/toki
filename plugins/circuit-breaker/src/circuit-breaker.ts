@@ -39,8 +39,8 @@ class TimeoutError extends Error {}
  * ```
  */
 export function circuitBreaker(handler: Handler, options: CircuitBreakerOptions = {}): Handler {
-  // a NaN/Infinity in any numeric knob silently corrupts the state machine (a comparison
-  // that's always false never opens the breaker), so reject it up front
+  // reject NaN/Infinity in any numeric knob up front: a comparison that's always false
+  // would silently never open the breaker
   for (const [name, value] of Object.entries({
     failureThreshold: options.failureThreshold,
     minimumRequests: options.minimumRequests,

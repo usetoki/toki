@@ -7,7 +7,7 @@ export const tcpPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`createTcpServer(handler, options)` opens a raw TCP listener. The accept loop and socket I/O run in native code; your handler runs once per accepted connection and works in plain bytes. Reach for this when you need a wire protocol of your own — a line protocol, a binary RPC, a proxy, a database driver — rather than HTTP.",
+      text: "`createTcpServer(handler, options)` opens a raw TCP listener. The accept loop and socket I/O run in native code; your handler runs once per accepted connection and works in plain bytes. Reach for this when you need a wire protocol of your own (a line protocol, a binary RPC, a proxy, a database driver) rather than HTTP.",
     },
     {
       kind: "code",
@@ -28,12 +28,12 @@ console.log("listening on", port);`,
     },
     {
       kind: "paragraph",
-      text: "`listen(port, host?)` binds and starts accepting. Pass `0` to let the OS pick a free port — the chosen one comes back in the return value. `host` defaults to `0.0.0.0`.",
+      text: "`listen(port, host?)` binds and starts accepting. Pass `0` to let the OS pick a free port; the chosen one comes back in the return value. `host` defaults to `0.0.0.0`.",
     },
     { kind: "heading", id: "socket", text: "The socket" },
     {
       kind: "paragraph",
-      text: "Each connection is a `TcpSocket`. It carries the peer's address and a small set of methods and events — no streams API to learn.",
+      text: "Each connection is a `TcpSocket`. It carries the peer's address plus a small set of methods and events. No streams API to learn.",
     },
     {
       kind: "table",
@@ -83,7 +83,7 @@ console.log("listening on", port);`,
     { kind: "heading", id: "backpressure", text: "Backpressure" },
     {
       kind: "paragraph",
-      text: "`write` returns `false` when the kernel send buffer is full — the bytes are queued, but you should stop producing until the socket drains. Ignoring this lets a slow reader grow your queue without bound. When the queue empties, `drain` fires; resume there.",
+      text: "`write` returns `false` when the kernel send buffer is full. The bytes are still queued, but stop producing until the socket drains — ignore this and a slow reader grows your queue without bound. When the queue empties, `drain` fires; resume there.",
     },
     {
       kind: "code",
@@ -106,12 +106,12 @@ createTcpServer((socket) => {
     {
       kind: "callout",
       tone: "tip",
-      text: "The contract is simple: when `write` returns `false`, pause your source; when `drain` fires, resume it. Following it keeps memory flat no matter how slow the peer is.",
+      text: "The contract: when `write` returns `false`, pause your source; when `drain` fires, resume it. Follow it and memory stays flat no matter how slow the peer is.",
     },
     { kind: "heading", id: "closing", text: "end() vs destroy()" },
     {
       kind: "paragraph",
-      text: "`end()` is the graceful path: it flushes everything you've queued, then sends a FIN to half-close your side while you can still receive the peer's reply. `destroy()` is the abrupt path: it drops the connection immediately and discards queued bytes — use it for a misbehaving client or a hard timeout.",
+      text: "`end()` is the graceful path: it flushes everything you've queued, then sends a FIN to half-close your side while you can still receive the peer's reply. `destroy()` is the abrupt path: it drops the connection immediately and discards queued bytes. Use it for a misbehaving client or a hard timeout.",
     },
     {
       kind: "code",
@@ -174,7 +174,7 @@ createTcpServer((socket) => {
     { kind: "heading", id: "tls", text: "TLS" },
     {
       kind: "paragraph",
-      text: "Pass `tls: { cert, key }` and the listener terminates real TLS 1.3 on the raw socket — the same native engine that powers HTTPS, just on your own protocol. There is no reverse proxy in front: the handshake (ECDHE key exchange, an AEAD cipher) runs in Zig. Your handler is called only once the handshake completes, so the connection is already an established session by your first `write`. You always work in plaintext — the bytes you read are decrypted, the bytes you write are encrypted on the wire.",
+      text: "Pass `tls: { cert, key }` and the listener terminates real TLS 1.3 on the raw socket — the same native engine that powers HTTPS, just on your own protocol. There is no reverse proxy in front: the handshake (ECDHE key exchange, an AEAD cipher) runs in Zig. Your handler is called only once the handshake completes, so the connection is already an established session by your first `write`. You always work in plaintext: the bytes you read are decrypted, the bytes you write are encrypted on the wire.",
     },
     {
       kind: "code",
@@ -277,7 +277,7 @@ server.listen(8443, "127.0.0.1");`,
     {
       kind: "callout",
       tone: "warning",
-      text: "`requestCert` without `ca` throws — there is nothing to verify the client cert against. Always pass the CA bundle that signs your client certs.",
+      text: "`requestCert` without `ca` throws: there is nothing to verify the client cert against. Always pass the CA bundle that signs your client certs.",
     },
     {
       kind: "paragraph",
@@ -334,7 +334,7 @@ socket.on("data", (chunk) => {
     { kind: "heading", id: "tls-perf", text: "Performance" },
     {
       kind: "paragraph",
-      text: "Reads are TLS-record-batched: the engine decrypts every record available from one libuv read and hands them to your handler as a single `data` dispatch, rather than one crossing into JS per record. Throughput is around 1.4 GB/s on a release build and is cipher-bound — the AEAD cipher, not toki, is the ceiling.",
+      text: "Reads are TLS-record-batched: the engine decrypts every record available from one libuv read and hands them to your handler as a single `data` dispatch, rather than one crossing into JS per record. Throughput is around 1.4 GB/s on a release build and is cipher-bound. The AEAD cipher, not toki, is the ceiling.",
     },
     {
       kind: "callout",
@@ -349,7 +349,7 @@ socket.on("data", (chunk) => {
     {
       kind: "callout",
       tone: "warning",
-      text: "No session resumption yet — no TLS tickets, no session IDs. Every connection runs a full handshake, including the asymmetric key exchange. Fine for long-lived connections; for very short, very frequent ones the per-connection handshake cost is the thing to watch.",
+      text: "No session resumption yet: no TLS tickets, no session IDs. Every connection runs a full handshake, including the asymmetric key exchange. Fine for long-lived connections; for very short, very frequent ones the per-connection handshake cost is the thing to watch.",
     },
     {
       kind: "callout",

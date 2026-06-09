@@ -6,14 +6,14 @@ import {
   type KeyObject,
 } from "node:crypto";
 
-// X25519 (Curve25519) Diffie-Hellman — the DH function for our Noise suite. Node has
-// X25519 natively; we only need to move between raw 32-byte keys (what goes on the wire
-// and what callers persist) and the KeyObjects node's crypto wants.
+// X25519 (Curve25519) Diffie-Hellman, the DH function for the Noise suite. Node has X25519
+// natively; the only work here is moving between raw 32-byte keys (what goes on the wire and
+// what callers persist) and the KeyObjects node's crypto wants.
 
 export const DHLEN = 32;
 
-// Fixed ASN.1 prefixes for a 32-byte X25519 key, so we can wrap/unwrap raw keys without
-// pulling in an ASN.1 library. The 32 key bytes are simply appended.
+// Fixed ASN.1 prefixes for a 32-byte X25519 key — lets us wrap/unwrap raw keys without
+// pulling in an ASN.1 library. The 32 key bytes get appended.
 const SPKI_PREFIX = Buffer.from("302a300506032b656e032100", "hex"); // public (SubjectPublicKeyInfo)
 const PKCS8_PREFIX = Buffer.from("302e020100300506032b656e04220420", "hex"); // private (PKCS#8)
 

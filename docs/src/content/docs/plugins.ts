@@ -7,7 +7,7 @@ export const pluginsPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "A plugin is a function that registers routes, hooks, middleware, decorators, and parsers into its own scope. `register(plugin, options?)` runs it against a fresh child scope — what it adds is inherited by its own children but does not leak to the parent. Plugins are how you split an app into self-contained features and how every first-party `@usetoki/*` package plugs in.",
+      text: "A plugin is a function that registers routes, hooks, middleware, decorators, and parsers into its own scope. `register(plugin, options?)` runs it against a fresh child scope. What it adds is inherited by its own children but does not leak to the parent. Plugins are how you split an app into self-contained features and how every first-party `@usetoki/*` package plugs in.",
     },
     {
       kind: "code",
@@ -78,7 +78,7 @@ app.register(rateLimit, { prefix: "/api", max: 100, windowMs: 60_000 });`,
     { kind: "heading", id: "decorate", text: "A plugin that adds a route and a decorator" },
     {
       kind: "paragraph",
-      text: "`decorate(name, value)` attaches a value to the app instance — config, a client, a helper — so other parts of the app can read it off the instance. `decorateRequest(name, value)` attaches a property to every request the scope handles, which handlers and hooks read off `req`.",
+      text: "`decorate(name, value)` attaches a value to the app instance (config, a client, a helper) so other parts of the app can read it off the instance. `decorateRequest(name, value)` attaches a property to every request the scope handles, which handlers and hooks read off `req`.",
     },
     {
       kind: "code",
@@ -103,7 +103,7 @@ console.log((app as any).startedAt);`,
     { kind: "heading", id: "async", text: "Async plugins" },
     {
       kind: "paragraph",
-      text: "A plugin may be async — for example to open a database connection before serving. Plugins load depth-first in registration order. Call `await app.ready()` before `listen()` to load them all; `listen()` loads synchronous plugins on its own and throws if it meets an async one that hasn't been loaded.",
+      text: "A plugin may be async, for example to open a database connection before serving. Plugins load depth-first in registration order. Call `await app.ready()` before `listen()` to load them all; `listen()` loads synchronous plugins on its own and throws if it meets an async one that hasn't been loaded.",
     },
     {
       kind: "code",
@@ -150,7 +150,7 @@ handle.close(); // fires onClose hooks`,
     { kind: "heading", id: "official-plugins", text: "First-party plugins" },
     {
       kind: "paragraph",
-      text: "The same `register` / `use` API powers the first-party `@usetoki/*` packages — each a separate npm install, versioned apart from the core. Most are plain middleware you `app.use` or attach as a route `preHandler`; the session plugins install load + save hooks, so you call them on a scope to confine them to one branch. The full catalog lives in [Official plugins](/docs/plugins-overview).",
+      text: "The same `register` / `use` API powers the first-party `@usetoki/*` packages, each a separate npm install, versioned apart from the core. Most are plain middleware you `app.use` or attach as a route `preHandler`; the session plugins install load + save hooks, so you call them on a scope to confine them to one branch. The full catalog lives in [Official plugins](/docs/plugins-overview).",
     },
   ],
 };

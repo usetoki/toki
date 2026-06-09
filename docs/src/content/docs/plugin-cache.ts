@@ -7,7 +7,7 @@ export const cachePluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-cache` caches whole responses per route. Reach for it when a handler is expensive (a report, an aggregate query, a third-party fetch) and the result is fine to reuse for a few seconds or minutes. On a hit the stored response replays from a `preHandler` and the handler never runs; on a miss the response is captured in `onSend`. Only `GET`/`HEAD` and `200`s are cached by default, and a client sending `Cache-Control: no-cache`/`no-store` bypasses the cache both ways.",
+      text: "`@usetoki/toki-cache` caches whole responses per route. Use it when a handler is expensive (a report, an aggregate query, a third-party fetch) and the result is fine to reuse for a few seconds or minutes. On a hit the stored response replays from a `preHandler` and the handler never runs; on a miss the response is captured in `onSend`. Only `GET`/`HEAD` and `200`s are cached by default, and a client sending `Cache-Control: no-cache`/`no-store` bypasses the cache both ways.",
     },
     {
       kind: "code",
@@ -41,7 +41,7 @@ app.register((api) => {
     { kind: "heading", id: "vary", text: "Vary on a header" },
     {
       kind: "paragraph",
-      text: "When a response depends on a request header — say a localized page — list that header in `vary`. The header value becomes part of the cache key, and it's echoed back as `Vary` so shared proxies do the right thing.",
+      text: "When a response depends on a request header (say a localized page) list that header in `vary`. The header value becomes part of the cache key, and it's echoed back as `Vary` so shared proxies do the right thing.",
     },
     {
       kind: "code",
@@ -57,7 +57,7 @@ api.get("/welcome", (req) => renderWelcome(req.headers.get("accept-language")));
     { kind: "heading", id: "stores", text: "Stores" },
     {
       kind: "paragraph",
-      text: "In-process by default — bounded and swept, so memory tracks live entries instead of growing forever. To share a cache across instances (or survive a restart), pass a `RedisStore` or `MemcachedStore`. Both take any client matching a small interface; the real ioredis and memjs clients fit.",
+      text: "In-process by default, bounded and swept so memory tracks live entries instead of growing forever. To share a cache across instances (or survive a restart), pass a `RedisStore` or `MemcachedStore`. Both take any client matching a small interface; the real ioredis and memjs clients fit.",
     },
     {
       kind: "code",
@@ -149,7 +149,7 @@ cache(api, { ttl: 120, store: new MemcachedStore({ client }) });`,
     {
       kind: "callout",
       tone: "warning",
-      text: "A handler that stages `Cache-Control: private` / `no-store` / `no-cache` (via `req.setResponseHeader`) is never cached — mark per-user responses that way so they can't land in a shared cache.",
+      text: "A handler that stages `Cache-Control: private` / `no-store` / `no-cache` (via `req.setResponseHeader`) is never cached. Mark per-user responses that way so they can't land in a shared cache.",
     },
     {
       kind: "callout",

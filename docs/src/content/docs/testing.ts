@@ -7,7 +7,7 @@ export const testingPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`app.inject(options)` sends a request to your app over loopback, so the full native path runs — parse, route, middleware, handler, serialize — without binding a public port. It auto-binds an ephemeral port on `127.0.0.1` the first time you call it, then reuses it. The captured response is shaped after Fastify's `inject` result.",
+      text: "`app.inject(options)` sends a request to your app over loopback, so the full native path runs (parse, route, middleware, handler, serialize) without binding a public port. It auto-binds an ephemeral port on `127.0.0.1` the first time you call it, then reuses it. The captured response is shaped after Fastify's `inject` result.",
     },
     {
       kind: "code",
@@ -142,7 +142,7 @@ test("unknown route 404s", async () => {
     { kind: "heading", id: "fetch", text: "Or hit a real port with fetch" },
     {
       kind: "paragraph",
-      text: "`inject` is enough for most tests. If you'd rather exercise the app through a real client — to test WebSockets, streaming, or a third-party HTTP library — listen on port `0` (the OS picks a free port) and `fetch` the returned `port`.",
+      text: "`inject` is enough for most tests. If you'd rather exercise the app through a real client (to test WebSockets, streaming, or a third-party HTTP library) listen on port `0` (the OS picks a free port) and `fetch` the returned `port`.",
     },
     {
       kind: "code",
@@ -168,7 +168,7 @@ test("serves over a real socket", async () => {
     {
       kind: "callout",
       tone: "tip",
-      text: "Because inject runs a real request over loopback, your tests exercise the native parser, router, and serializer end to end — not a mock. What passes here behaves the same in production.",
+      text: "Because inject runs a real request over loopback, your tests exercise the native parser, router, and serializer end to end, not a mock. What passes here behaves the same in production.",
     },
   ],
 };

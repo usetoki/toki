@@ -45,7 +45,7 @@ export function problemJson(options: ProblemOptions = {}): ErrorHandler {
   };
 }
 
-// a non-serializable `details` (bigint, circular ref) must not crash the error handler:
+// a non-serializable `details` (bigint, circular ref) must not crash the error handler.
 // fall back to the standard members alone.
 function serialize(
   problem: Record<string, unknown>,
@@ -84,5 +84,5 @@ function toHttpError(error: unknown): HttpError {
     }
     return new HttpError(e.statusCode, e.message, options);
   }
-  return new HttpError(500); // an unexpected failure — keep its message off the wire
+  return new HttpError(500); // unexpected failure; keep its message off the wire
 }

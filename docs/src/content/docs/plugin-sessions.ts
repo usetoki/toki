@@ -7,7 +7,7 @@ export const sessionsPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "A session keeps per-user state between requests — who's logged in, a cart, a CSRF token. toki ships two session plugins behind the same `req.session` API, so your handlers don't care which one you pick. Reach for the stateless one when sessions are small and you want zero infra; reach for the stateful one when sessions get big, or you need to revoke them server-side.",
+      text: "A session keeps per-user state between requests: who's logged in, a cart, a CSRF token. toki ships two session plugins behind the same `req.session` API, so your handlers don't care which one you pick. Reach for the stateless one when sessions are small and you want zero infra; reach for the stateful one when sessions get big, or you need to revoke them server-side.",
     },
     {
       kind: "table",
@@ -34,7 +34,7 @@ export const sessionsPluginPage: DocPage = {
     { kind: "heading", id: "stateful", text: "Stateful — toki-session" },
     {
       kind: "paragraph",
-      text: "A signed session id rides in a cookie; the data lives in a store you control. The id cookie is HMAC-signed (not encrypted) — it carries no secrets, just a random id pointing at the stored data.",
+      text: "A signed session id rides in a cookie; the data lives in a store you control. The id cookie is HMAC-signed, not encrypted. It carries no secrets, just a random id pointing at the stored data.",
     },
     {
       kind: "code",
@@ -80,7 +80,7 @@ app.post("/logout", (req) => {
     { kind: "heading", id: "stores", text: "Stores" },
     {
       kind: "paragraph",
-      text: "The default `MemoryStore` is single-process — fine for one box, useless behind a load balancer. For anything that scales out, point the session at a shared store. `RedisStore` and `MemcachedStore` ship in the box; for anything else, implement the `SessionStore` interface (`get` / `set` / `destroy`, plus an optional `touch` for rolling sessions).",
+      text: "The default `MemoryStore` is single-process: fine for one box, useless behind a load balancer. For anything that scales out, point the session at a shared store. `RedisStore` and `MemcachedStore` ship in the box; for anything else, implement the `SessionStore` interface (`get` / `set` / `destroy`, plus an optional `touch` for rolling sessions).",
     },
     {
       kind: "code",
@@ -129,13 +129,13 @@ session(app, { secret: process.env.SESSION_SECRET!, store: new MemcachedStore({ 
     {
       kind: "callout",
       tone: "note",
-      text: "`MemoryStore` is capacity-capped (100k sessions by default) and sweeps expired entries on a timer — a client can't exhaust memory by minting a new session per request. memcached caps any TTL over 30 days, since it reads larger values as absolute timestamps.",
+      text: "`MemoryStore` is capacity-capped (100k sessions by default) and sweeps expired entries on a timer, so a client can't exhaust memory by minting a new session per request. memcached caps any TTL over 30 days, since it reads larger values as absolute timestamps.",
     },
 
     { kind: "heading", id: "rolling", text: "Rolling expiry" },
     {
       kind: "paragraph",
-      text: "By default the cookie's expiry is fixed from when the session was created. Set `rolling: true` to slide it forward on every response, so an active user never gets logged out mid-session — the store TTL and the cookie are both re-issued each request.",
+      text: "By default the cookie's expiry is fixed from when the session was created. Set `rolling: true` to slide it forward on every response, so an active user never gets logged out mid-session. The store TTL and the cookie are both re-issued each request.",
     },
     {
       kind: "code",
@@ -233,7 +233,7 @@ app.get("/me", (req) =>
     {
       kind: "callout",
       tone: "warning",
-      text: "A stateless session that grows past the ~4KB cookie limit throws when toki tries to save it. Keep cookie sessions to ids and flags; if you need to store more, switch to toki-session with a store. `regenerate()` here just resets the data and forces a re-encrypt — there's no server id to rotate.",
+      text: "A stateless session that grows past the ~4KB cookie limit throws when toki tries to save it. Keep cookie sessions to ids and flags; if you need to store more, switch to toki-session with a store. `regenerate()` here just resets the data and forces a re-encrypt. There's no server id to rotate.",
     },
     {
       kind: "callout",

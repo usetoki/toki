@@ -7,7 +7,7 @@ export const decoratorsPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Decorators attach reusable values without reaching for module globals. `decorate` adds an app-global property — a database client, a config object, a service. `decorateRequest` reserves a property on every request handled in a scope, which a hook then fills in per request.",
+      text: "Decorators attach reusable values without reaching for module globals. `decorate` adds an app-global property: a database client, a config object, a service. `decorateRequest` reserves a property on every request handled in a scope, which a hook then fills in per request.",
     },
     {
       kind: "table",
@@ -40,7 +40,7 @@ app.get("/users", () => {
     },
     {
       kind: "paragraph",
-      text: "TypeScript doesn't know about the new property. Cast the app, or declare a typed alias once and reuse it — cleaner than casting at every call site.",
+      text: "TypeScript doesn't know about the new property. Cast the app, or declare a typed alias once and reuse it; that beats casting at every call site.",
     },
     {
       kind: "code",
@@ -65,7 +65,7 @@ app.get("/health", () => reply.json({ region: app.config.region }));`,
     { kind: "heading", id: "request", text: "Request decorators" },
     {
       kind: "paragraph",
-      text: "`decorateRequest(name, value)` reserves a property on every request handled in the scope, seeded with the value you give. The value is the default shape, not shared mutable state — toki applies it per request, and a hook overwrites it with the real value. Request decorators are scoped, so a plugin's decorations stay within that plugin.",
+      text: "`decorateRequest(name, value)` reserves a property on every request handled in the scope, seeded with the value you give. The value is the default shape, not shared mutable state: toki applies it per request, and a hook overwrites it with the real value. Request decorators are scoped, so a plugin's decorations stay within that plugin.",
     },
     {
       kind: "paragraph",
@@ -118,7 +118,7 @@ app.addHook("onResponse", (req) => {
     { kind: "heading", id: "scoping", text: "Scoping & encapsulation" },
     {
       kind: "paragraph",
-      text: "`decorateRequest` lives on the scope. A plugin registered with `register` gets a child scope; its request decorators apply to its own routes (and its children) and are merged across the scope ancestry — a route sees decorations from the root down to its own scope, but not from sibling plugins. `decorate`, by contrast, always lands on the root app no matter who calls it.",
+      text: "`decorateRequest` lives on the scope. A plugin registered with `register` gets a child scope; its request decorators apply to its own routes (and its children) and are merged across the scope ancestry. A route sees decorations from the root down to its own scope, but not from sibling plugins. `decorate`, by contrast, always lands on the root app no matter who calls it.",
     },
     {
       kind: "code",
@@ -143,7 +143,7 @@ app.get("/", () => reply.text("ok"));`,
     { kind: "heading", id: "double", text: "Guarding against double-decorate" },
     {
       kind: "paragraph",
-      text: "Decorating the same name twice silently overwrites the first value — there is no built-in guard. When two plugins might both claim `db` or `user`, check first and fail loudly so the clash surfaces at boot, not as a confusing runtime bug.",
+      text: "Decorating the same name twice silently overwrites the first value; there is no built-in guard. When two plugins might both claim `db` or `user`, check first and fail loudly so the clash surfaces at boot, not as a confusing runtime bug.",
     },
     {
       kind: "code",

@@ -52,8 +52,8 @@ pub fn serializeHead(dest: []u8, status: u16, headers: []const u8, content_lengt
 }
 
 /// Head of a Transfer-Encoding: chunked response; chunks follow via writeChunkHeader.
-/// Connection framing tracks the request: a client that asked to close is told close,
-/// so it won't reuse a socket the engine tears down after the final chunk.
+/// Connection framing tracks the request. A client that asked to close is told close —
+/// the engine tears the socket down after the final chunk, so it must not reuse it.
 pub fn serializeChunkedHead(dest: []u8, status: u16, headers: []const u8, keep_alive: bool) usize {
     var p: usize = 0;
     p += put(dest[p..], "HTTP/1.1 ");

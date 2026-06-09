@@ -36,7 +36,7 @@ export function createView(options: ViewOptions): View {
   const useCache = options.cache !== false;
   const contentType = options.contentType ?? "text/html; charset=utf-8";
   const locals = options.locals ?? {};
-  // cache the compile *promise*, so concurrent first-hits compile once, not N times
+  // cache the compile *promise* so concurrent first-hits compile once, not N times
   const compiled = new Map<string, Promise<Renderer>>();
 
   return async (template, data = {}) => {

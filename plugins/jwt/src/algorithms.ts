@@ -43,7 +43,7 @@ export function isAlgorithm(alg: string): alg is JwtAlgorithm {
   return Object.prototype.hasOwnProperty.call(SPECS, alg);
 }
 
-// An HMAC secret is raw bytes — never PEM-encoded asymmetric key material. Passing a
+// An HMAC secret is raw bytes, never PEM-encoded asymmetric key material. Passing a
 // public-key PEM where an HMAC key is expected is the JWT "algorithm confusion" attack
 // (forge a token by HMAC-signing with the published public key). A KeyObject is already
 // rejected by createHmac; this catches the PEM string/Buffer form on both sign and verify.

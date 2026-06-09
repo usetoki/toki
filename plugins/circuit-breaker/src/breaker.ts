@@ -120,7 +120,7 @@ export class Breaker {
     try {
       hook();
     } catch {
-      /* swallow — the breaker's state has already been updated */
+      /* swallow; breaker state is already updated */
     }
   }
 }

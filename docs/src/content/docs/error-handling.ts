@@ -7,12 +7,12 @@ export const errorHandlingPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "When a handler throws — or a returned promise rejects — toki catches it and runs the nearest error handler. With no handler it logs the error and replies `500 Internal Server Error`. The same path covers sync throws, async rejections, and throws from a `preHandler` or other [hook](/docs/hooks).",
+      text: "When a handler throws (or a returned promise rejects) toki catches it and runs the nearest error handler. With no handler it logs the error and replies `500 Internal Server Error`. The same path covers sync throws, async rejections, and throws from a `preHandler` or other [hook](/docs/hooks).",
     },
     { kind: "heading", id: "set", text: "setErrorHandler" },
     {
       kind: "paragraph",
-      text: "`setErrorHandler((req, error) => result)` registers a handler for the scope. It receives the request and the thrown value (typed `unknown` — narrow it yourself) and returns a normal handler result: a `reply`, a string, or a plain value sent as JSON. `onError` is an alias.",
+      text: "`setErrorHandler((req, error) => result)` registers a handler for the scope. It receives the request and the thrown value (typed `unknown`, so narrow it yourself) and returns a normal handler result: a `reply`, a string, or a plain value sent as JSON. `onError` is an alias.",
     },
     {
       kind: "code",
@@ -67,7 +67,7 @@ app.get("/orders/:id", (req) => {
     { kind: "heading", id: "async", text: "Async errors" },
     {
       kind: "paragraph",
-      text: "A rejected promise from an `async` handler is caught exactly like a sync throw — no extra try/catch needed. Just `await` and let it throw; the error handler runs.",
+      text: "A rejected promise from an `async` handler is caught exactly like a sync throw; no extra try/catch needed. `await` and let it throw, and the error handler runs.",
     },
     {
       kind: "code",
@@ -104,7 +104,7 @@ app.get("/orders/:id", (req) => {
     { kind: "heading", id: "scope", text: "Scoped error handlers" },
     {
       kind: "paragraph",
-      text: "An error handler set on a [plugin scope](/docs/plugins) applies only to routes in that scope and its children. Toki walks the scope ancestry and the nearest handler wins, so a plugin can shape its own errors — a JSON API error body for `/api`, an HTML page for the site — without touching the rest of the app.",
+      text: "An error handler set on a [plugin scope](/docs/plugins) applies only to routes in that scope and its children. Toki walks the scope ancestry and the nearest handler wins, so a plugin can shape its own errors (a JSON API error body for `/api`, an HTML page for the site) without touching the rest of the app.",
     },
     {
       kind: "code",
@@ -136,7 +136,7 @@ app.register(
     { kind: "heading", id: "not-found", text: "Not-found handler" },
     {
       kind: "paragraph",
-      text: "`setNotFoundHandler(handler)` replaces the default `404`. It is app-global — there is one per process. It runs the root hook chain and receives a normal request, so you can log, redirect, or shape a custom body. Returning a plain value with no status yields `404`.",
+      text: "`setNotFoundHandler(handler)` replaces the default `404`. It is app-global: one per process. It runs the root hook chain and receives a normal request, so you can log, redirect, or shape a custom body. Returning a plain value with no status yields `404`.",
     },
     {
       kind: "code",
@@ -166,7 +166,7 @@ app.setNotFoundHandler((req) => {
     {
       kind: "callout",
       tone: "tip",
-      text: "An async dispatch that exceeds `requestTimeoutMs` (set on `createApp`) replies `408` and runs any `onTimeout` hooks — this is separate from the error handler. See [Hooks](/docs/hooks).",
+      text: "An async dispatch that exceeds `requestTimeoutMs` (set on `createApp`) replies `408` and runs any `onTimeout` hooks. This is separate from the error handler. See [Hooks](/docs/hooks).",
     },
   ],
 };

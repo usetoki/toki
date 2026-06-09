@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 /**
  * A digest of the request that owns an Idempotency-Key. A retry must carry the same
  * method, path, query, and body; a key reused with different parameters is rejected rather
- * than silently replaying the wrong response. The query is part of the request identity —
- * omitting it would let `?to=eve` replay an `?to=alice` response under the same key.
+ * than silently replaying the wrong response. The query is part of the request identity.
+ * Omit it and `?to=eve` could replay an `?to=alice` response under the same key.
  */
 export function fingerprint(
   method: string,

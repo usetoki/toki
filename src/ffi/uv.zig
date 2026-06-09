@@ -3,8 +3,8 @@
 //!
 //! Handles/reqs are opaque: allocated as raw byte blocks sized above the real C
 //! structs (probed: uv_tcp_t=264, uv_write_t=192). `data` is the first field of
-//! every uv handle/req, so a handle pointer == the address of our wrapper — we
-//! recover the wrapper by plain cast, never by touching a field.
+//! every uv handle/req, so a handle pointer == the address of the wrapper. Recover
+//! the wrapper by plain cast, never by touching a field.
 
 const builtin = @import("builtin");
 
@@ -22,8 +22,8 @@ pub const UDP_REUSEADDR: c_uint = 4;
 pub const UDP_RECVMMSG: c_uint = 256;
 
 // uv_buf_t differs by platform: Windows is WSABUF order { ULONG len; char* base },
-// unix is { char* base; size_t len }. Swapping them makes libuv read a garbage
-// length and reset the connection. Named-field init below works for either order.
+// unix is { char* base; size_t len }. Swap them and libuv reads a garbage length and
+// resets the connection. Named-field init below works for either order.
 pub const Buf = if (builtin.os.tag == .windows)
     extern struct { len: c_ulong, base: [*c]u8 }
 else
@@ -65,7 +65,7 @@ pub extern fn uv_tcp_getsockname(handle: *anyopaque, name: *anyopaque, namelen: 
 pub extern fn uv_ip_name(addr: *const anyopaque, dst: [*c]u8, size: usize) c_int;
 pub extern fn uv_now(loop: *anyopaque) u64;
 // wall-clock time (uv_timeval64_t). The only cross-platform real-clock source already
-// linked into the addon — std.time lost its wall-clock helpers (time now flows via Io).
+// linked into the addon, now that std.time dropped its wall-clock helpers (time flows via Io).
 pub const TimeVal64 = extern struct { tv_sec: i64, tv_usec: i32 };
 pub extern fn uv_gettimeofday(tv: *TimeVal64) c_int;
 pub extern fn uv_timer_init(loop: *anyopaque, handle: *anyopaque) c_int;

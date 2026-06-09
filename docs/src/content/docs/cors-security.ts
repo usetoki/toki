@@ -7,7 +7,7 @@ export const corsSecurityPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Browsers block cross-origin requests unless the server opts in with the right `Access-Control-*` headers. Toki ships that opt-in as core middleware — no plugin. `app.cors(options)` stages CORS headers on every response and answers preflight `OPTIONS` requests; `securityHeaders(options)` sets baseline hardening headers. Both work on the app or any scope/group.",
+      text: "Browsers block cross-origin requests unless the server opts in with the right `Access-Control-*` headers. Toki ships that opt-in as core middleware, no plugin. `app.cors(options)` stages CORS headers on every response and answers preflight `OPTIONS` requests; `securityHeaders(options)` sets baseline hardening headers. Both work on the app or any scope/group.",
     },
     { kind: "heading", id: "cors", text: "CORS" },
     {
@@ -77,7 +77,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "warning",
-      text: "`origin: \"*\"` together with `credentials: true` throws at setup — a wildcard that reflects any caller's cookies lets any site read authenticated responses. List the origins you trust instead. `Access-Control-Allow-Credentials` is only emitted alongside an allowed origin, never on its own.",
+      text: "`origin: \"*\"` together with `credentials: true` throws at setup: a wildcard that reflects any caller's cookies lets any site read authenticated responses. List the origins you trust instead. `Access-Control-Allow-Credentials` is only emitted alongside an allowed origin, never on its own.",
     },
     {
       kind: "heading",
@@ -125,7 +125,7 @@ app.listen(3000);`,
     },
     {
       kind: "paragraph",
-      text: "Pass a predicate to allow a pattern — say, any subdomain of a domain you own. It runs per request against the caller's `Origin`; return `true` to reflect it, `false` to omit the header.",
+      text: "Pass a predicate to allow a pattern, say any subdomain of a domain you own. It runs per request against the caller's `Origin`; return `true` to reflect it, `false` to omit the header.",
     },
     {
       kind: "code",
@@ -214,7 +214,7 @@ app.use(
     {
       kind: "callout",
       tone: "note",
-      text: "Apply both on a scope or group to harden only part of the app — `app.cors` and `securityHeaders` follow the same scope inheritance as every other middleware. Pair with [JWT authentication](/docs/jwt) for credentialed APIs.",
+      text: "Apply both on a scope or group to harden only part of the app. `app.cors` and `securityHeaders` follow the same scope inheritance as every other middleware. Pair with [JWT authentication](/docs/jwt) for credentialed APIs.",
     },
   ],
 };

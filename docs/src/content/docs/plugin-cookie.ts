@@ -21,7 +21,7 @@ export const cookiePluginPage: DocPage = {
     { kind: "heading", id: "sign", text: "Sign — tamper-proof, still readable" },
     {
       kind: "paragraph",
-      text: "`sign` HMACs the value and appends the tag. The value stays plain in the cookie — anyone can read it — but `unsign` rejects anything that's been altered. Use it when the value isn't secret but must be trusted, like a user id.",
+      text: "`sign` HMACs the value and appends the tag. The value stays plain in the cookie (anyone can read it) but `unsign` rejects anything that's been altered. Use it when the value isn't secret but must be trusted, like a user id.",
     },
     {
       kind: "code",
@@ -83,7 +83,7 @@ app.get("/cart", (req) => {
     {
       kind: "callout",
       tone: "note",
-      text: "Signing and sealing keys are derived from your secret with HKDF — the secret is never used raw, and the sign/seal keys can't cross-contaminate. You still own the cookie attributes (`httpOnly`, `secure`, `sameSite`, `maxAge`) via `req.setCookie`.",
+      text: "Signing and sealing keys are derived from your secret with HKDF. The secret is never used raw, and the sign/seal keys can't cross-contaminate. You still own the cookie attributes (`httpOnly`, `secure`, `sameSite`, `maxAge`) via `req.setCookie`.",
     },
 
     { kind: "heading", id: "rotation", text: "Key rotation" },
@@ -117,7 +117,7 @@ createCookies({ secret: [process.env.COOKIE_SECRET_NEW!, process.env.COOKIE_SECR
     {
       kind: "callout",
       tone: "warning",
-      text: "A secret shorter than 16 bytes throws at `createCookies` time, not at request time — fail fast. Keep secrets in env/secret storage, never in the repo, and rotate them the moment one might have leaked.",
+      text: "A secret shorter than 16 bytes throws at `createCookies` time, not mid-request. Keep secrets in env/secret storage, never in the repo, and rotate them the moment one might have leaked.",
     },
   ],
 };

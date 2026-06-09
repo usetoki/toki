@@ -1,7 +1,7 @@
 # @usetoki/toki-cookie
 
-Signed and encrypted cookies for [toki](https://usetoki.github.io/toki/) — HMAC + AES-256-GCM
-with key rotation. The crypto base used by the session plugins; also handy on its own.
+Signed and encrypted cookies for [toki](https://usetoki.github.io/toki/): HMAC + AES-256-GCM
+with key rotation. The crypto base used by the session plugins, and handy on its own.
 
 ```bash
 npm install @usetoki/toki-cookie
@@ -33,7 +33,7 @@ app.get("/me", (req) => {
 
 ## Key rotation
 
-Pass an array — the first secret signs/encrypts new cookies, the rest are still accepted,
+Pass an array. The first secret signs/encrypts new cookies, the rest are still accepted,
 so you can roll a secret out without invalidating live cookies:
 
 ```ts

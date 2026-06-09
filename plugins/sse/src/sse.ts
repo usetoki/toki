@@ -6,13 +6,13 @@ import { formatEvent, oneLine, type SseEvent } from "./format.js";
 export interface SseStream {
   /** Send an event. A bare string is shorthand for `{ data }`. */
   send(event: SseEvent | string): void;
-  /** Send a comment line (`: …`) — a manual keep-alive or marker. */
+  /** Send a comment line (`: …`), a manual keep-alive or marker. */
   comment(text?: string): void;
   /** End the stream. */
   close(): void;
-  /** The client's `Last-Event-ID` on reconnect, or `null` — resume from here. */
+  /** The client's `Last-Event-ID` on reconnect, or `null`. Resume from here. */
   readonly lastEventId: string | null;
-  /** Aborts when the client disconnects or the stream ends — stop producing on it. */
+  /** Aborts when the client disconnects or the stream ends; stop producing on it. */
   readonly signal: AbortSignal;
 }
 
@@ -81,7 +81,7 @@ export function sse(
 
   return reply.stream(source(), {
     contentType: "text/event-stream",
-    // Connection is hop-by-hop and set by the server — emitting it here just duplicates it.
+    // Connection is hop-by-hop and set by the server; emitting it here just duplicates it.
     headers: [["Cache-Control", "no-cache"], ...(options.headers ?? [])],
   });
 }

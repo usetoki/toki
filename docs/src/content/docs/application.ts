@@ -7,7 +7,7 @@ export const applicationPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`createApp()` returns a `Toki` instance — the root of your application. It is itself a registration scope, so routes, hooks, middleware, decorators, and plugins are all registered on it. Child scopes created by [`register`](/docs/plugins) inherit its hooks but encapsulate their own.",
+      text: "`createApp()` returns a `Toki` instance, the root of your application. It is itself a registration scope, so routes, hooks, middleware, decorators, and plugins are all registered on it. Child scopes created by [`register`](/docs/plugins) inherit its hooks but encapsulate their own.",
     },
     { kind: "heading", id: "create", text: "Creating an app" },
     {
@@ -44,12 +44,12 @@ const app = createApp({
     {
       kind: "callout",
       tone: "note",
-      text: "These two are the only constructor options. Everything about the network socket — host, port, limits, TLS, rate limiting — is a `listen` option, below.",
+      text: "These two are the only constructor options. Everything about the network socket (host, port, limits, TLS, rate limiting) is a `listen` option, below.",
     },
     { kind: "heading", id: "listen", text: "Listening" },
     {
       kind: "paragraph",
-      text: "`listen(port, options?)` binds the socket and returns a handle. It is synchronous — the server is accepting connections by the time it returns. Pass `0` as the port to get an OS-assigned one; the chosen port comes back on `handle.port`.",
+      text: "`listen(port, options?)` binds the socket and returns a handle. It is synchronous: the server is accepting connections by the time it returns. Pass `0` as the port to get an OS-assigned one; the chosen port comes back on `handle.port`.",
     },
     {
       kind: "code",
@@ -115,12 +115,12 @@ app.listen(8443, {
     {
       kind: "callout",
       tone: "warning",
-      text: "The native engine holds global server state, so one process serves a single app — a second `listen()` clobbers the first. To scale across cores, run several processes (or worker threads) and set `reusePort: true` so they share the port; the kernel balances connections.",
+      text: "The native engine holds global server state, so one process serves a single app. A second `listen()` clobbers the first. To scale across cores, run several processes (or worker threads) and set `reusePort: true` so they share the port; the kernel balances connections.",
     },
     { kind: "heading", id: "decorate", text: "Decorating: app and request" },
     {
       kind: "paragraph",
-      text: "Attach shared services to the app with `decorate(name, value)` — it lives on the instance, so plugins and handlers can reach it through the scope. Attach per-request data with `decorateRequest(name, value)`; every `req` in that scope gets the property. See [Decorators](/docs/decorators).",
+      text: "Attach shared services to the app with `decorate(name, value)`; it lives on the instance, so plugins and handlers can reach it through the scope. Attach per-request data with `decorateRequest(name, value)` and every `req` in that scope gets the property. See [Decorators](/docs/decorators).",
     },
     {
       kind: "code",
@@ -144,7 +144,7 @@ app.get("/me", (req) => {
     { kind: "heading", id: "register", text: "Registering plugins" },
     {
       kind: "paragraph",
-      text: "`register(plugin, opts?)` loads a plugin into a fresh child scope. Routes, hooks, and decorators it adds are encapsulated there — they do not leak to the parent. `opts.prefix` mounts the plugin's routes under a path; any other keys are passed to the plugin. See [Plugins](/docs/plugins).",
+      text: "`register(plugin, opts?)` loads a plugin into a fresh child scope. Routes, hooks, and decorators it adds are encapsulated there and do not leak to the parent. `opts.prefix` mounts the plugin's routes under a path; any other keys are passed to the plugin. See [Plugins](/docs/plugins).",
     },
     {
       kind: "code",
@@ -208,12 +208,12 @@ process.on("SIGTERM", () => handle.close());`,
     {
       kind: "callout",
       tone: "note",
-      text: "`onReady`/`onClose` hooks are run defensively — a throw or rejection is logged, not propagated, so one bad hook can't take down `listen` or `close`.",
+      text: "`onReady`/`onClose` hooks are run defensively: a throw or rejection is logged, not propagated, so one bad hook can't take down `listen` or `close`.",
     },
     { kind: "heading", id: "inject", text: "Testing with inject" },
     {
       kind: "paragraph",
-      text: "`app.inject(options)` drives a request through the full native path over loopback, auto-binding an ephemeral port if the app isn't already listening. It returns the captured response — no real client, no port juggling. See [Testing](/docs/testing).",
+      text: "`app.inject(options)` drives a request through the full native path over loopback, auto-binding an ephemeral port if the app isn't already listening. It returns the captured response. No real client, no port juggling. See [Testing](/docs/testing).",
     },
     {
       kind: "code",

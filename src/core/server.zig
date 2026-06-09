@@ -59,7 +59,7 @@ pub fn listen(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
 // Reads the PEM cert chain + private key (if present) and builds the TLS config so
 // the server terminates HTTPS directly. Returns false after throwing a JS error on a
 // missing key or unparsable PEM; true when TLS is off or configured cleanly. The
-// buffers are valid for this synchronous call — init parses + copies what it keeps.
+// buffers are only valid for this synchronous call, so init parses and copies what it keeps.
 fn setupTls(env: napi.Env, options: napi.Value) bool {
     const cert = readBufferProp(env, options, "tlsCert") orelse return true; // no cert → plain HTTP
     const key = readBufferProp(env, options, "tlsKey") orelse {
@@ -110,7 +110,7 @@ fn boot(env: napi.Env, port: i32) void {
     const rc = uv.uv_listen(eng.opaqueOf(&eng.listen_socket), eng.backlog, &loop.onConnection);
     if (rc != 0) _ = napi.napi_throw_error(env, null, uv.uv_strerror(rc));
 
-    // requested port 0 means OS-assigned; read back what we actually got (TCP only).
+    // requested port 0 means OS-assigned; read back what the OS actually gave us (TCP only).
     if (eng.unix_path == null) {
         var bound: uv.SockaddrIn = undefined;
         var blen: c_int = @sizeOf(uv.SockaddrIn);
@@ -256,7 +256,7 @@ fn readStringArray(env: napi.Env, arr: napi.Value, gpa: std.mem.Allocator) ![]co
 }
 
 // closes conns stalled mid-request past the header timeout.
-// filled>0 means we're mid-read; idle and awaiting conns are left alone.
+// filled>0 means mid-read; idle and awaiting conns are left alone.
 fn onSweep(handle: *anyopaque) callconv(.c) void {
     _ = handle;
     const now = uv.uv_now(eng.loop.?);

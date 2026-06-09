@@ -97,8 +97,8 @@ pub fn validCloseCode(code: u16) bool {
 
 pub fn unmask(payload: []u8, key: [4]u8) void {
     // XOR eight bytes per step with the 4-byte key tiled into a u64 (little-endian,
-    // so it matches the readInt below on any host); the tail goes byte-wise. Steps
-    // of 8 keep i a multiple of 4, so key alignment holds.
+    // so it matches the readInt below on any host); the tail goes byte-wise. Steps of
+    // 8 keep i a multiple of 4, so key alignment holds.
     const k64: u64 = @as(u64, key[0]) | (@as(u64, key[1]) << 8) | (@as(u64, key[2]) << 16) |
         (@as(u64, key[3]) << 24) | (@as(u64, key[0]) << 32) | (@as(u64, key[1]) << 40) |
         (@as(u64, key[2]) << 48) | (@as(u64, key[3]) << 56);

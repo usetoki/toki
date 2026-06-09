@@ -8,7 +8,7 @@ export interface MemcachedClient {
   delete(key: string): Promise<void>;
 }
 
-// memcached keys forbid spaces/control bytes and cap at 250 bytes — the default cache key
+// memcached keys forbid spaces/control bytes and cap at 250 bytes. The default cache key
 // ("GET /path?q=1") has spaces, so hash it into a fixed, always-valid token.
 function memcachedKey(prefix: string, key: string): string {
   return prefix + createHash("sha1").update(key).digest("base64url");
@@ -33,7 +33,7 @@ interface Wire {
   e: number;
 }
 
-/** {@link CacheStore} backed by memcached — cached responses are shared across instances. */
+/** {@link CacheStore} backed by memcached. Cached responses are shared across instances. */
 export class MemcachedStore implements CacheStore {
   readonly #client: MemcachedClient;
   readonly #prefix: string;

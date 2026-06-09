@@ -2,8 +2,8 @@
 // talks to it. Each peer has an X25519 static identity; the handshake derives a per-session
 // AES-256-GCM key (forward secrecy), both ends prove their static key (mutual auth), and
 // every transport datagram is replay-protected. This is the WireGuard-style way to secure
-// UDP — NOT DTLS: no PKI, no wire interop. Peers authenticate by RAW static public key,
-// which you distribute and verify out-of-band (we check remoteStatic on both ends below).
+// UDP, not DTLS: no PKI, no wire interop. Peers authenticate by RAW static public key,
+// which you distribute and verify out-of-band (the code checks remoteStatic on both ends).
 // run:  node examples/udp-noise.ts
 import {
   connectSecureUdp,
@@ -25,7 +25,7 @@ const serverKey = process.env.TOKI_SERVER_KEY
 const srv = createSecureUdpServer({
   staticKey: serverKey,
   onSession: (s) => {
-    // s.remoteStatic is the peer's authenticated static public key — authorize it here.
+    // s.remoteStatic is the peer's authenticated static public key. authorize it here.
     console.log(`session up: peer ${s.remoteStatic.toString("hex")} @ ${s.address}:${s.port}`);
   },
   onMessage: (msg, s) => {
@@ -55,7 +55,7 @@ const clientKey = generateKeyPair();
 const session = await connectSecureUdp({ staticKey: clientKey }, port, HOST);
 
 // Authenticate the server before trusting the session: its static key must be the one we
-// expected to talk to. (A real client would compare against a pinned key, not a local one.)
+// expected. (A real client would compare against a pinned key, not a local one.)
 if (!session.remoteStatic.equals(serverKey.publicRaw)) {
   session.close();
   throw new Error("unexpected server identity");

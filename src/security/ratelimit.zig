@@ -21,7 +21,7 @@ pub inline fn enabled() bool {
     return max > 0;
 }
 
-/// true when `ip` is over the limit. fails open on alloc failure — a rate
+/// true when `ip` is over the limit. fails open on alloc failure; a rate
 /// limiter must never take the server down.
 pub fn exceeded(ip: []const u8, now: u64) bool {
     const gop = table.getOrPut(gpa, ip) catch return false;

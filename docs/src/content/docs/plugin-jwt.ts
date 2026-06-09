@@ -7,7 +7,7 @@ export const jwtPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-jwt` signs and verifies JWTs with `node:crypto` — the asymmetric families (RS, PS, ES, EdDSA) plus HMAC (HS) — and resolves verification keys from a remote JWKS by `kid`. Reach for it when an identity provider issues your tokens (Auth0, Cognito, Okta, Entra) and you verify them with a rotating public key set, or when you sign your own tokens with a private key. It's the asymmetric/JWKS counterpart to toki's built-in HMAC `jwtAuth`.",
+      text: "`@usetoki/toki-jwt` signs and verifies JWTs with `node:crypto` — the asymmetric families (RS, PS, ES, EdDSA) plus HMAC (HS) — and resolves verification keys from a remote JWKS by `kid`. Use it when an identity provider issues your tokens (Auth0, Cognito, Okta, Entra) and you verify them with a rotating public key set, or when you sign your own tokens with a private key. It's the asymmetric/JWKS counterpart to toki's built-in HMAC `jwtAuth`.",
     },
     {
       kind: "code",
@@ -52,7 +52,7 @@ const payload = await verifyJwt(token, publicKeyPem, { algorithms: ["ES256"] });
     {
       kind: "callout",
       tone: "warning",
-      text: "`algorithms` is required and is your security boundary. The token's `alg` header must be one of the values you list — that's what blocks the algorithm-confusion attack and `alg: none`. Never widen it to \"all the algorithms\"; list exactly what your issuer signs with.",
+      text: "`algorithms` is required and is your security boundary. The token's `alg` header must be one of the values you list. That's what blocks the algorithm-confusion attack and `alg: none`. Never widen it to \"all the algorithms\"; list exactly what your issuer signs with.",
     },
     {
       kind: "callout",
@@ -62,7 +62,7 @@ const payload = await verifyJwt(token, publicKeyPem, { algorithms: ["ES256"] });
     { kind: "heading", id: "jwks", text: "Verify against a JWKS" },
     {
       kind: "paragraph",
-      text: "For providers that publish a JWKS, pass a resolver as `key`. It fetches the key set, caches it by `kid`, and refetches (rate-limited) when a token presents an unknown `kid` — so a rotated signing key is picked up without a redeploy.",
+      text: "For providers that publish a JWKS, pass a resolver as `key`. It fetches the key set, caches it by `kid`, and refetches (rate-limited) when a token presents an unknown `kid`, so a rotated signing key is picked up without a redeploy.",
     },
     {
       kind: "code",

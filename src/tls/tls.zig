@@ -14,7 +14,7 @@ pub const in_size = lib.input_buffer_len; // 16645
 pub const out_size = 2 * lib.input_buffer_len;
 /// one encrypted application-data record
 pub const out_record = lib.output_buffer_len;
-/// max plaintext per TLS record (2^14); we feed at most this to `encrypt` per call
+/// max plaintext per TLS record (2^14); at most this much is fed to `encrypt` per call
 pub const max_cleartext = 16384;
 
 // --- server config, built once at listen ------------------------------------
@@ -28,8 +28,8 @@ const g_alpn: []const []const u8 = &.{"http/1.1"};
 // Optional mutual-TLS: when a client-CA bundle is supplied, the server sends a
 // CertificateRequest and verifies the client cert against this bundle. Parsed once at
 // init and reused for every handshake. null = no client auth (today's behavior).
-// Type is the lib's `Options.client_auth` field (?ClientAuth) — referenced via @FieldType
-// so we don't depend on the lib re-exporting ClientAuth through `config`.
+// Type is the lib's `Options.client_auth` field (?ClientAuth), referenced via @FieldType
+// to avoid depending on the lib re-exporting ClientAuth through `config`.
 const ClientAuth = @typeInfo(@FieldType(lib.config.Server, "client_auth")).optional.child;
 var g_client_auth: ?ClientAuth = null;
 
@@ -87,7 +87,7 @@ fn serverOptions(now_sec: i64) lib.config.Server {
         .alpn_protocols = g_alpn,
         // real wall-clock time: client_auth verifies the client cert's validity window
         // against this, so .zero (1970) would reject every in-date cert. The caller passes
-        // the current time at accept. Harmless without client_auth (we sign, not verify).
+        // the current time at accept. Harmless without client_auth (the server signs, not verifies).
         .now = .fromNanoseconds(@as(i96, now_sec) * std.time.ns_per_s),
     };
 }
@@ -193,7 +193,7 @@ pub const Read = struct {
 
 /// decrypt the next record into `plain` (the caller guarantees it's big enough).
 /// Only the next single record is handed to decrypt: feeding it the whole buffer would let
-/// it consume a trailing record whose plaintext overflows `plain` (one record's worth) — the
+/// it consume a trailing record whose plaintext overflows `plain` (one record's worth). The
 /// excess cleartext is dropped by decrypt's reset while its ciphertext stays consumed, so a
 /// buffer holding >1 record (combined plaintext > max_cleartext) silently loses bytes. One
 /// record in, ≤ max_cleartext out, always fits.

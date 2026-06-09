@@ -16,7 +16,7 @@ export function Example(): ReactElement {
         <SectionHeading
           eyebrow="Example"
           title="Familiar, fully-typed, fast"
-          subtitle="Routing, validation, WebSockets, and middleware — the API stays out of your way."
+          subtitle="Routing, validation, WebSockets, and middleware. The API stays out of your way."
         />
         <div className={styles.tabs} role="tablist" aria-label="Code examples">
           {EXAMPLE_TABS.map((tab) => (

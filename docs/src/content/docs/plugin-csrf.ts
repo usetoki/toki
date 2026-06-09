@@ -7,7 +7,7 @@ export const csrfPluginPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "`@usetoki/toki-csrf` protects state-changing requests with a signed double-submit token. `req.csrfToken()` mints a random token, signs it into an `HttpOnly` cookie, and returns the raw value for the page to send back. On every unsafe request (POST/PUT/PATCH/DELETE) the submitted token must equal the one unsealed from the cookie. Reach for it on cookie-session apps that render forms — it's the standard defense when an attacker's page can make the browser send your cookies. Built on `@usetoki/toki-cookie`.",
+      text: "`@usetoki/toki-csrf` protects state-changing requests with a signed double-submit token. `req.csrfToken()` mints a random token, signs it into an `HttpOnly` cookie, and returns the raw value for the page to send back. On every unsafe request (POST/PUT/PATCH/DELETE) the submitted token must equal the one unsealed from the cookie. It's the standard defense for cookie-session apps that render forms, where an attacker's page can make the browser send your cookies. Built on `@usetoki/toki-cookie`.",
     },
     {
       kind: "code",
@@ -47,7 +47,7 @@ app.post("/transfer", () => "done");`,
     {
       kind: "callout",
       tone: "tip",
-      text: "Calling `req.csrfToken()` twice in one request returns the same token instead of minting a fresh one — two forms on a page won't clobber each other's cookie.",
+      text: "Calling `req.csrfToken()` twice in one request returns the same token instead of minting a fresh one, so two forms on a page won't clobber each other's cookie.",
     },
     { kind: "heading", id: "spa", text: "SPA / fetch clients" },
     {
@@ -84,7 +84,7 @@ await fetch("/transfer", {
     { kind: "heading", id: "origin", text: "Origin checks" },
     {
       kind: "paragraph",
-      text: "Layer on a defense-in-depth check that the request actually came from your own site. With `checkOrigin`, the `Origin` (falling back to `Referer`) host must match — and a request carrying neither header is rejected, which is the safe default for a state-changing call.",
+      text: "Layer on a defense-in-depth check that the request actually came from your own site. With `checkOrigin`, the `Origin` (falling back to `Referer`) host must match. A request carrying neither header is rejected, which is the safe default for a state-changing call.",
     },
     {
       kind: "code",
@@ -157,7 +157,7 @@ csrf(app, { secret, checkOrigin: ["app.example.com"] });`,
     {
       kind: "callout",
       tone: "warning",
-      text: "The token cookie is signed but not secret-bearing on its own — protection comes from the attacker not being able to read your cookie *and* set the matching header/field. Keep the cookie `HttpOnly`, serve over HTTPS with `secure: true` in production, and don't echo the raw token into a place a cross-site script could read.",
+      text: "The token cookie is signed but not secret-bearing on its own. Protection comes from the attacker not being able to read your cookie *and* set the matching header/field. Keep the cookie `HttpOnly`, serve over HTTPS with `secure: true` in production, and don't echo the raw token into a place a cross-site script could read.",
     },
   ],
 };

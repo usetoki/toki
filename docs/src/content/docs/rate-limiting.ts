@@ -7,7 +7,7 @@ export const rateLimitingPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Pass `rateLimit` to `listen` to enable the built-in per-IP limiter. It runs in Zig: over-limit requests get a `429 Too Many Requests` with a `Retry-After` header before they ever reach your handlers, so a flood costs almost nothing. This is core — no plugin needed.",
+      text: "Pass `rateLimit` to `listen` to enable the built-in per-IP limiter. It runs in Zig: over-limit requests get a `429 Too Many Requests` with a `Retry-After` header before they ever reach your handlers, so a flood costs almost nothing. This is core; no plugin needed.",
     },
     {
       kind: "code",
@@ -34,19 +34,19 @@ export const rateLimitingPage: DocPage = {
       items: [
         "Fixed window: up to `max` requests per `windowMs` per client IP. The window resets as a block, not as a sliding average.",
         "Counting and the `429` response happen in native code, so the event loop never sees a rejected request.",
-        "The key is the peer IP. Behind a proxy the limiter sees the proxy's IP — terminate the limit at the edge, or raise `max` to fit your fan-out.",
+        "The key is the peer IP. Behind a proxy the limiter sees the proxy's IP, so terminate the limit at the edge, or raise `max` to fit your fan-out.",
         "Unix-domain sockets have no peer IP (`req.ip` is empty), so the native limiter cannot key on the caller — limit at the proxy instead.",
       ],
     },
     {
       kind: "callout",
       tone: "warning",
-      text: "One IP can mean many users behind NAT or a corporate gateway, and one user can rotate IPs. The native limiter is a cheap, global flood guard — not per-account quota. For per-user or per-key limits, use a middleware (below).",
+      text: "One IP can mean many users behind NAT or a corporate gateway, and one user can rotate IPs. The native limiter is a cheap, global flood guard, not per-account quota. For per-user or per-key limits, use a middleware (below).",
     },
     { kind: "heading", id: "custom-key", text: "Per-key limits in middleware" },
     {
       kind: "paragraph",
-      text: "When you need a custom key (an API key, a user id) or per-route limits, write a middleware. A middleware that returns a response short-circuits the request — return `reply.json(..., 429)` to reject. This runs in JS, so reserve it for the routes that need it; keep the native limiter as the outer flood guard.",
+      text: "When you need a custom key (an API key, a user id) or per-route limits, write a middleware. A middleware that returns a response short-circuits the request, so return `reply.json(..., 429)` to reject. This runs in JS, so reserve it for the routes that need it; keep the native limiter as the outer flood guard.",
     },
     {
       kind: "code",

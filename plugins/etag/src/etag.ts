@@ -22,7 +22,7 @@ export function etag(instance: TokiInstance, options: EtagOptions = {}): void {
   const open = options.weak === true ? 'W/"' : '"';
 
   instance.addHook("onSend", (req, res) => {
-    // only validate successful GET/HEAD bodies — never turn an error or redirect into a 304
+    // only validate successful GET/HEAD bodies; never turn an error or redirect into a 304
     if (req.method !== "GET" && req.method !== "HEAD") return undefined;
     if (res.status !== 200 || hasEtag(req, res)) return undefined;
 

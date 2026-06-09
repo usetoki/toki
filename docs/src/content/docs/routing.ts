@@ -74,7 +74,7 @@ app.get("/users/:id/posts/:postId", (req) => {
     },
     {
       kind: "paragraph",
-      text: "Params are always strings — the wire has no types. Coerce and validate at the edge of the handler so the rest of your code works with real values.",
+      text: "Params are always strings; the wire has no types. Coerce and validate at the edge of the handler so the rest of your code works with real values.",
     },
     {
       kind: "code",
@@ -93,7 +93,7 @@ app.get("/users/:id/posts/:postId", (req) => {
     { kind: "heading", id: "wildcards", text: "Wildcards" },
     {
       kind: "paragraph",
-      text: "A trailing `*` captures the rest of the path — everything after the prefix, slashes included — under the key `*`. Use it for catch-all routes, asset paths, or proxy passthroughs.",
+      text: "A trailing `*` captures the rest of the path (everything after the prefix, slashes included) under the key `*`. Use it for catch-all routes, asset paths, or proxy passthroughs.",
     },
     {
       kind: "code",
@@ -144,7 +144,7 @@ app.get("/search", (req) => {
     { kind: "heading", id: "options", text: "Per-route options" },
     {
       kind: "paragraph",
-      text: "Pass an options object before the handler to attach a validation `schema`, route-scoped hooks (`preValidation`, `preHandler`, `preSerialization`), or arbitrary `config`. A hook may return a response to short-circuit — the handler and remaining steps are skipped.",
+      text: "Pass an options object before the handler to attach a validation `schema`, route-scoped hooks (`preValidation`, `preHandler`, `preSerialization`), or arbitrary `config`. A hook may return a response to short-circuit; the handler and remaining steps are then skipped.",
     },
     {
       kind: "table",
@@ -246,7 +246,7 @@ app
         "A `HEAD` request is auto-served from the matching `GET` route — headers and `Content-Length`, no body. Register an explicit `HEAD` route only to override that.",
         "An unmatched method on a known path returns `405` with an `Allow` header listing the methods that path does accept.",
         "An unmatched path returns `404`, or your [not-found handler](/docs/error-handling) when one is set with `setNotFoundHandler`.",
-        "A request carrying a `Transfer-Encoding` header is rejected with `400` — toki frames bodies by `Content-Length` only.",
+        "A request carrying a `Transfer-Encoding` header is rejected with `400`: toki frames bodies by `Content-Length` only.",
       ],
     },
     {

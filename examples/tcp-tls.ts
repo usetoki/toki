@@ -1,5 +1,5 @@
-// A TLS echo server over raw TCP: the handshake is terminated in the native engine, so
-// the handler only ever sees plaintext while ciphertext is on the wire.
+// A TLS echo server over raw TCP. The handshake terminates in the native engine, so the
+// handler only ever sees plaintext; the ciphertext stays on the wire.
 // run:  TLS_CERT=cert.pem TLS_KEY=key.pem node examples/tcp-tls.ts
 // test: openssl s_client -connect 127.0.0.1:9443 -quiet    then type a line
 //
@@ -21,10 +21,10 @@ const server = createTcpServer(
     const who = `${socket.remoteAddress}:${socket.remotePort}`;
     console.log(`connect ${who} (handshake done — session established)`);
 
-    // We read decrypted bytes and write plaintext; the engine encrypts both directions.
+    // Read decrypted bytes, write plaintext; the engine encrypts both directions.
     socket.on("data", (chunk) => {
       if (!socket.write(chunk)) {
-        // backed up — wait for "drain" before writing more (see examples/tcp.ts)
+        // backed up: wait for "drain" before writing more (see examples/tcp.ts)
       }
     });
 

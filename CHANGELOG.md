@@ -7,7 +7,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://sem
 ### Added
 
 - Native HTTP/1.1 engine written in Zig, running single-threaded on Node's own
-  libuv loop — parsing, routing, and I/O stay in native code, handlers stay in JS,
+  libuv loop. Parsing, routing, and I/O stay in native code, handlers stay in JS,
   and there is no thread hop between them.
 - Routing: exact O(1) map plus dynamic `:param` / `*` matching, with native `404`
   and `405` (`Allow` header).
@@ -31,7 +31,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://sem
   `reusePort` for multi-worker scaling.
 - `HEAD` requests are auto-served from the matching `GET` route (headers + the
   computed `Content-Length`, body dropped on the wire).
-- Requests with a `Transfer-Encoding` header are rejected with `400` — the engine
+- Requests with a `Transfer-Encoding` header are rejected with `400`. The engine
   frames bodies by `Content-Length` only, so accepting chunked would risk a TE-vs-CL
   request-smuggling desync.
 - Unix-domain socket binding (`unixPath`) for same-host reverse-proxy setups.

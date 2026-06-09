@@ -7,11 +7,11 @@ export const bodyParsingPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "The request body arrives as raw bytes. Toki never parses it for you up front — you choose how to read it, so a route that doesn't need the body pays nothing. Pick a built-in reader by content type, or call `parseBody()` to dispatch automatically.",
+      text: "The request body arrives as raw bytes. Toki never parses it for you up front; you choose how to read it, so a route that doesn't need the body pays nothing. Pick a built-in reader by content type, or call `parseBody()` to dispatch automatically.",
     },
     {
       kind: "paragraph",
-      text: "Every reader works off `req.body`, a `Uint8Array` (or `null` when there is no body). The buffer is engine-owned and valid only during the handler call, so read it before your first `await` — see the gotcha at the end.",
+      text: "Every reader works off `req.body`, a `Uint8Array` (or `null` when there is no body). The buffer is engine-owned and valid only during the handler call, so read it before your first `await`. See the gotcha at the end.",
     },
     { kind: "heading", id: "readers", text: "Built-in readers" },
     {
@@ -33,7 +33,7 @@ export const bodyParsingPage: DocPage = {
     { kind: "heading", id: "json", text: "JSON" },
     {
       kind: "paragraph",
-      text: "`req.json<T>()` is synchronous and the fast path for API endpoints. It throws on invalid JSON, so guard it — an uncaught throw becomes a `500` via your [error handler](/docs/error-handling). A `body` schema does the parse and the guard for you and replies `400` on bad JSON.",
+      text: "`req.json<T>()` is synchronous and the fast path for API endpoints. It throws on invalid JSON, so guard it; an uncaught throw becomes a `500` via your [error handler](/docs/error-handling). A `body` schema does the parse and the guard for you and replies `400` on bad JSON.",
     },
     {
       kind: "code",
@@ -127,7 +127,7 @@ app.post("/login", (req) => {
     { kind: "heading", id: "raw", text: "Raw bytes" },
     {
       kind: "paragraph",
-      text: "For binary payloads — protobuf, an uploaded image posted as the whole body, a custom wire format — read `req.body` directly. It is the engine buffer with no copy.",
+      text: "For binary payloads (protobuf, an uploaded image posted as the whole body, a custom wire format) read `req.body` directly. It is the engine buffer with no copy.",
     },
     {
       kind: "code",
@@ -210,7 +210,7 @@ app.post("/ingest", async (req) => {
     { kind: "heading", id: "size-limits", text: "Size limits" },
     {
       kind: "paragraph",
-      text: "The engine caps body size at `maxBodyBytes`, set on `listen` and defaulting to 1 MiB. A request whose body exceeds the cap is rejected natively, before any JS runs — your handler is never invoked, so there is nothing to catch. Raise it for upload endpoints; lower it to shrink your attack surface.",
+      text: "The engine caps body size at `maxBodyBytes`, set on `listen` and defaulting to 1 MiB. A request whose body exceeds the cap is rejected natively, before any JS runs: your handler is never invoked, so there is nothing to catch. Raise it for upload endpoints; lower it to shrink your attack surface.",
     },
     {
       kind: "code",
@@ -227,7 +227,7 @@ app.post("/upload", (req) => reply.json({ bytes: req.body?.length ?? 0 }));`,
     {
       kind: "callout",
       tone: "warning",
-      text: "`maxBodyBytes` is process-wide, not per-route — toki runs one engine per process. To enforce a tighter per-route cap, check `req.body.length` in a `preHandler` hook and reply `413` yourself.",
+      text: "`maxBodyBytes` is process-wide, not per-route, since toki runs one engine per process. To enforce a tighter per-route cap, check `req.body.length` in a `preHandler` hook and reply `413` yourself.",
     },
     {
       kind: "callout",
@@ -237,7 +237,7 @@ app.post("/upload", (req) => reply.json({ bytes: req.body?.length ?? 0 }));`,
     {
       kind: "callout",
       tone: "warning",
-      text: "Requests with `Transfer-Encoding: chunked` are rejected with `400`. Send a `Content-Length` — toki frames bodies by length, and accepting chunked would risk a request-smuggling desync.",
+      text: "Requests with `Transfer-Encoding: chunked` are rejected with `400`. Send a `Content-Length`: toki frames bodies by length, and accepting chunked would risk a request-smuggling desync.",
     },
   ],
 };
