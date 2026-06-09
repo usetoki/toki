@@ -22,9 +22,7 @@ export interface TcpRateLimitOptions {
 }
 
 // queued socket activity while an async store decides; replayed in order on allow.
-type Pending =
-  | { ev: "data"; chunk: Buffer }
-  | { ev: "drain" | "end" | "close" };
+type Pending = { ev: "data"; chunk: Buffer } | { ev: "drain" | "end" | "close" };
 
 /**
  * Per-key connection limiting for `createTcpServer`, wrapping the connection handler.
