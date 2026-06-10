@@ -49,13 +49,25 @@ app.listen(3000);`,
       kind: "table",
       headers: ["Option", "Default", "Description"],
       rows: [
-        ["`cacheControl`", "`\"public, max-age=3600\"`", "`Cache-Control` header sent with every file in this mount."],
-        ["`index`", "`\"index.html\"`", "File served for a directory URL. `false` disables it."],
-        ["`maxFileBytes`", "`52428800` (50 MiB)", "Skip files larger than this — they are never loaded into memory."],
+        [
+          "`cacheControl`",
+          '`"public, max-age=3600"`',
+          "`Cache-Control` header sent with every file in this mount.",
+        ],
+        ["`index`", '`"index.html"`', "File served for a directory URL. `false` disables it."],
+        [
+          "`maxFileBytes`",
+          "`52428800` (50 MiB)",
+          "Skip files larger than this — they are never loaded into memory.",
+        ],
         ["`compress`", "`true`", "Pre-compute gzip/brotli variants for compressible files."],
         ["`compressMinBytes`", "`1024`", "Skip compression for files below this size."],
         ["`gzipLevel`", "`9`", "gzip level 0–9 (best by default — computed once at startup)."],
-        ["`brotliQuality`", "`11`", "brotli quality 0–11 (best by default — computed once at startup)."],
+        [
+          "`brotliQuality`",
+          "`11`",
+          "brotli quality 0–11 (best by default — computed once at startup).",
+        ],
       ],
     },
     {
@@ -66,7 +78,7 @@ app.listen(3000);`,
     { kind: "heading", id: "index", text: "Directory index" },
     {
       kind: "paragraph",
-      text: "When `index` is set, the index file also answers its directory URL — both with and without a trailing slash. With the default `\"index.html\"`, a request to `/assets`, `/assets/`, or `/assets/index.html` all return the same file. This is what you want for a single-page app or a docs site.",
+      text: 'When `index` is set, the index file also answers its directory URL — both with and without a trailing slash. With the default `"index.html"`, a request to `/assets`, `/assets/`, or `/assets/index.html` all return the same file. This is what you want for a single-page app or a docs site.',
     },
     {
       kind: "code",

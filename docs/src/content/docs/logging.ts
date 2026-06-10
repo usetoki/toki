@@ -78,7 +78,7 @@ app.get("/orders/:id", (req) => {
     {
       kind: "callout",
       tone: "tip",
-      text: "`child` merges bindings, so you can layer them: a service-wide child for `{ service: \"api\" }`, then a per-request child for `{ reqId }`. Inner bindings win on a key clash.",
+      text: '`child` merges bindings, so you can layer them: a service-wide child for `{ service: "api" }`, then a per-request child for `{ reqId }`. Inner bindings win on a key clash.',
     },
     { kind: "heading", id: "custom", text: "Custom logger" },
     {
@@ -113,7 +113,7 @@ createApp({ logger: silentLogger });`,
     {
       kind: "callout",
       tone: "note",
-      text: "Internal failures — a handler that throws, a stream that breaks, a hook that rejects — are logged through this same logger at `error`. Set `logger: \"error\"` in production if you only want those.",
+      text: 'Internal failures — a handler that throws, a stream that breaks, a hook that rejects — are logged through this same logger at `error`. Set `logger: "error"` in production if you only want those.',
     },
   ],
 };

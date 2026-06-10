@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const bodyParsingPage: DocPage = {
   slug: "body-parsing",
   title: "Body parsing & forms",
-  description: "Read JSON, text, urlencoded, multipart, and raw bodies; add custom content-type parsers; size limits.",
+  description:
+    "Read JSON, text, urlencoded, multipart, and raw bodies; add custom content-type parsers; size limits.",
   blocks: [
     {
       kind: "paragraph",
@@ -19,10 +20,22 @@ export const bodyParsingPage: DocPage = {
       headers: ["Accessor", "Returns", "Notes"],
       rows: [
         ["`req.body`", "`Uint8Array | null`", "Raw bytes, untouched."],
-        ["`req.text()`", "`string`", "UTF-8 decode; `\"\"` when there is no body."],
-        ["`req.json<T>()`", "`T`", "`JSON.parse` of the text. Throws on malformed input. `T` is an unchecked cast."],
-        ["`req.form`", "`ParsedForm | null`", "Urlencoded or multipart; `null` for any other content type. Lazy + cached."],
-        ["`await req.parseBody<T>()`", "`Promise<T>`", "Dispatch by content type, fall back to built-ins, then raw bytes. Cached."],
+        ["`req.text()`", "`string`", 'UTF-8 decode; `""` when there is no body.'],
+        [
+          "`req.json<T>()`",
+          "`T`",
+          "`JSON.parse` of the text. Throws on malformed input. `T` is an unchecked cast.",
+        ],
+        [
+          "`req.form`",
+          "`ParsedForm | null`",
+          "Urlencoded or multipart; `null` for any other content type. Lazy + cached.",
+        ],
+        [
+          "`await req.parseBody<T>()`",
+          "`Promise<T>`",
+          "Dispatch by content type, fall back to built-ins, then raw bytes. Cached.",
+        ],
       ],
     },
     {
@@ -172,7 +185,7 @@ app.post("/login", (req) => {
     { kind: "heading", id: "content-type-parsers", text: "Custom content-type parsers" },
     {
       kind: "paragraph",
-      text: "`addContentTypeParser(type, parser)` registers a parser consulted by `parseBody()`. `type` matches case-insensitively as a prefix (e.g. `\"application/xml\"`), a `RegExp`, or `\"*\"` for any. Pass an array to register the same parser for several types. The parser gets `(req, body)` and may be async. A child [scope](/docs/plugins) overrides an ancestor for the same type.",
+      text: '`addContentTypeParser(type, parser)` registers a parser consulted by `parseBody()`. `type` matches case-insensitively as a prefix (e.g. `"application/xml"`), a `RegExp`, or `"*"` for any. Pass an array to register the same parser for several types. The parser gets `(req, body)` and may be async. A child [scope](/docs/plugins) overrides an ancestor for the same type.',
     },
     {
       kind: "code",

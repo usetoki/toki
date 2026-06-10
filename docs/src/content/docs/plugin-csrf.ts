@@ -142,7 +142,7 @@ csrf(app, { secret, checkOrigin: ["app.example.com"] });`,
         [
           "`ignoreMethods`",
           "`string[]`",
-          "`[\"GET\",\"HEAD\",\"OPTIONS\"]`",
+          '`["GET","HEAD","OPTIONS"]`',
           "Methods that skip the check.",
         ],
         [

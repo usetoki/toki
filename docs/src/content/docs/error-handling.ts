@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const errorHandlingPage: DocPage = {
   slug: "error-handling",
   title: "Error handling",
-  description: "Turn thrown errors into responses with error handlers, map status codes, handle not-found, and catch async failures.",
+  description:
+    "Turn thrown errors into responses with error handlers, map status codes, handle not-found, and catch async failures.",
   blocks: [
     {
       kind: "paragraph",

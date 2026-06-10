@@ -26,7 +26,12 @@ export const hooksPage: DocPage = {
         ["`preParsing`", "Before the body is read", "Yes", "`(req) => reply?`"],
         ["`preValidation`", "Before the route schema runs", "Yes", "`(req) => reply?`"],
         ["`preHandler`", "Right before the handler", "Yes", "`(req) => reply?`"],
-        ["`preSerialization`", "On a plain return value, before JSON encoding", "Transforms it", "`(req, payload) => payload`"],
+        [
+          "`preSerialization`",
+          "On a plain return value, before JSON encoding",
+          "Transforms it",
+          "`(req, payload) => payload`",
+        ],
         ["`onResponse`", "After the response is built", "Replaces it", "`(req, res) => res?`"],
         ["`onSend`", "Last, just before the bytes go out", "Replaces it", "`(req, res) => res?`"],
         ["`onTimeout`", "When a handler exceeds `requestTimeoutMs`", "No", "`(req) => void`"],
@@ -147,7 +152,7 @@ app.addHook("onSend", (req, res) => {
     {
       kind: "callout",
       tone: "tip",
-      text: "`compression()` is just an `onSend` hook. `app.addHook(\"onSend\", compression())` brotli/gzip-encodes text responses off the event loop per `Accept-Encoding`.",
+      text: '`compression()` is just an `onSend` hook. `app.addHook("onSend", compression())` brotli/gzip-encodes text responses off the event loop per `Accept-Encoding`.',
     },
     {
       kind: "code",

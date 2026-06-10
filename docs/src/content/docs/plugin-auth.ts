@@ -103,7 +103,7 @@ app.get("/data", { preHandler: guard }, (req) => reply.json(req.user));`,
     { kind: "heading", id: "compose", text: "Composing strategies" },
     {
       kind: "paragraph",
-      text: "Pass an array to try several strategies. The default mode is `\"anyOf\"`: the first strategy to return a user wins. Use `\"allOf\"` to require every strategy to pass (e.g. a valid API key *and* Basic credentials for an internal service).",
+      text: 'Pass an array to try several strategies. The default mode is `"anyOf"`: the first strategy to return a user wins. Use `"allOf"` to require every strategy to pass (e.g. a valid API key *and* Basic credentials for an internal service).',
     },
     {
       kind: "code",
@@ -153,12 +153,12 @@ const guard = auth(basic(check), {
       kind: "table",
       headers: ["Strategy", "Reads", "Options"],
       rows: [
-        ["`basic(verify, opts?)`", "`Authorization: Basic`", "`realm` (default `\"Restricted\"`)"],
+        ["`basic(verify, opts?)`", "`Authorization: Basic`", '`realm` (default `"Restricted"`)'],
         ["`bearer(verify)`", "`Authorization: Bearer <token>`", "—"],
         [
           "`apiKey(verify, opts?)`",
           "`x-api-key` header, optional query",
-          "`header` (default `\"x-api-key\"`), `query`",
+          '`header` (default `"x-api-key"`), `query`',
         ],
       ],
     },
@@ -169,8 +169,8 @@ const guard = auth(basic(check), {
       rows: [
         [
           "`mode`",
-          "`\"anyOf\" \\| \"allOf\"`",
-          "`\"anyOf\"`",
+          '`"anyOf" \\| "allOf"`',
+          '`"anyOf"`',
           "`anyOf`: first success wins. `allOf`: every strategy must pass.",
         ],
         [

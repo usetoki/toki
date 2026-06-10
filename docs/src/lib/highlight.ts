@@ -16,11 +16,48 @@ export interface Token {
 }
 
 const KEYWORDS: ReadonlySet<string> = new Set([
-  "const", "let", "var", "function", "return", "import", "export", "from", "as",
-  "async", "await", "if", "else", "for", "while", "do", "new", "class", "extends",
-  "implements", "interface", "type", "void", "null", "undefined", "true", "false",
-  "this", "typeof", "instanceof", "in", "of", "default", "switch", "case", "break",
-  "continue", "yield", "public", "private", "readonly", "static",
+  "const",
+  "let",
+  "var",
+  "function",
+  "return",
+  "import",
+  "export",
+  "from",
+  "as",
+  "async",
+  "await",
+  "if",
+  "else",
+  "for",
+  "while",
+  "do",
+  "new",
+  "class",
+  "extends",
+  "implements",
+  "interface",
+  "type",
+  "void",
+  "null",
+  "undefined",
+  "true",
+  "false",
+  "this",
+  "typeof",
+  "instanceof",
+  "in",
+  "of",
+  "default",
+  "switch",
+  "case",
+  "break",
+  "continue",
+  "yield",
+  "public",
+  "private",
+  "readonly",
+  "static",
 ]);
 
 const TS_PATTERN = new RegExp(
@@ -48,7 +85,8 @@ function tokenizeTs(code: string): Token[] {
   let cursor = 0;
   TS_PATTERN.lastIndex = 0;
   for (let match = TS_PATTERN.exec(code); match !== null; match = TS_PATTERN.exec(code)) {
-    if (match.index > cursor) tokens.push({ value: code.slice(cursor, match.index), kind: "plain" });
+    if (match.index > cursor)
+      tokens.push({ value: code.slice(cursor, match.index), kind: "plain" });
     const groups = match.groups ?? {};
     const text = match[0];
     let kind: TokenKind = "plain";
@@ -73,7 +111,8 @@ function tokenizeBash(code: string): Token[] {
   let cursor = 0;
   BASH_PATTERN.lastIndex = 0;
   for (let match = BASH_PATTERN.exec(code); match !== null; match = BASH_PATTERN.exec(code)) {
-    if (match.index > cursor) tokens.push({ value: code.slice(cursor, match.index), kind: "plain" });
+    if (match.index > cursor)
+      tokens.push({ value: code.slice(cursor, match.index), kind: "plain" });
     const groups = match.groups ?? {};
     const kind: TokenKind =
       groups.comment !== undefined ? "comment" : groups.string !== undefined ? "string" : "keyword";

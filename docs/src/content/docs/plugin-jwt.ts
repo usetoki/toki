@@ -166,7 +166,7 @@ const token = signJwt({ sub: "user-42", role: "admin" }, privateKeyPem, {
           "Public key, HMAC secret, or a JWKS resolver.",
         ],
         ["`getToken`", "`(req) => string \\| null`", "Bearer header", "jwtAuth only."],
-        ["`decorateAs`", "`string`", "`\"user\"`", "jwtAuth: request property for the payload."],
+        ["`decorateAs`", "`string`", '`"user"`', "jwtAuth: request property for the payload."],
         ["`onUnauthorized`", "`(req, err) => HandlerResult`", "401 JSON", "jwtAuth only."],
       ],
     },
@@ -180,13 +180,17 @@ const token = signJwt({ sub: "user-42", role: "admin" }, privateKeyPem, {
         ["`notBefore`", "`number`", "Seconds until `nbf`. Must be finite."],
         ["`issuer` / `audience` / `subject`", "`string` / …", "Sets `iss` / `aud` / `sub`."],
         ["`keyid`", "`string`", "Sets the `kid` header."],
-        ["`header`", "`Record<string, unknown>`", "Extra header fields (`alg`/`typ` stay authoritative)."],
+        [
+          "`header`",
+          "`Record<string, unknown>`",
+          "Extra header fields (`alg`/`typ` stay authoritative).",
+        ],
       ],
     },
     {
       kind: "callout",
       tone: "note",
-      text: "`createJwksResolver` only imports keys node can build (`createPublicKey({ key, format: \"jwk\" })`); unsupported `kty` entries are skipped rather than throwing the whole fetch. A JWK whose `kid` is missing is stored under the empty-string key.",
+      text: '`createJwksResolver` only imports keys node can build (`createPublicKey({ key, format: "jwk" })`); unsupported `kty` entries are skipped rather than throwing the whole fetch. A JWK whose `kid` is missing is stored under the empty-string key.',
     },
   ],
 };

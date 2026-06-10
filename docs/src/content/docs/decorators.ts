@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const decoratorsPage: DocPage = {
   slug: "decorators",
   title: "Decorators",
-  description: "Attach shared services to the app and per-request values to every request, with plugin scoping.",
+  description:
+    "Attach shared services to the app and per-request values to every request, with plugin scoping.",
   blocks: [
     {
       kind: "paragraph",
@@ -14,7 +15,11 @@ export const decoratorsPage: DocPage = {
       headers: ["Method", "Attaches to", "Scope"],
       rows: [
         ["`app.decorate(name, value)`", "the app instance", "Global — set once at startup."],
-        ["`app.decorateRequest(name, value)`", "every request in the scope", "Encapsulated — stays within the scope and its children."],
+        [
+          "`app.decorateRequest(name, value)`",
+          "every request in the scope",
+          "Encapsulated — stays within the scope and its children.",
+        ],
       ],
     },
     { kind: "heading", id: "app", text: "App decorators" },

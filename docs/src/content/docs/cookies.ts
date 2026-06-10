@@ -85,7 +85,7 @@ export const cookiesPage: DocPage = {
     {
       kind: "callout",
       tone: "warning",
-      text: "`path` defaults to `/` on both set and clear, so a cookie scoped to a subpath (e.g. `path: \"/admin\"`) will not be cleared by a bare `clearCookie(name)` — pass the matching `path`.",
+      text: '`path` defaults to `/` on both set and clear, so a cookie scoped to a subpath (e.g. `path: "/admin"`) will not be cleared by a bare `clearCookie(name)` — pass the matching `path`.',
     },
     { kind: "heading", id: "options", text: "Cookie options" },
     {
@@ -94,7 +94,11 @@ export const cookiesPage: DocPage = {
       rows: [
         ["`httpOnly`", "`boolean`", "Hide from `document.cookie` (blocks XSS theft)."],
         ["`secure`", "`boolean`", "Only sent over HTTPS."],
-        ["`sameSite`", '`"Strict" \\| "Lax" \\| "None"`', "CSRF protection; `None` requires `secure`."],
+        [
+          "`sameSite`",
+          '`"Strict" \\| "Lax" \\| "None"`',
+          "CSRF protection; `None` requires `secure`.",
+        ],
         ["`path`", "`string`", "Path scope. Always emitted; defaults to `/`."],
         ["`domain`", "`string`", "Domain scope. Omitted unless set."],
         ["`maxAge`", "`number`", "Lifetime in seconds; truncated to an integer."],
@@ -105,7 +109,7 @@ export const cookiesPage: DocPage = {
     {
       kind: "callout",
       tone: "tip",
-      text: "For a session cookie pick `httpOnly`, `secure`, and `sameSite: \"Lax\"` as a sane default. Omit `maxAge`/`expires` to make it a session cookie the browser drops on close.",
+      text: 'For a session cookie pick `httpOnly`, `secure`, and `sameSite: "Lax"` as a sane default. Omit `maxAge`/`expires` to make it a session cookie the browser drops on close.',
     },
     {
       kind: "paragraph",

@@ -16,10 +16,18 @@ export const requestPage: DocPage = {
       rows: [
         ["`req.method`", "`RouteMethod`", 'The HTTP method, e.g. `"GET"`.'],
         ["`req.path`", "`string`", "Path without the query string, e.g. `/users/42`."],
-        ["`req.params`", "`Record<string, string \\| undefined>`", "Captured `:param` / `*` values (frozen)."],
+        [
+          "`req.params`",
+          "`Record<string, string \\| undefined>`",
+          "Captured `:param` / `*` values (frozen).",
+        ],
         ["`req.query`", "`URLSearchParams`", "Parsed query string."],
         ["`req.headers`", "`Headers`", "A standard Web `Headers` object."],
-        ["`req.cookies`", "`Record<string, string \\| undefined>`", "Parsed `Cookie` header — see [Cookies](/docs/cookies)."],
+        [
+          "`req.cookies`",
+          "`Record<string, string \\| undefined>`",
+          "Parsed `Cookie` header — see [Cookies](/docs/cookies).",
+        ],
         ["`req.body`", "`Uint8Array \\| null`", "Raw request body, or `null` when there is none."],
         ["`req.ip`", "`string`", "Peer IP (empty for a unix socket)."],
         ["`req.hostname`", "`string`", "`Host` header without the port."],
@@ -35,7 +43,7 @@ export const requestPage: DocPage = {
     { kind: "heading", id: "params", text: "Path parameters" },
     {
       kind: "paragraph",
-      text: "`req.params` holds the values captured by the route pattern. A `:name` segment lands under that name; a trailing `*` lands under `\"*\"`. The record is frozen and null-prototype, and an absent key reads as `undefined`, so values are typed `string | undefined`. See [Routing](/docs/routing) for the patterns.",
+      text: '`req.params` holds the values captured by the route pattern. A `:name` segment lands under that name; a trailing `*` lands under `"*"`. The record is frozen and null-prototype, and an absent key reads as `undefined`, so values are typed `string | undefined`. See [Routing](/docs/routing) for the patterns.',
     },
     {
       kind: "code",
@@ -90,12 +98,12 @@ app.get("/search", (req) => {
     {
       kind: "callout",
       tone: "tip",
-      text: "For host, protocol, and client IP behind a proxy, prefer the typed accessors: `req.hostname` strips the port from `Host`, and `req.protocol` returns `\"https\"` when `X-Forwarded-Proto` says so.",
+      text: 'For host, protocol, and client IP behind a proxy, prefer the typed accessors: `req.hostname` strips the port from `Host`, and `req.protocol` returns `"https"` when `X-Forwarded-Proto` says so.',
     },
     { kind: "heading", id: "body", text: "Reading the body" },
     {
       kind: "paragraph",
-      text: "The raw body is on `req.body` as a `Uint8Array` (or `null`). Convenience readers decode it: `req.text()` returns a UTF-8 string (or `\"\"`), and `req.json<T>()` parses it. `T` is an unchecked assertion that throws on malformed input.",
+      text: 'The raw body is on `req.body` as a `Uint8Array` (or `null`). Convenience readers decode it: `req.text()` returns a UTF-8 string (or `""`), and `req.json<T>()` parses it. `T` is an unchecked assertion that throws on malformed input.',
     },
     {
       kind: "code",

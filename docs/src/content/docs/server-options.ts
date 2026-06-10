@@ -16,15 +16,19 @@ export const serverOptionsPage: DocPage = {
       rows: [
         [
           "`host`",
-          "`\"0.0.0.0\"`",
-          "Bind interface. Use `\"127.0.0.1\"` to stay local. Pass `0` as the port to let the OS pick a free one (read it back from `handle.port`).",
+          '`"0.0.0.0"`',
+          'Bind interface. Use `"127.0.0.1"` to stay local. Pass `0` as the port to let the OS pick a free one (read it back from `handle.port`).',
         ],
         [
           "`maxBodyBytes`",
           "1 MiB",
           "Largest accepted request body. A larger body gets a native `413` before reaching JS.",
         ],
-        ["`maxHeaders`", "`128`", "Max header lines per request; over this the request is rejected."],
+        [
+          "`maxHeaders`",
+          "`128`",
+          "Max header lines per request; over this the request is rejected.",
+        ],
         [
           "`headerTimeoutMs`",
           "`0`",
@@ -81,7 +85,7 @@ export const serverOptionsPage: DocPage = {
         [
           "`logger`",
           "off",
-          "A `Logger`, a level string (`\"debug\" | \"info\" | \"warn\" | \"error\"`) for the built-in console logger, or `false`/omitted for silence.",
+          'A `Logger`, a level string (`"debug" | "info" | "warn" | "error"`) for the built-in console logger, or `false`/omitted for silence.',
         ],
         [
           "`requestTimeoutMs`",

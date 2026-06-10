@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const tcpPage: DocPage = {
   slug: "tcp",
   title: "TCP server",
-  description: "Raw TCP sockets backed by native libuv — accept connections, read and write bytes, with real backpressure.",
+  description:
+    "Raw TCP sockets backed by native libuv — accept connections, read and write bytes, with real backpressure.",
   blocks: [
     {
       kind: "paragraph",
@@ -41,10 +42,19 @@ console.log("listening on", port);`,
       rows: [
         ["`socket.remoteAddress`", "Peer IP as a string."],
         ["`socket.remotePort`", "Peer port as a number."],
-        ["`socket.write(data)`", "Send bytes (`Uint8Array`) or a UTF-8 `string`. Returns `false` when the send buffer is backed up."],
-        ["`socket.end(data?)`", "Optionally send a last chunk, flush queued writes, then half-close (FIN)."],
+        [
+          "`socket.write(data)`",
+          "Send bytes (`Uint8Array`) or a UTF-8 `string`. Returns `false` when the send buffer is backed up.",
+        ],
+        [
+          "`socket.end(data?)`",
+          "Optionally send a last chunk, flush queued writes, then half-close (FIN).",
+        ],
         ["`socket.destroy()`", "Drop the connection now, discarding anything still queued."],
-        ["`socket.on(event, fn)`", "Subscribe to `data`, `drain`, or `close`. `off` removes a listener."],
+        [
+          "`socket.on(event, fn)`",
+          "Subscribe to `data`, `drain`, or `close`. `off` removes a listener.",
+        ],
       ],
     },
     {
@@ -156,12 +166,37 @@ createTcpServer((socket) => {
       kind: "table",
       headers: ["Option", "Type", "Default", "Description"],
       rows: [
-        ["`reusePort`", "`boolean`", "`false`", "Set `SO_REUSEPORT` so several worker processes can share one port (Linux/BSD)."],
-        ["`noDelay`", "`boolean`", "`false`", "Disable Nagle's algorithm — send small writes immediately for lower latency."],
+        [
+          "`reusePort`",
+          "`boolean`",
+          "`false`",
+          "Set `SO_REUSEPORT` so several worker processes can share one port (Linux/BSD).",
+        ],
+        [
+          "`noDelay`",
+          "`boolean`",
+          "`false`",
+          "Disable Nagle's algorithm — send small writes immediately for lower latency.",
+        ],
         ["`backlog`", "`number`", "`512`", "Size of the kernel's pending-connection queue."],
-        ["`maxWriteQueue`", "`number`", "`16 MiB`", "Per-connection unflushed-write ceiling; a peer that stops reading is reset past it instead of buffered without bound."],
-        ["`rateLimit`", "`{ max, windowMs }`", "off", "Native per-IP accept limit — see [Rate limiting accepts](#rate-limit)."],
-        ["`engine`", "`\"libuv\" | \"io_uring\"`", "`\"libuv\"`", "I/O backend — see [The io_uring engine](#io-uring)."],
+        [
+          "`maxWriteQueue`",
+          "`number`",
+          "`16 MiB`",
+          "Per-connection unflushed-write ceiling; a peer that stops reading is reset past it instead of buffered without bound.",
+        ],
+        [
+          "`rateLimit`",
+          "`{ max, windowMs }`",
+          "off",
+          "Native per-IP accept limit — see [Rate limiting accepts](#rate-limit).",
+        ],
+        [
+          "`engine`",
+          '`"libuv" | "io_uring"`',
+          '`"libuv"`',
+          "I/O backend — see [The io_uring engine](#io-uring).",
+        ],
       ],
     },
     {
@@ -177,7 +212,7 @@ createTcpServer((socket) => {
     { kind: "heading", id: "io-uring", text: "The io_uring engine" },
     {
       kind: "paragraph",
-      text: "By default the raw TCP server runs on libuv, like the rest of toki. On Linux you can opt a server onto `engine: \"io_uring\"` instead: accept, receive, and send all go through a Linux io_uring ring that toki drives on Node's own event loop (watched with one `uv_poll` on the ring fd), so handlers are still called synchronously with no thread hop. Reads come from a shared, fixed-size pool of kernel-filled buffers, so read memory tracks the pool rather than the connection count, and the per-event syscall overhead is lower than the readiness-then-read model.",
+      text: 'By default the raw TCP server runs on libuv, like the rest of toki. On Linux you can opt a server onto `engine: "io_uring"` instead: accept, receive, and send all go through a Linux io_uring ring that toki drives on Node\'s own event loop (watched with one `uv_poll` on the ring fd), so handlers are still called synchronously with no thread hop. Reads come from a shared, fixed-size pool of kernel-filled buffers, so read memory tracks the pool rather than the connection count, and the per-event syscall overhead is lower than the readiness-then-read model.',
     },
     {
       kind: "code",
@@ -203,7 +238,7 @@ server.listen(9000);`,
     {
       kind: "callout",
       tone: "warning",
-      text: "TLS is not terminated on the io_uring engine yet: a server that sets both `engine: \"io_uring\"` and `tls` runs on libuv (with a notice). Run io_uring plaintext behind a TLS-terminating proxy, or use the libuv engine for in-process TLS.",
+      text: 'TLS is not terminated on the io_uring engine yet: a server that sets both `engine: "io_uring"` and `tls` runs on libuv (with a notice). Run io_uring plaintext behind a TLS-terminating proxy, or use the libuv engine for in-process TLS.',
     },
     {
       kind: "callout",
@@ -286,7 +321,9 @@ socket.on("data", (chunk) => {
       },
     },
     {
-      kind: "heading", id: "tls-options", text: "The tls option",
+      kind: "heading",
+      id: "tls-options",
+      text: "The tls option",
     },
     {
       kind: "paragraph",
@@ -297,10 +334,30 @@ socket.on("data", (chunk) => {
       headers: ["Field", "Type", "Default", "Description"],
       rows: [
         ["`cert`", "`string | Uint8Array`", "—", "PEM certificate chain, leaf first. Required."],
-        ["`key`", "`string | Uint8Array`", "—", "PEM private key for the leaf cert — RSA or EC. Required."],
-        ["`requestCert`", "`boolean`", "`false`", "Ask the client for a certificate during the handshake (turns on mTLS). Requires `ca`."],
-        ["`ca`", "`string | Uint8Array`", "—", "PEM CA bundle the client certificate is verified against. Mandatory once `requestCert` is set."],
-        ["`rejectUnauthorized`", "`boolean`", "`false`", "With `requestCert`, fail the handshake when the client cert is missing or untrusted. Off: allow the connection and report the result on `socket.authorized`."],
+        [
+          "`key`",
+          "`string | Uint8Array`",
+          "—",
+          "PEM private key for the leaf cert — RSA or EC. Required.",
+        ],
+        [
+          "`requestCert`",
+          "`boolean`",
+          "`false`",
+          "Ask the client for a certificate during the handshake (turns on mTLS). Requires `ca`.",
+        ],
+        [
+          "`ca`",
+          "`string | Uint8Array`",
+          "—",
+          "PEM CA bundle the client certificate is verified against. Mandatory once `requestCert` is set.",
+        ],
+        [
+          "`rejectUnauthorized`",
+          "`boolean`",
+          "`false`",
+          "With `requestCert`, fail the handshake when the client cert is missing or untrusted. Off: allow the connection and report the result on `socket.authorized`.",
+        ],
       ],
     },
     {

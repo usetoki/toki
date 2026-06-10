@@ -11,7 +11,7 @@ export const FEATURES: readonly Feature[] = [
     icon: "🔌",
     title: "Raw TCP",
     description:
-      "createTcpServer opens a libuv-backed listener for your own wire protocol: pooled connections, real backpressure, half-close, low memory.",
+      "createTcpServer opens a listener for your own wire protocol: pooled connections, real backpressure, half-close, low memory — on libuv, or an optional Linux io_uring engine.",
   },
   {
     icon: "🔐",

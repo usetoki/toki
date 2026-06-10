@@ -153,8 +153,18 @@ export default function admin(instance: TokiInstance) {
         ["dir", "string", "—", "Required. Directory of route modules to load."],
         ["prefix", "string", '"/"', "Base prefix prepended to every derived route."],
         ["extensions", "string[]", '[".js", ".mjs"]', "File extensions to load."],
-        ["ignore", "(rel: string) => boolean", "dotfiles, `_*`, tests, `.d.ts`, `.map`", "Skip a file by its path relative to `dir`."],
-        ["options", "PluginOptions", "—", "Options handed to a module that default-exports a plugin."],
+        [
+          "ignore",
+          "(rel: string) => boolean",
+          "dotfiles, `_*`, tests, `.d.ts`, `.map`",
+          "Skip a file by its path relative to `dir`.",
+        ],
+        [
+          "options",
+          "PluginOptions",
+          "—",
+          "Options handed to a module that default-exports a plugin.",
+        ],
       ],
     },
     {

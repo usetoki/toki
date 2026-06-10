@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const applicationPage: DocPage = {
   slug: "application",
   title: "The application",
-  description: "Create an app, configure it, register plugins and decorators, and manage its lifecycle.",
+  description:
+    "Create an app, configure it, register plugins and decorators, and manage its lifecycle.",
   blocks: [
     {
       kind: "paragraph",
@@ -72,7 +73,11 @@ handle.close();`,
       headers: ["Member", "Type", "Meaning"],
       rows: [
         ["`port`", "`number`", "The bound port. Resolves `0` to the OS-assigned port."],
-        ["`close()`", "`() => void`", "Run `onClose` hooks, then stop accepting and close every live connection."],
+        [
+          "`close()`",
+          "`() => void`",
+          "Run `onClose` hooks, then stop accepting and close every live connection.",
+        ],
       ],
     },
     {
@@ -83,13 +88,17 @@ handle.close();`,
       kind: "table",
       headers: ["Option", "Default", "Effect"],
       rows: [
-        ["`host`", "`\"0.0.0.0\"`", "Interface to bind."],
+        ["`host`", '`"0.0.0.0"`', "Interface to bind."],
         ["`maxBodyBytes`", "1 MiB", "Reject larger request bodies."],
         ["`headerTimeoutMs`", "off", "Close a connection that sends no data in time."],
         ["`backlog`", "512", "Pending-connection queue depth."],
         ["`reusePort`", "`false`", "`SO_REUSEPORT` so multiple processes can share the port."],
         ["`unixPath`", "—", "Bind a unix-domain socket instead of TCP (the port is ignored)."],
-        ["`rateLimit`", "off", "Native per-IP `{ max, windowMs }`; over-limit gets a `429` before JS."],
+        [
+          "`rateLimit`",
+          "off",
+          "Native per-IP `{ max, windowMs }`; over-limit gets a `429` before JS.",
+        ],
         ["`tls`", "off", "`{ cert, key }` to terminate [HTTPS](/docs/https) directly (TLS 1.3)."],
       ],
     },

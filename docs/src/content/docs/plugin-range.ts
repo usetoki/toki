@@ -113,7 +113,7 @@ app.get("/report.pdf", (req) =>
     },
     {
       kind: "paragraph",
-      text: "`parseRange(header, size)` is exported if you need the resolved offsets without `sendRange` — for example to slice an object-store read or build your own `Content-Range`. It returns `{ start, end }` (inclusive), `\"invalid\"` for an unsatisfiable range, or `null` to serve the whole entity.",
+      text: '`parseRange(header, size)` is exported if you need the resolved offsets without `sendRange` — for example to slice an object-store read or build your own `Content-Range`. It returns `{ start, end }` (inclusive), `"invalid"` for an unsatisfiable range, or `null` to serve the whole entity.',
     },
     {
       kind: "code",

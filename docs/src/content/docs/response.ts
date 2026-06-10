@@ -150,7 +150,7 @@ app.get("/download", (req) => {
     { kind: "heading", id: "stream", text: "Streaming" },
     {
       kind: "paragraph",
-      text: "`reply.stream(source, options?)` hands off a chunked response. `source` is an async/sync iterable or a Node `Readable`; each chunk (bytes or a UTF-8 string) is written as it arrives via `Transfer-Encoding: chunked`. A stream bypasses response hooks and serialization; there is no materialized body. For server-sent events, set `contentType: \"text/event-stream\"`.",
+      text: '`reply.stream(source, options?)` hands off a chunked response. `source` is an async/sync iterable or a Node `Readable`; each chunk (bytes or a UTF-8 string) is written as it arrives via `Transfer-Encoding: chunked`. A stream bypasses response hooks and serialization; there is no materialized body. For server-sent events, set `contentType: "text/event-stream"`.',
     },
     {
       kind: "code",

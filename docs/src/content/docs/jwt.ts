@@ -36,14 +36,14 @@ const payload = verifyJwt(token, secret);
     {
       kind: "callout",
       tone: "warning",
-      text: "`expiresIn` and `notBefore` are durations in SECONDS, not strings like `\"1h\"`. `signJwt({...}, secret, { expiresIn: 3600 })` is one hour.",
+      text: '`expiresIn` and `notBefore` are durations in SECONDS, not strings like `"1h"`. `signJwt({...}, secret, { expiresIn: 3600 })` is one hour.',
     },
     { kind: "heading", id: "sign-options", text: "SignOptions" },
     {
       kind: "table",
       headers: ["Option", "Default", "Claim", "Description"],
       rows: [
-        ["`algorithm`", "`\"HS256\"`", "—", "`HS256` | `HS384` | `HS512`."],
+        ["`algorithm`", '`"HS256"`', "—", "`HS256` | `HS384` | `HS512`."],
         ["`expiresIn`", "—", "`exp`", "Seconds until the token expires (added to now)."],
         ["`notBefore`", "—", "`nbf`", "Seconds until the token becomes valid."],
         ["`issuer`", "—", "`iss`", "Token issuer."],
@@ -66,14 +66,18 @@ const payload = verifyJwt(token, secret);
           "Allowed algorithms. Restricts which the token may claim — set this to pin one.",
         ],
         ["`issuer`", "—", "Require this exact `iss`."],
-        ["`audience`", "—", "Require this value to equal `aud`, or be present when `aud` is an array."],
+        [
+          "`audience`",
+          "—",
+          "Require this value to equal `aud`, or be present when `aud` is an array.",
+        ],
         ["`clockTolerance`", "`0`", "Clock-skew tolerance in seconds applied to `exp`/`nbf`."],
       ],
     },
     {
       kind: "callout",
       tone: "tip",
-      text: "Pin the algorithm on verify: `verifyJwt(token, secret, { algorithms: [\"HS256\"] })`. The verifier already rejects anything outside the HS* family, but an explicit allowlist is one less thing to reason about.",
+      text: 'Pin the algorithm on verify: `verifyJwt(token, secret, { algorithms: ["HS256"] })`. The verifier already rejects anything outside the HS* family, but an explicit allowlist is one less thing to reason about.',
     },
     { kind: "heading", id: "login", text: "Issue a token on login" },
     {
@@ -133,7 +137,7 @@ app.group("/api", (api) => {
           "Bearer header",
           "`(req) => string | null` to extract the token elsewhere — e.g. a cookie. Return `null` when absent.",
         ],
-        ["`decorateAs`", "`\"user\"`", "Request property the verified payload is attached to."],
+        ["`decorateAs`", '`"user"`', "Request property the verified payload is attached to."],
       ],
     },
     {
@@ -162,7 +166,7 @@ app.group("/api", (api) => {
     { kind: "heading", id: "errors", text: "Expiry & errors" },
     {
       kind: "paragraph",
-      text: "`verifyJwt` throws a `JwtError` on a malformed, expired (`exp`), not-yet-valid (`nbf`), or wrong-signature/claim token. Catch it to shape your own response; `jwtAuth` already turns it into a `401` whose `message` is the error's message (`\"token expired\"`, `\"invalid signature\"`, …).",
+      text: '`verifyJwt` throws a `JwtError` on a malformed, expired (`exp`), not-yet-valid (`nbf`), or wrong-signature/claim token. Catch it to shape your own response; `jwtAuth` already turns it into a `401` whose `message` is the error\'s message (`"token expired"`, `"invalid signature"`, …).',
     },
     {
       kind: "code",

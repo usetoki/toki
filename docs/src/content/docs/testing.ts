@@ -47,8 +47,8 @@ test("POST /users validates", async () => {
       kind: "table",
       headers: ["Field", "Default", "Description"],
       rows: [
-        ["`url`", "`\"/\"`", "Request path, with query string."],
-        ["`method`", "`\"GET\"`", "HTTP method."],
+        ["`url`", '`"/"`', "Request path, with query string."],
+        ["`method`", '`"GET"`', "HTTP method."],
         ["`headers`", "—", "Request headers as a plain object."],
         [
           "`payload`",
@@ -59,7 +59,7 @@ test("POST /users validates", async () => {
     },
     {
       kind: "paragraph",
-      text: "A bare string is shorthand for a GET: `app.inject(\"/health\")` equals `app.inject({ url: \"/health\" })`.",
+      text: 'A bare string is shorthand for a GET: `app.inject("/health")` equals `app.inject({ url: "/health" })`.',
     },
     { kind: "heading", id: "response", text: "The injected response" },
     {

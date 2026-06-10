@@ -96,7 +96,7 @@ app.use(
         ["`deny`", "—", "deny-list of IPs/CIDRs; a match is always rejected"],
         ["`trustProxy`", "`false`", "filter on the left-most `X-Forwarded-For` address"],
         ["`statusCode`", "`403`", "status for a blocked request"],
-        ["`message`", "`\"Forbidden\"`", "body for a blocked request"],
+        ["`message`", '`"Forbidden"`', "body for a blocked request"],
       ],
     },
     { kind: "heading", id: "rule-syntax", text: "Rule syntax" },

@@ -128,7 +128,11 @@ es.addEventListener("price", (e) => {
         ["`data`", "`string \\| object`", "Required. An object is JSON-encoded."],
         ["`event`", "`string`", "Event name the client listens for via `addEventListener`."],
         ["`id`", "`string`", "Echoed to the client, resent as `Last-Event-ID` on reconnect."],
-        ["`retry`", "`number`", "Reconnect delay hint in ms. Must be a non-negative integer or it's dropped."],
+        [
+          "`retry`",
+          "`number`",
+          "Reconnect delay hint in ms. Must be a non-negative integer or it's dropped.",
+        ],
       ],
     },
     {

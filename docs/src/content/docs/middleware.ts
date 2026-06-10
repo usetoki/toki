@@ -44,7 +44,7 @@ app.use(tag);`,
     {
       kind: "callout",
       tone: "note",
-      text: "Middleware and `preHandler` hooks have the same signature and both can short-circuit. Use `use()` for broad route-tree logic; reach for `addHook(\"preHandler\", ...)` (see [Hooks](/docs/hooks)) when you need to run after validation, or for a single route via its `preHandler` option.",
+      text: 'Middleware and `preHandler` hooks have the same signature and both can short-circuit. Use `use()` for broad route-tree logic; reach for `addHook("preHandler", ...)` (see [Hooks](/docs/hooks)) when you need to run after validation, or for a single route via its `preHandler` option.',
     },
     { kind: "heading", id: "guard", text: "A guard" },
     {

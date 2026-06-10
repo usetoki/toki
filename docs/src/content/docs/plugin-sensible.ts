@@ -153,11 +153,31 @@ throw createError(422, "validation failed", {
       headers: ["Export", "Signature", "Notes"],
       rows: [
         ["sensible", "(app, options?) => void", "Installs the problem+json error handler."],
-        ["httpErrors.*", "(message?, options?) => HttpError", "Named constructor per status; `headers`, `details`, `cause`."],
-        ["createError", "(status, message?, options?) => HttpError", "Build an error for any status."],
-        ["assert", "(cond, status, message?, options?)", "Throws when falsy; narrows the value for the compiler."],
-        ["isHttpError", "(value) => boolean", "True for an HttpError or any `{ statusCode: 400–599 }`."],
-        ["problemJson", "(options?) => ErrorHandler", "The handler itself, if you want to install it manually."],
+        [
+          "httpErrors.*",
+          "(message?, options?) => HttpError",
+          "Named constructor per status; `headers`, `details`, `cause`.",
+        ],
+        [
+          "createError",
+          "(status, message?, options?) => HttpError",
+          "Build an error for any status.",
+        ],
+        [
+          "assert",
+          "(cond, status, message?, options?)",
+          "Throws when falsy; narrows the value for the compiler.",
+        ],
+        [
+          "isHttpError",
+          "(value) => boolean",
+          "True for an HttpError or any `{ statusCode: 400–599 }`.",
+        ],
+        [
+          "problemJson",
+          "(options?) => ErrorHandler",
+          "The handler itself, if you want to install it manually.",
+        ],
       ],
     },
     {

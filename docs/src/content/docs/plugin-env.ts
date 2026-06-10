@@ -94,7 +94,11 @@ app.listen(env.PORT);`,
       kind: "table",
       headers: ["Option", "Type", "Effect"],
       rows: [
-        ["default", "T | undefined", "Used when the variable is unset or empty; its presence makes the variable optional."],
+        [
+          "default",
+          "T | undefined",
+          "Used when the variable is unset or empty; its presence makes the variable optional.",
+        ],
         ["choices", "readonly T[]", "A closed set — a value outside it is an error."],
         ["desc", "string", "Shown in the error report, so the message names what's missing."],
       ],

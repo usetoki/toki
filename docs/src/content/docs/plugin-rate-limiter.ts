@@ -221,13 +221,17 @@ const onMessage = udpRateLimit({ max: 100, windowMs: 60_000, store }, handleData
         ["`standardHeaders`", "`true`", "emit draft `RateLimit-*` headers"],
         ["`legacyHeaders`", "`false`", "emit legacy `X-RateLimit-*` headers"],
         ["`store`", "a fresh `MemoryStore`", "swap for a shared, Redis, or memcached store"],
-        ["`onStoreError`", "`\"open\"`", "`\"open\"` lets requests through if the store throws; `\"closed\"` blocks them"],
+        [
+          "`onStoreError`",
+          '`"open"`',
+          '`"open"` lets requests through if the store throws; `"closed"` blocks them',
+        ],
       ],
     },
     {
       kind: "callout",
       tone: "tip",
-      text: "`onStoreError` is the availability-vs-abuse dial. Default `\"open\"` keeps your API up when Redis blips, at the cost of letting a flood slip through. `\"closed\"` blocks every request while the store is down: no flood, but an outage takes the route with it. Pick per route.",
+      text: '`onStoreError` is the availability-vs-abuse dial. Default `"open"` keeps your API up when Redis blips, at the cost of letting a flood slip through. `"closed"` blocks every request while the store is down: no flood, but an outage takes the route with it. Pick per route.',
     },
     {
       kind: "paragraph",
@@ -242,7 +246,11 @@ const onMessage = udpRateLimit({ max: 100, windowMs: 60_000, store }, handleData
       kind: "table",
       headers: ["Store", "Backend", "Notes"],
       rows: [
-        ["`MemoryStore`", "in-process", "default; fixed window, sweeps expired keys, capped at 100k keys"],
+        [
+          "`MemoryStore`",
+          "in-process",
+          "default; fixed window, sweeps expired keys, capped at 100k keys",
+        ],
         [
           "`RedisStore`",
           "Redis · KeyDB · Valkey · Dragonfly · Upstash",

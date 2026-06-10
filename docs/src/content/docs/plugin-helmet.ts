@@ -141,8 +141,12 @@ app.use(
       headers: ["Option", "Type", "Default"],
       rows: [
         ["`contentSecurityPolicy`", "`false | { directives, useDefaults }`", "baseline policy"],
-        ["`hsts`", "`false | { maxAge, includeSubDomains, preload }`", "`max-age=15552000; includeSubDomains`"],
-        ["`frameguard`", "`false | \"DENY\" | \"SAMEORIGIN\"`", "`SAMEORIGIN`"],
+        [
+          "`hsts`",
+          "`false | { maxAge, includeSubDomains, preload }`",
+          "`max-age=15552000; includeSubDomains`",
+        ],
+        ["`frameguard`", '`false | "DENY" | "SAMEORIGIN"`', "`SAMEORIGIN`"],
         ["`crossOriginEmbedderPolicy`", "`boolean | string`", "off (`true` → `require-corp`)"],
         ["`crossOriginOpenerPolicy`", "`boolean | string`", "`same-origin`"],
         ["`crossOriginResourcePolicy`", "`boolean | string`", "`same-origin`"],

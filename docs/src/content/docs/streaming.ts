@@ -12,7 +12,7 @@ export const streamingPage: DocPage = {
     { kind: "heading", id: "basics", text: "Generated chunks" },
     {
       kind: "paragraph",
-      text: "Return `reply.stream` straight from a handler. A string chunk is UTF-8 encoded; a `Uint8Array` goes out verbatim. Empty chunks are skipped, so yielding `\"\"` to keep a generator alive costs nothing on the wire.",
+      text: 'Return `reply.stream` straight from a handler. A string chunk is UTF-8 encoded; a `Uint8Array` goes out verbatim. Empty chunks are skipped, so yielding `""` to keep a generator alive costs nothing on the wire.',
     },
     {
       kind: "code",
@@ -41,8 +41,16 @@ app.listen(3000);`,
       headers: ["Option", "Default", "Description"],
       rows: [
         ["`status`", "`200`", "Response status code."],
-        ["`contentType`", "`\"application/octet-stream\"`", "The `Content-Type` header. Set `\"text/event-stream\"` for SSE, `\"text/plain\"` for text."],
-        ["`headers`", "`[]`", "Extra response headers as `[name, value]` pairs (e.g. `Content-Disposition`)."],
+        [
+          "`contentType`",
+          '`"application/octet-stream"`',
+          'The `Content-Type` header. Set `"text/event-stream"` for SSE, `"text/plain"` for text.',
+        ],
+        [
+          "`headers`",
+          "`[]`",
+          "Extra response headers as `[name, value]` pairs (e.g. `Content-Disposition`).",
+        ],
       ],
     },
     {
@@ -98,7 +106,7 @@ async function* rows() {
     { kind: "heading", id: "sse", text: "Server-sent events" },
     {
       kind: "paragraph",
-      text: "Set `contentType: \"text/event-stream\"` and yield SSE-formatted strings: `data:` lines, an optional `event:` and `id:`, a blank line between events. The browser's `EventSource` reads them and reconnects on its own.",
+      text: 'Set `contentType: "text/event-stream"` and yield SSE-formatted strings: `data:` lines, an optional `event:` and `id:`, a blank line between events. The browser\'s `EventSource` reads them and reconnects on its own.',
     },
     {
       kind: "code",

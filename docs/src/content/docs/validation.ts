@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const validationPage: DocPage = {
   slug: "validation",
   title: "Validation & schemas",
-  description: "Validate request bodies, params, query, and headers against a JSON Schema; serialize responses by schema.",
+  description:
+    "Validate request bodies, params, query, and headers against a JSON Schema; serialize responses by schema.",
   blocks: [
     {
       kind: "paragraph",
@@ -46,20 +47,28 @@ export const validationPage: DocPage = {
         ["`schema.params`", "The captured `:param` values.", "`req.params`"],
         ["`schema.query`", "The query string.", "`req.query`"],
         ["`schema.headers`", "The request headers.", "`req.headers`"],
-        ["`schema.response`", "A map of status code → response schema (serialization, not validation).", "the handler result"],
+        [
+          "`schema.response`",
+          "A map of status code → response schema (serialization, not validation).",
+          "the handler result",
+        ],
       ],
     },
     {
       kind: "callout",
       tone: "note",
-      text: "Params, query, and headers are strings on the wire. Toki coerces them to the declared `number`, `integer`, or `boolean` before validating, so `?limit=20` checks against `{ type: \"integer\" }`. A blank value stays a string so it fails `number` validation rather than silently coercing to `0`. Body values are not coerced — they come from `JSON.parse`.",
+      text: 'Params, query, and headers are strings on the wire. Toki coerces them to the declared `number`, `integer`, or `boolean` before validating, so `?limit=20` checks against `{ type: "integer" }`. A blank value stays a string so it fails `number` validation rather than silently coercing to `0`. Body values are not coerced — they come from `JSON.parse`.',
     },
     { kind: "heading", id: "keywords", text: "Supported keywords" },
     {
       kind: "table",
       headers: ["Keyword", "Applies to", "Effect"],
       rows: [
-        ["`type`", "any", "`object` / `array` / `string` / `number` / `integer` / `boolean` / `null`."],
+        [
+          "`type`",
+          "any",
+          "`object` / `array` / `string` / `number` / `integer` / `boolean` / `null`.",
+        ],
         ["`properties`", "object", "Per-key sub-schemas (only checked when the key is present)."],
         ["`required`", "object", "Own keys that must be present (inherited keys don't count)."],
         ["`additionalProperties: false`", "object", "Reject any key not in `properties`."],
@@ -110,7 +119,7 @@ export const validationPage: DocPage = {
     { kind: "heading", id: "errors", text: "Error format" },
     {
       kind: "paragraph",
-      text: "On failure toki collects every error and replies `400` with this body. `message` is the errors joined by `\"; \"`; `errors` is the full array. Each message is prefixed by its location (`body`, `params`, `query`, `headers`) and path.",
+      text: 'On failure toki collects every error and replies `400` with this body. `message` is the errors joined by `"; "`; `errors` is the full array. Each message is prefixed by its location (`body`, `params`, `query`, `headers`) and path.',
     },
     {
       kind: "code",
@@ -132,7 +141,7 @@ export const validationPage: DocPage = {
     {
       kind: "callout",
       tone: "note",
-      text: "When the body fails to parse as JSON at all, the response is a single error: `\"body must be valid JSON\"`. Validation runs in a `preValidation`/validation step, so a `400` here skips your handler entirely.",
+      text: 'When the body fails to parse as JSON at all, the response is a single error: `"body must be valid JSON"`. Validation runs in a `preValidation`/validation step, so a `400` here skips your handler entirely.',
     },
     { kind: "heading", id: "custom-messages", text: "Custom error messages" },
     {

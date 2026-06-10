@@ -44,8 +44,8 @@ app.listen(3000);`,
       rows: [
         [
           "`origin`",
-          "`\"*\"`",
-          "Allowed origin(s): `\"*\"`, a single origin string, a list, or a predicate `(origin) => boolean`.",
+          '`"*"`',
+          'Allowed origin(s): `"*"`, a single origin string, a list, or a predicate `(origin) => boolean`.',
         ],
         [
           "`methods`",
@@ -77,7 +77,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "warning",
-      text: "`origin: \"*\"` together with `credentials: true` throws at setup: a wildcard that reflects any caller's cookies lets any site read authenticated responses. List the origins you trust instead. `Access-Control-Allow-Credentials` is only emitted alongside an allowed origin, never on its own.",
+      text: '`origin: "*"` together with `credentials: true` throws at setup: a wildcard that reflects any caller\'s cookies lets any site read authenticated responses. List the origins you trust instead. `Access-Control-Allow-Credentials` is only emitted alongside an allowed origin, never on its own.',
     },
     {
       kind: "heading",
@@ -185,8 +185,8 @@ app.use(
       kind: "table",
       headers: ["Option", "Default", "Sets"],
       rows: [
-        ["`frameOptions`", "`\"DENY\"`", "`X-Frame-Options`."],
-        ["`referrerPolicy`", "`\"no-referrer\"`", "`Referrer-Policy`."],
+        ["`frameOptions`", '`"DENY"`', "`X-Frame-Options`."],
+        ["`referrerPolicy`", '`"no-referrer"`', "`Referrer-Policy`."],
         [
           "`hsts`",
           "off",

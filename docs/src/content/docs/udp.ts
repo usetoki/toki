@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const udpPage: DocPage = {
   slug: "udp",
   title: "UDP server",
-  description: "Connectionless datagram sockets backed by native libuv — send and receive packets with no handshake.",
+  description:
+    "Connectionless datagram sockets backed by native libuv — send and receive packets with no handshake.",
   blocks: [
     {
       kind: "paragraph",
@@ -109,16 +110,31 @@ sock.send("ping", 9100, "192.168.1.5"); // IPv4`,
     {
       kind: "callout",
       tone: "note",
-      text: "Empty datagrams are real. A 0-byte packet is delivered to your handler as an empty `Buffer` — it is not silently dropped, so don't treat `msg.length === 0` as \"nothing arrived\" unless your protocol says so.",
+      text: 'Empty datagrams are real. A 0-byte packet is delivered to your handler as an empty `Buffer` — it is not silently dropped, so don\'t treat `msg.length === 0` as "nothing arrived" unless your protocol says so.',
     },
     { kind: "heading", id: "options", text: "Options" },
     {
       kind: "table",
       headers: ["Option", "Type", "Default", "Description"],
       rows: [
-        ["`reuseAddr`", "`boolean`", "`false`", "Set `SO_REUSEADDR` so the port can be rebound quickly (and shared across workers)."],
-        ["`recvmmsg`", "`boolean`", "`false`", "Batch reads with `recvmmsg` on Linux for higher receive throughput under load."],
-        ["`rateLimit`", "`{ max, windowMs }`", "off", "Native per-source datagram limit — see [Rate limiting datagrams](#rate-limit)."],
+        [
+          "`reuseAddr`",
+          "`boolean`",
+          "`false`",
+          "Set `SO_REUSEADDR` so the port can be rebound quickly (and shared across workers).",
+        ],
+        [
+          "`recvmmsg`",
+          "`boolean`",
+          "`false`",
+          "Batch reads with `recvmmsg` on Linux for higher receive throughput under load.",
+        ],
+        [
+          "`rateLimit`",
+          "`{ max, windowMs }`",
+          "off",
+          "Native per-source datagram limit — see [Rate limiting datagrams](#rate-limit).",
+        ],
       ],
     },
     {
@@ -191,7 +207,11 @@ sock.bind(9100, "127.0.0.1");`,
       kind: "table",
       headers: ["Field", "Type", "Description"],
       rows: [
-        ["`key`", "`Uint8Array`", "The shared 32-byte AES-256 key. Both ends must hold the same key."],
+        [
+          "`key`",
+          "`Uint8Array`",
+          "The shared 32-byte AES-256 key. Both ends must hold the same key.",
+        ],
         [
           "`antiReplay`",
           "`number`",
@@ -305,11 +325,36 @@ session.send("ping");`,
       kind: "table",
       headers: ["Option", "Type", "Default", "Description"],
       rows: [
-        ["`staticKey`", "`KeyPair`", "—", "The server's long-term X25519 identity. Clients authenticate this key."],
-        ["`onSession`", "`(s) => void`", "—", "Optional. Called when a peer finishes the handshake. Inspect `s.remoteStatic` to authorize it."],
-        ["`onMessage`", "`(msg, s) => void`", "—", "Called with each decrypted, authenticated datagram and its session. Reply with `s.send(...)`."],
-        ["`maxPending`", "`number`", "`1024`", "Cap on half-finished handshakes held at once — bounds half-open handshake DoS."],
-        ["`maxSessions`", "`number`", "`16384`", "Cap on established sessions. A peer completing handshakes from many source ports would otherwise grow the table without bound; past this the oldest idle session is evicted."],
+        [
+          "`staticKey`",
+          "`KeyPair`",
+          "—",
+          "The server's long-term X25519 identity. Clients authenticate this key.",
+        ],
+        [
+          "`onSession`",
+          "`(s) => void`",
+          "—",
+          "Optional. Called when a peer finishes the handshake. Inspect `s.remoteStatic` to authorize it.",
+        ],
+        [
+          "`onMessage`",
+          "`(msg, s) => void`",
+          "—",
+          "Called with each decrypted, authenticated datagram and its session. Reply with `s.send(...)`.",
+        ],
+        [
+          "`maxPending`",
+          "`number`",
+          "`1024`",
+          "Cap on half-finished handshakes held at once — bounds half-open handshake DoS.",
+        ],
+        [
+          "`maxSessions`",
+          "`number`",
+          "`16384`",
+          "Cap on established sessions. A peer completing handshakes from many source ports would otherwise grow the table without bound; past this the oldest idle session is evicted.",
+        ],
         ["`sessionTtlMs`", "`number`", "`120000`", "Drop a peer after this many ms of inactivity."],
       ],
     },
@@ -321,9 +366,24 @@ session.send("ping");`,
       kind: "table",
       headers: ["Option", "Type", "Default", "Description"],
       rows: [
-        ["`staticKey`", "`KeyPair`", "—", "The client's X25519 identity. The server authenticates it."],
-        ["`retransmitMs`", "`number`", "`250`", "Resend the handshake message this often until it lands — UDP can drop it."],
-        ["`timeoutMs`", "`number`", "`5000`", "Give up and reject the promise if the handshake doesn't complete in time."],
+        [
+          "`staticKey`",
+          "`KeyPair`",
+          "—",
+          "The client's X25519 identity. The server authenticates it.",
+        ],
+        [
+          "`retransmitMs`",
+          "`number`",
+          "`250`",
+          "Resend the handshake message this often until it lands — UDP can drop it.",
+        ],
+        [
+          "`timeoutMs`",
+          "`number`",
+          "`5000`",
+          "Give up and reject the promise if the handshake doesn't complete in time.",
+        ],
       ],
     },
     {
@@ -338,7 +398,14 @@ session.send("ping");`,
     },
     {
       kind: "table",
-      headers: ["Model", "Handshake", "Forward secrecy", "Mutual auth", "Replay protection", "Use it when"],
+      headers: [
+        "Model",
+        "Handshake",
+        "Forward secrecy",
+        "Mutual auth",
+        "Replay protection",
+        "Use it when",
+      ],
       rows: [
         [
           "Plaintext — `createUdpServer(handler)`",

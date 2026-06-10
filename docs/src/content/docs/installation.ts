@@ -99,7 +99,7 @@ import type { Handler, ServerOptions, TokiResponse } from "@usetoki/toki";`,
     {
       kind: "callout",
       tone: "warning",
-      text: "Toki is ESM-only. In a CommonJS project, use a dynamic `await import(\"@usetoki/toki\")`, or set `\"type\": \"module\"` in your `package.json`.",
+      text: 'Toki is ESM-only. In a CommonJS project, use a dynamic `await import("@usetoki/toki")`, or set `"type": "module"` in your `package.json`.',
     },
     { kind: "heading", id: "plugins", text: "Plugins" },
     {

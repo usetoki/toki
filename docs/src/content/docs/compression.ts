@@ -35,7 +35,11 @@ app.listen(3000);`,
       kind: "table",
       headers: ["Option", "Default", "Description"],
       rows: [
-        ["`threshold`", "`1024`", "Minimum body size in bytes to compress. Smaller bodies are sent as-is — the overhead is not worth it."],
+        [
+          "`threshold`",
+          "`1024`",
+          "Minimum body size in bytes to compress. Smaller bodies are sent as-is — the overhead is not worth it.",
+        ],
         ["`gzipLevel`", "`6`", "gzip level 0–9. Higher is smaller but slower."],
         ["`brotliQuality`", "`5`", "brotli quality 0–11. Higher is smaller but slower."],
       ],

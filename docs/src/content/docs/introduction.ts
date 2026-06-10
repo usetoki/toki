@@ -69,7 +69,7 @@ app.listen(3000);`,
         ],
         [
           "Raw transports",
-          "Native [TCP](/docs/tcp) and [UDP](/docs/udp) servers on the same loop — pooled connections, real backpressure, half-close.",
+          "Native [TCP](/docs/tcp) (libuv, or an optional Linux [io_uring](/docs/tcp#io-uring) engine) and [UDP](/docs/udp) servers on the same loop — pooled connections, real backpressure, half-close.",
         ],
         [
           "TLS & mTLS",

@@ -45,7 +45,7 @@ app.get("/users/:id", (req) => reply.json(db.user(req.params.id)));
     },
     {
       kind: "paragraph",
-      text: "A weak validator (`W/\"…\"`) says two representations are semantically equivalent, not byte-identical. Use it when small, harmless differences (a timestamp, a reordered key) shouldn't force a re-download. Comparison ignores the `W/` prefix either way, so a weak tag still matches its strong twin.",
+      text: 'A weak validator (`W/"…"`) says two representations are semantically equivalent, not byte-identical. Use it when small, harmless differences (a timestamp, a reordered key) shouldn\'t force a re-download. Comparison ignores the `W/` prefix either way, so a weak tag still matches its strong twin.',
     },
     {
       kind: "code",
@@ -85,7 +85,7 @@ app.get("/feed", () => reply.json(buildFeed()));
       kind: "table",
       headers: ["Option", "Type", "Default", "Notes"],
       rows: [
-        ["`weak`", "`boolean`", "`false`", "Emit `W/\"…\"` instead of a strong validator."],
+        ["`weak`", "`boolean`", "`false`", 'Emit `W/"…"` instead of a strong validator.'],
         [
           "`algorithm`",
           '`"fnv1a" \\| "sha1" \\| "md5" \\| "sha256"`',

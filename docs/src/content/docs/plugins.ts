@@ -3,7 +3,8 @@ import type { DocPage } from "../../types";
 export const pluginsPage: DocPage = {
   slug: "plugins",
   title: "Plugins & encapsulation",
-  description: "Encapsulated registration with register(), prefixes, decorators, and async loading.",
+  description:
+    "Encapsulated registration with register(), prefixes, decorators, and async loading.",
   blocks: [
     {
       kind: "paragraph",
@@ -73,7 +74,7 @@ app.register(rateLimit, { prefix: "/api", max: 100, windowMs: 60_000 });`,
     {
       kind: "callout",
       tone: "note",
-      text: "`prefix` nests: registering a plugin with `prefix: \"/v2\"` inside one already mounted at `/api` puts its routes under `/api/v2`. See [Decorators](/docs/decorators) for the `decorate` vs `decorateRequest` split.",
+      text: '`prefix` nests: registering a plugin with `prefix: "/v2"` inside one already mounted at `/api` puts its routes under `/api/v2`. See [Decorators](/docs/decorators) for the `decorate` vs `decorateRequest` split.',
     },
     { kind: "heading", id: "decorate", text: "A plugin that adds a route and a decorator" },
     {
@@ -127,7 +128,7 @@ app.listen(3000);`,
     {
       kind: "callout",
       tone: "warning",
-      text: "Forgetting `await app.ready()` with an async plugin throws at `listen()`: \"async plugin registered — call `await app.ready()` before `listen()`\". An all-sync app can skip `ready()` entirely.",
+      text: 'Forgetting `await app.ready()` with an async plugin throws at `listen()`: "async plugin registered — call `await app.ready()` before `listen()`". An all-sync app can skip `ready()` entirely.',
     },
     { kind: "heading", id: "ordering", text: "Load order and lifecycle" },
     {

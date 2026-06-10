@@ -118,8 +118,8 @@ app.options("/*", () => reply.empty(204));`,
       kind: "list",
       items: [
         "`GET /users/me` → matches `/users/me` (exact), not `/users/:id`.",
-        "`GET /users/42` → matches `/users/:id` (`req.params.id === \"42\"`).",
-        "`GET /files/a/b.txt` → matches `/files/*` (`req.params[\"*\"] === \"a/b.txt\"`).",
+        '`GET /users/42` → matches `/users/:id` (`req.params.id === "42"`).',
+        '`GET /files/a/b.txt` → matches `/files/*` (`req.params["*"] === "a/b.txt"`).',
       ],
     },
     { kind: "heading", id: "query", text: "Query strings" },
@@ -152,9 +152,21 @@ app.get("/search", (req) => {
       rows: [
         ["`schema`", "`RouteSchema`", "Validate body/query/params and serialize the response."],
         ["`preValidation`", "`Middleware | Middleware[]`", "Run before schema validation."],
-        ["`preHandler`", "`Middleware | Middleware[]`", "Run after validation, before the handler."],
-        ["`preSerialization`", "`SerializationHook | SerializationHook[]`", "Transform a plain value before JSON encoding."],
-        ["`config`", "`Record<string, unknown>`", "Arbitrary per-route data, reachable from hooks."],
+        [
+          "`preHandler`",
+          "`Middleware | Middleware[]`",
+          "Run after validation, before the handler.",
+        ],
+        [
+          "`preSerialization`",
+          "`SerializationHook | SerializationHook[]`",
+          "Transform a plain value before JSON encoding.",
+        ],
+        [
+          "`config`",
+          "`Record<string, unknown>`",
+          "Arbitrary per-route data, reachable from hooks.",
+        ],
       ],
     },
     {
