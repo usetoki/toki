@@ -37,6 +37,17 @@ pub fn enabled() bool {
     return g_enabled;
 }
 
+/// release the server config (cert chain + optional client-CA bundle). Safe to call
+/// when never configured. Run at the start of init so a re-listen frees the prior
+/// config, and so a config left half-built by a failed init never lingers.
+pub fn deinit(gpa: std.mem.Allocator) void {
+    if (!g_enabled) return;
+    g_auth.deinit(gpa);
+    if (g_client_auth) |*c| c.root_ca.deinit(gpa);
+    g_client_auth = null;
+    g_enabled = false;
+}
+
 /// Optional client-certificate authentication, supplied to `init`.
 /// `ca_pem` is the trusted CA bundle the client cert is verified against; `require`
 /// makes a missing/invalid client cert fail the handshake (.require vs .request).
@@ -53,6 +64,11 @@ pub fn init(
     key_pem: []const u8,
     client_auth: ?ClientAuthConfig,
 ) !void {
+    // tear down any prior config first: a re-listen replaces it, and clearing g_enabled
+    // up front means a failure below can never leave it true over freed/half-built state
+    // (a later plain-HTTP listen would otherwise serve handshakes off a dangling g_auth).
+    deinit(gpa);
+
     // a transient blocking Io just for PEM parsing + the rng seed (works single-threaded)
     var threaded = std.Io.Threaded.init(gpa, .{});
     const io = threaded.io();
@@ -60,9 +76,6 @@ pub fn init(
     g_auth = try lib.config.CertKeyPair.fromSlice(gpa, io, cert_pem, key_pem);
     errdefer g_auth.deinit(gpa);
 
-    // free a CA bundle from a prior listen before replacing it (re-listen in one process)
-    if (g_client_auth) |*prev| prev.root_ca.deinit(gpa);
-    g_client_auth = null;
     if (client_auth) |ca| {
         const bundle = try lib.config.cert.fromSlice(gpa, io, ca.ca_pem);
         g_client_auth = .{
@@ -70,6 +83,10 @@ pub fn init(
             .auth_type = if (ca.require) .require else .request,
         };
     }
+    errdefer if (g_client_auth) |*c| {
+        c.root_ca.deinit(gpa);
+        g_client_auth = null;
+    };
 
     var seed: [std.Random.DefaultCsprng.secret_seed_length]u8 = undefined;
     try io.randomSecure(&seed);

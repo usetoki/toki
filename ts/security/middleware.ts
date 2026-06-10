@@ -169,12 +169,15 @@ export function compression(options: CompressionOptions = {}): ResponseHook {
     if (encoding === null) {
       return;
     }
-    const input = Buffer.from(res.body);
+    // zlib takes the string body directly, and its output is already a fresh, unpooled
+    // Buffer (itself a Uint8Array) — no need to copy either side.
     const compressed =
       encoding === "br"
-        ? await brotliAsync(input, { params: { [constants.BROTLI_PARAM_QUALITY]: brotliQuality } })
-        : await gzipAsync(input, { level: gzipLevel });
-    return rawResponse(res.status, res.contentType, new Uint8Array(compressed), [
+        ? await brotliAsync(res.body, {
+            params: { [constants.BROTLI_PARAM_QUALITY]: brotliQuality },
+          })
+        : await gzipAsync(res.body, { level: gzipLevel });
+    return rawResponse(res.status, res.contentType, compressed, [
       ...res.headers,
       ["Content-Encoding", encoding],
       ["Vary", "Accept-Encoding"],

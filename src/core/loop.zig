@@ -345,7 +345,12 @@ fn dispatchAndEmit(stream: *anyopaque, conn: *Conn, off: *usize, env: napi.Env, 
             conn.pending_consume = total;
             conn.pending_keep_alive = head.keep_alive;
             conn.pending_is_head = isHead(head);
-            eng.pending.put(alloc, id, conn) catch {};
+            // if we can't register the awaited conn, submitResponse could never find it
+            // to answer or free it — the conn would hang with reads stopped. Close instead.
+            eng.pending.put(alloc, id, conn) catch {
+                closeConn(eng.opaqueOf(&conn.tcp));
+                return true;
+            };
             stopRead(conn);
             return true;
         },
@@ -470,6 +475,17 @@ fn stopRead(conn: *Conn) void {
     conn.reading = false;
 }
 
+// force a connection down with a TCP reset (RST): discards the send buffer and tears
+// the socket down immediately, for a peer that is wedged (over the write-queue cap) and
+// would otherwise hold the connection open by refusing to read. Falls back to a plain
+// close if the reset can't be issued (e.g. an unconnected handle).
+fn forceClose(stream: *anyopaque) void {
+    const conn: *Conn = @ptrCast(@alignCast(stream));
+    if (conn.closing) return;
+    conn.closing = true;
+    if (uv.uv_tcp_close_reset(stream, &onClose) != 0) uv.uv_close(stream, &onClose);
+}
+
 pub fn closeConn(stream: *anyopaque) void {
     const conn: *Conn = @ptrCast(@alignCast(stream));
     if (conn.closing) return;
@@ -532,12 +548,20 @@ fn rawWriteAll(stream: *anyopaque, bytes: []const u8) void {
 // cold path: socket buffer full. dup the unsent tail and queue it, charging the
 // bytes to the conn's backpressure counter until onWrite fires.
 fn queueTail(stream: *anyopaque, tail: []const u8) void {
+    const conn: *Conn = @ptrCast(@alignCast(stream));
+    // a non-reading peer can't be allowed to make the server buffer without bound: once
+    // the unflushed backlog would blow the ceiling, drop the connection — with a reset, so
+    // a peer that has stopped reading is gone now rather than lingering in FIN_WAIT while a
+    // graceful close waits for it to drain the socket buffer it is no longer reading.
+    if (conn.queued_bytes +| tail.len > eng.max_write_queue) {
+        forceClose(stream);
+        return;
+    }
     const wire = alloc.dupe(u8, tail) catch return;
     const wr = alloc.create(eng.WriteReq) catch {
         alloc.free(wire);
         return;
     };
-    const conn: *Conn = @ptrCast(@alignCast(stream));
     wr.body = wire;
     wr.conn = conn;
     conn.queued_bytes +|= wire.len;

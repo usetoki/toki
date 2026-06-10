@@ -35,7 +35,10 @@ pub const Limiter = struct {
     /// table; a rate limiter must never take the server down.
     pub fn exceeded(self: *Limiter, key: []const u8, now: u64) bool {
         if (!self.table.contains(key) and self.table.count() >= self.max_keys) {
-            self.sweep(now);
+            // at the key cap a flood of distinct (spoofable) sources would otherwise scan
+            // the whole table on every new key; throttle the reclaim to once per window so
+            // the cap can't be turned into a per-packet O(max_keys) amplifier.
+            self.maybeSweep(now);
             if (self.table.count() >= self.max_keys) return false;
         }
         const gop = self.table.getOrPut(self.gpa, key) catch return false;

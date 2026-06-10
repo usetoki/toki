@@ -24,6 +24,10 @@ var loop: ?*anyopaque = null;
 var dispatch_ref: napi.Ref = null;
 var socket: [uv.udp_size]u8 align(16) = undefined;
 var bound = false;
+// close() hands the socket handle to libuv, which only finishes closing on a later loop
+// turn. Until that callback fires, re-initializing the same static handle would corrupt
+// libuv's handle queue, so a re-bind is blocked while this is set.
+var closing = false;
 var send_pool: std.heap.MemoryPool(SendReq) = .empty;
 var recv_scratch: [recv_scratch_size]u8 = undefined;
 
@@ -46,6 +50,11 @@ pub fn bind(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     env = e;
     _ = napi.napi_get_uv_event_loop(e, &loop);
 
+    if (closing) {
+        _ = napi.napi_throw_error(e, null, "toki: the previous UDP socket is still closing");
+        return uintValue(e, 0);
+    }
+
     var port: i32 = 0;
     _ = napi.napi_get_value_int32(e, argv[0], &port);
 
@@ -66,6 +75,9 @@ pub fn bind(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         if (v > 0) guard.window_ms = @intCast(v);
     }
 
+    // a re-bind in the same process replaces the dispatcher; drop the prior strong ref
+    // so it doesn't pin the old onMessage closure (and its secure key) in V8 forever.
+    if (dispatch_ref) |r| _ = napi.napi_delete_reference(e, r);
     _ = napi.napi_create_reference(e, argv[3], 1, &dispatch_ref);
 
     if (recvmmsg) {
@@ -77,16 +89,19 @@ pub fn bind(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     // sockaddr_storage-sized: an IPv6 sockaddr is 28 bytes, well past SockaddrIn's 16.
     var sa: [128]u8 align(8) = undefined;
     if (!addr.parse(&host, hlen, port, &sa)) {
+        uv.uv_close(opaqueOf(&socket), null); // don't strand the init'd handle on the loop
         _ = napi.napi_throw_error(e, null, "udp: invalid bind address");
         return uintValue(e, 0);
     }
     const bind_rc = uv.uv_udp_bind(opaqueOf(&socket), opaqueOf(&sa), bind_flags);
     if (bind_rc != 0) {
+        uv.uv_close(opaqueOf(&socket), null);
         _ = napi.napi_throw_error(e, null, uv.uv_strerror(bind_rc));
         return uintValue(e, 0);
     }
     const rc = uv.uv_udp_recv_start(opaqueOf(&socket), &allocBuf, &onRecv);
     if (rc != 0) {
+        uv.uv_close(opaqueOf(&socket), null);
         _ = napi.napi_throw_error(e, null, uv.uv_strerror(rc));
         return uintValue(e, 0);
     }
@@ -201,13 +216,20 @@ fn onSend(req: *anyopaque, status: c_int) callconv(.c) void {
 pub fn close(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     _ = e;
     _ = info;
-    if (bound) {
+    if (bound and !closing) {
         _ = uv.uv_udp_recv_stop(opaqueOf(&socket));
-        uv.uv_close(opaqueOf(&socket), null);
+        closing = true; // cleared by onClose once libuv finishes; blocks a racing re-bind
         bound = false;
+        uv.uv_close(opaqueOf(&socket), &onClose);
         guard.reset();
     }
     return undefinedValue();
+}
+
+// the socket handle block is free to be re-initialized by a later bind() only once
+// libuv has finished closing it.
+fn onClose(_: *anyopaque) callconv(.c) void {
+    closing = false;
 }
 
 fn dispatch(data: napi.Value, info_obj: napi.Value) void {

@@ -33,7 +33,10 @@ export class CipherState {
     if (this.#n >= NONCE_MAX) throw new Error("noise: nonce exhausted");
     const cipher = createCipheriv("aes-256-gcm", this.#key, nonceBytes(this.#n));
     cipher.setAAD(ad);
-    const body = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+    // GCM is a stream cipher: update() returns the whole ciphertext and final() is empty
+    // (it only finalizes the tag), so concatenating it would copy the payload for nothing.
+    const body = cipher.update(plaintext);
+    cipher.final();
     this.#n += 1n;
     return Buffer.concat([body, cipher.getAuthTag()]);
   }
@@ -47,7 +50,10 @@ export class CipherState {
     const decipher = createDecipheriv("aes-256-gcm", this.#key, nonceBytes(this.#n));
     decipher.setAAD(ad);
     decipher.setAuthTag(ciphertext.subarray(split));
-    const out = Buffer.concat([decipher.update(ciphertext.subarray(0, split)), decipher.final()]);
+    // update() returns the whole plaintext; final() verifies the tag (and throws on a
+    // mismatch) but returns nothing — so it must be called, but never concatenated.
+    const out = decipher.update(ciphertext.subarray(0, split));
+    decipher.final();
     this.#n += 1n;
     return out;
   }
@@ -66,7 +72,9 @@ export class CipherState {
     const decipher = createDecipheriv("aes-256-gcm", this.#key, nonceBytes(n));
     decipher.setAAD(ad);
     decipher.setAuthTag(ciphertext.subarray(split));
-    return Buffer.concat([decipher.update(ciphertext.subarray(0, split)), decipher.final()]);
+    const out = decipher.update(ciphertext.subarray(0, split));
+    decipher.final();
+    return out;
   }
 
   /** Encrypt a transport message at an explicit counter (the session manages counters). */
@@ -74,7 +82,8 @@ export class CipherState {
     if (this.#key === null) return Buffer.from(plaintext);
     const cipher = createCipheriv("aes-256-gcm", this.#key, nonceBytes(n));
     cipher.setAAD(ad);
-    const body = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+    const body = cipher.update(plaintext);
+    cipher.final();
     return Buffer.concat([body, cipher.getAuthTag()]);
   }
 }

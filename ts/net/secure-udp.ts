@@ -42,6 +42,10 @@ export interface SecureUdpServerOptions {
   onMessage: (msg: Buffer, session: SecureSession) => void;
   /** max half-finished handshakes held at once (bounds half-open DoS). Default 1024. */
   maxPending?: number;
+  /** max established sessions held at once. A peer completing real handshakes from many
+   *  source ports would otherwise accumulate sessions without bound; past this the oldest
+   *  idle session is evicted to admit the new one. Default 16384. */
+  maxSessions?: number;
   /** drop a peer after this many ms of inactivity. Default 120000. */
   sessionTtlMs?: number;
 }
@@ -56,9 +60,11 @@ interface Peer {
  *  replay-protected datagrams. One UDP socket per process (native singleton). */
 export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUdpServer {
   const maxPending = options.maxPending ?? 1024;
+  const maxSessions = options.maxSessions ?? 16_384;
   const ttl = options.sessionTtlMs ?? 120_000;
   const peers = new Map<string, Peer>();
   let pending = 0;
+  let established = 0;
   let sweep: ReturnType<typeof setInterval> | undefined;
 
   const keyOf = (r: RemoteInfo): string => `${r.address}:${r.port}`;
@@ -76,9 +82,19 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
       sendRaw(Buffer.concat([Buffer.from([TRANSPORT]), peer.session.seal(pt)]), r.port, r.address);
     },
     close(): void {
-      peers.delete(key);
+      forget(key);
     },
   });
+
+  // remove a peer and decrement whichever counters it held (a peer re-handshaking on a live
+  // session is counted in both pending and established at once, so check both).
+  const forget = (key: string): void => {
+    const p = peers.get(key);
+    if (p === undefined) return;
+    peers.delete(key);
+    if (p.hs !== null) pending -= 1;
+    if (p.session !== null) established -= 1;
+  };
 
   // Drop the oldest still-handshaking peer (Map keeps insertion order, so the first half-open
   // entry is the oldest admitted). Frees one pending slot so a new handshake can start.
@@ -87,6 +103,17 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
       if (p.hs !== null && p.session === null) {
         peers.delete(k);
         pending -= 1;
+        return;
+      }
+    }
+  };
+
+  // At the session cap, evict the oldest established peer (skipping the one just admitted)
+  // so a flood of completed handshakes from many source ports can't grow the table forever.
+  const evictOldestSession = (except: string): void => {
+    for (const [k, p] of peers) {
+      if (k !== except && p.session !== null && p.hs === null) {
+        forget(k);
         return;
       }
     }
@@ -124,6 +151,8 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
           peer.session = new NoiseSession(read.transport);
           peer.hs = null;
           pending -= 1;
+          established += 1;
+          if (established > maxSessions) evictOldestSession(key);
           options.onSession?.(wrap(key, peer, r));
           return;
         }
@@ -159,9 +188,7 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
         () => {
           const cutoff = now() - ttl;
           for (const [k, p] of peers) {
-            if (p.lastSeen < cutoff) {
-              if (peers.delete(k) && p.hs !== null) pending -= 1;
-            }
+            if (p.lastSeen < cutoff) forget(k);
           }
         },
         Math.min(ttl, 30_000),
@@ -173,6 +200,7 @@ export function createSecureUdpServer(options: SecureUdpServerOptions): SecureUd
       if (sweep !== undefined) clearInterval(sweep);
       peers.clear();
       pending = 0;
+      established = 0;
       socket.close();
     },
   };
@@ -267,6 +295,7 @@ export function connectSecureUdp(
     sock.on("error", (e) => {
       clearInterval(retransmit);
       clearTimeout(timer);
+      sock.close(); // release the dgram handle; every other exit path already does
       reject(e);
     });
 

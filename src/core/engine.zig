@@ -28,10 +28,18 @@ pub var routes: router.RouteTable = undefined;
 pub var dispatch_ref: napi.Ref = null;
 /// served on a route miss for GET/HEAD
 pub var static_table: static.Table = undefined;
+/// true once a listen() has built the tables above, so a re-listen knows to tear the
+/// previous set down (routes, static, dispatch ref) before replacing it
+pub var listened: bool = false;
 
 pub var max_body: usize = default_max_body;
 pub var max_headers: usize = 128;
 pub var backlog: c_int = 512;
+/// ceiling on a single connection's unflushed write backlog. A peer that stops reading
+/// (or advertises a zero window) while the server keeps producing would otherwise grow
+/// the heap without bound, one dup per queued tail; past this the connection is dropped.
+pub const default_max_write_queue = 16 * 1024 * 1024;
+pub var max_write_queue: usize = default_max_write_queue;
 /// slowloris guard: close a conn with a partial request idle this long (0 = off)
 pub var header_timeout_ms: u64 = 0;
 /// SO_REUSEPORT (UV_TCP_REUSEPORT = 2) so workers can share a port

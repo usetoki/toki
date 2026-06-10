@@ -35,11 +35,11 @@ export function keyPairFromPrivateRaw(privateRaw: Uint8Array): KeyPair {
   if (privateRaw.length !== DHLEN) {
     throw new RangeError(`x25519 private key must be ${DHLEN} bytes, got ${privateRaw.length}`);
   }
-  const privateKey = createPrivateKey({
-    key: Buffer.concat([PKCS8_PREFIX, Buffer.from(privateRaw)]),
-    format: "der",
-    type: "pkcs8",
-  });
+  // the DER wrapper carries a copy of the secret scalar; build the KeyObject from it, then
+  // wipe it so the scalar doesn't linger in a pooled buffer handed to later allocations.
+  const der = Buffer.concat([PKCS8_PREFIX, Buffer.from(privateRaw)]);
+  const privateKey = createPrivateKey({ key: der, format: "der", type: "pkcs8" });
+  der.fill(0);
   const publicKey = createPublicKey(privateKey);
   return { privateKey, publicKey, publicRaw: rawPublic(publicKey) };
 }

@@ -14,6 +14,11 @@ import { SymmetricState } from "./symmetric-state.ts";
 
 export const PROTOCOL_NAME = "Noise_XX_25519_AESGCM_SHA256";
 const TAGLEN = 16;
+// An XX message is at most an ephemeral key + an encrypted static key + a tag + a small
+// payload — a few hundred bytes. Reject anything larger before copying and hashing it:
+// otherwise a spoofed datagram makes the server hash up to a full 64 KiB twice (and pay a
+// keygen + DHs) for free, pre-authentication. Generous enough for a real payload.
+const MAX_MESSAGE = 4096;
 
 type Token = "e" | "s" | "ee" | "es" | "se" | "ss";
 const XX: Token[][] = [["e"], ["e", "ee", "s", "es"], ["s", "se"]];
@@ -89,6 +94,7 @@ export class HandshakeState {
   readMessage(message: Uint8Array): { payload: Buffer; transport?: TransportPair } {
     const pattern = XX[this.#step];
     if (pattern === undefined) throw new Error("noise: handshake already complete");
+    if (message.length > MAX_MESSAGE) throw new Error("noise: handshake message too large");
     let buf = Buffer.from(message);
     for (const token of pattern) {
       if (token === "e") {
@@ -136,6 +142,18 @@ export class HandshakeState {
     const { send, recv } = this.#ss.split();
     // the responder's send/recv are swapped relative to the initiator's
     const pair = this.#initiator ? { send, recv } : { send: recv, recv: send };
-    return { ...pair, handshakeHash: this.#ss.hash(), remoteStatic: Buffer.from(this.#rs!) };
+    const transport = {
+      ...pair,
+      handshakeHash: this.#ss.hash(),
+      remoteStatic: Buffer.from(this.#rs!),
+    };
+    // forward secrecy: the ephemeral key is what an attacker would need to recover this
+    // session's traffic, so drop it the moment the transport keys exist (its OpenSSL
+    // KeyObject can then be freed) and wipe the now-copied peer key material rather than
+    // letting either sit in memory for the session's whole lifetime.
+    this.#e = null;
+    this.#re?.fill(0);
+    this.#rs?.fill(0);
+    return transport;
   }
 }

@@ -8,14 +8,17 @@
 // without running the regex. Keep patterns linear (anchored, no nested quantifiers).
 const PATTERN_INPUT_CAP = 4096;
 
-// compile each distinct pattern once instead of per request
+// compile each distinct pattern once instead of per request. Route schemas are fixed at
+// registration, so this is tiny in normal use; the cap only matters because validate() is
+// public and a caller could feed it schemas with runtime-built patterns. Past the cap we
+// compile without caching rather than let the map grow without bound.
+const PATTERN_CACHE_MAX = 1024;
 const patternCache = new Map<string, RegExp>();
 function compilePattern(pattern: string): RegExp {
-  let re = patternCache.get(pattern);
-  if (re === undefined) {
-    re = new RegExp(pattern);
-    patternCache.set(pattern, re);
-  }
+  const cached = patternCache.get(pattern);
+  if (cached !== undefined) return cached;
+  const re = new RegExp(pattern);
+  if (patternCache.size < PATTERN_CACHE_MAX) patternCache.set(pattern, re);
   return re;
 }
 

@@ -25,8 +25,12 @@ export function parseForm(contentType: string, body: Uint8Array): ParsedForm | n
   return null;
 }
 
+// decode the body straight to a string — TextDecoder reads the bytes in place, where
+// Buffer.from(body) would copy the whole body first only to immediately stringify it.
+const utf8 = new TextDecoder();
+
 function parseUrlencoded(body: Uint8Array): ParsedForm {
-  const params = new URLSearchParams(Buffer.from(body).toString("utf8"));
+  const params = new URLSearchParams(utf8.decode(body));
   const fields: Record<string, string> = {};
   for (const [name, value] of params) {
     fields[name] = value;

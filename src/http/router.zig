@@ -62,6 +62,9 @@ pub const RouteTable = struct {
             .exact = .empty,
             .dynamic = &.{},
         };
+        // a mid-build allocation failure would otherwise strand the arena and everything
+        // already duped into it; free it on any error before returning.
+        errdefer table.arena.deinit();
         const a = table.arena.allocator();
         var dynamic: std.ArrayListUnmanaged(DynamicRoute) = .empty;
 

@@ -37,6 +37,10 @@ pub fn listen(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var port: i32 = 0;
     _ = napi.napi_get_value_int32(env, argv[0], &port);
 
+    // a re-listen in the same process replaces every table built below; free the prior
+    // set first (route arena, static asset arena, the JS dispatch ref) so it isn't stranded.
+    teardownPrevious(env);
+
     // arena is scratch; build copies what it keeps.
     var scratch = std.heap.ArenaAllocator.init(alloc);
     defer scratch.deinit();
@@ -52,8 +56,33 @@ pub fn listen(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     if (!setupTls(env, argv[5])) return eng.undefinedValue(env); // bad cert/key → threw
     websocket.configure(env, argv[6], argv[7], argv[8], methods.len);
 
+    // a prior close() left server_closing set (it gates onConnection); clear it so this
+    // listen actually accepts. The previous socket's close has already drained by now —
+    // close() returns to JS, the loop turns, then JS calls listen() again.
+    eng.server_closing = false;
+    eng.listened = true;
     boot(env, port);
     return portValue(env);
+}
+
+// free everything a previous listen() built, before this one overwrites the globals.
+// websocket.configure and tlsmod.init free their own prior state, so this covers the
+// rest: the route table arena, the static asset arena, and the JS dispatch reference
+// (whose strong ref otherwise pins the previous app's whole closure graph in V8).
+fn teardownPrevious(env: napi.Env) void {
+    if (!eng.listened) return;
+    if (eng.dispatch_ref) |r| {
+        _ = napi.napi_delete_reference(env, r);
+        eng.dispatch_ref = null;
+    }
+    eng.routes.deinit();
+    eng.static_table.deinit();
+    // the response-body high-water buffer tracks the largest body produced; release it so
+    // one big response in a prior listen doesn't pin its size across a re-listen.
+    if (eng.resp_body.len > 0) {
+        alloc.free(eng.resp_body);
+        eng.resp_body = &.{};
+    }
 }
 
 // Reads the PEM cert chain + private key (if present) and builds the TLS config so
@@ -92,6 +121,7 @@ fn boot(env: napi.Env, port: i32) void {
         removeSocketFile(&eng.unix_path_buf); // clear a stale socket file so the bind succeeds
         const bind_rc = uv.uv_pipe_bind(eng.opaqueOf(&eng.listen_socket), &eng.unix_path_buf);
         if (bind_rc != 0) {
+            uv.uv_close(eng.opaqueOf(&eng.listen_socket), null); // don't strand the init'd handle
             _ = napi.napi_throw_error(env, null, uv.uv_strerror(bind_rc));
             return;
         }
@@ -102,13 +132,17 @@ fn boot(env: napi.Env, port: i32) void {
         const bind_rc = uv.uv_tcp_bind(eng.opaqueOf(&eng.listen_socket), eng.opaqueOf(&addr), eng.bind_flags);
         if (bind_rc != 0) {
             // e.g. UV_TCP_REUSEPORT unsupported on macOS — surface it rather than swallow.
+            uv.uv_close(eng.opaqueOf(&eng.listen_socket), null);
             _ = napi.napi_throw_error(env, null, uv.uv_strerror(bind_rc));
             return;
         }
     }
 
     const rc = uv.uv_listen(eng.opaqueOf(&eng.listen_socket), eng.backlog, &loop.onConnection);
-    if (rc != 0) _ = napi.napi_throw_error(env, null, uv.uv_strerror(rc));
+    if (rc != 0) {
+        uv.uv_close(eng.opaqueOf(&eng.listen_socket), null);
+        _ = napi.napi_throw_error(env, null, uv.uv_strerror(rc));
+    }
 
     // requested port 0 means OS-assigned; read back what the OS actually gave us (TCP only).
     if (eng.unix_path == null) {
@@ -135,6 +169,10 @@ fn readOptions(env: napi.Env, options: napi.Value) void {
     if (readOptBool(env, options, "notFound")) eng.not_found_dispatch = true;
     if (readOptUint(env, options, "rateLimitMax")) |v| ratelimit.http.max = @intCast(v);
     if (readOptUint(env, options, "rateLimitWindowMs")) |v| ratelimit.http.window_ms = v;
+    eng.max_write_queue = eng.default_max_write_queue;
+    if (readOptUint(env, options, "maxWriteQueue")) |v| {
+        if (v > 0) eng.max_write_queue = v;
+    }
     if (readOptUint(env, options, "maxWsMessageBytes")) |v| eng.max_ws_message = v;
     if (readOptBool(env, options, "wsCompression")) eng.ws_compression = true;
 

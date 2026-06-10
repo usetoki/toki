@@ -469,6 +469,8 @@ pub fn closeSocket(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Val
 /// wires the JS dispatcher, marks which route indices were registered with app.ws,
 /// and records each route's offered subprotocols for negotiation
 pub fn configure(env: napi.Env, dispatch_val: napi.Value, indices_val: napi.Value, protocols_val: napi.Value, route_count: usize) void {
+    freeRoutes(env); // drop a prior listen's tables, even if this one has no WS routes
+
     var kind: c_int = 0;
     _ = napi.napi_typeof(env, dispatch_val, &kind);
     if (kind != napi.valuetype.function) return; // no websocket routes registered
@@ -500,6 +502,24 @@ pub fn configure(env: napi.Env, dispatch_val: napi.Value, indices_val: napi.Valu
     }
     eng.ws_flags = flags;
     eng.ws_route_protocols = protos;
+}
+
+// release a prior listen's WS dispatch ref and route tables (flags + the duped protocol
+// strings). Leaves the globals empty so a re-listen rebuilds from a clean slate.
+pub fn freeRoutes(env: napi.Env) void {
+    if (eng.ws_dispatch_ref) |r| {
+        _ = napi.napi_delete_reference(env, r);
+        eng.ws_dispatch_ref = null;
+    }
+    if (eng.ws_flags.len > 0) {
+        alloc.free(eng.ws_flags);
+        eng.ws_flags = &.{};
+    }
+    if (eng.ws_route_protocols.len > 0) {
+        for (eng.ws_route_protocols) |p| if (p.len > 0) alloc.free(p);
+        alloc.free(eng.ws_route_protocols);
+        eng.ws_route_protocols = &.{};
+    }
 }
 
 // copy a JS string into engine-owned memory (route protocol lists live for the run)

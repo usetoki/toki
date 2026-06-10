@@ -184,6 +184,9 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         if (v > 0) guard.window_ms = @intCast(v);
     }
 
+    // a re-listen replaces the dispatcher; drop the prior strong ref so it doesn't pin
+    // the old handler closure (and its captured sockets map) in V8 for the process life.
+    if (dispatch_ref) |r| _ = napi.napi_delete_reference(e, r);
     _ = napi.napi_create_reference(e, argv[3], 1, &dispatch_ref);
 
     tls_enabled = false;

@@ -32,6 +32,11 @@ export const serverOptionsPage: DocPage = {
         ],
         ["`backlog`", "`512`", "Pending-connection (accept) queue depth passed to `listen(2)`."],
         [
+          "`maxWriteQueue`",
+          "`16 MiB`",
+          "Per-connection ceiling on unflushed response bytes. A peer that stops reading while the server keeps producing is reset past this, rather than letting its backlog grow the heap without bound.",
+        ],
+        [
           "`reusePort`",
           "`false`",
           "Set `SO_REUSEPORT` so several processes can bind the same port and the kernel load-balances across them (Linux/BSD).",

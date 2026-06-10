@@ -57,6 +57,10 @@ export interface ServerOptions {
   maxHeaders?: number;
   /** pending-connection queue, default 512 */
   backlog?: number;
+  /** per-connection unflushed-write ceiling in bytes; a peer that stops reading while the
+   *  server keeps producing is dropped past this rather than buffered without bound.
+   *  Default 16 MiB. */
+  maxWriteQueue?: number;
   /** `SO_REUSEPORT` so workers can share the port (kernel-balanced; Linux/BSD) */
   reusePort?: boolean;
   /** bind a unix-domain socket at this path instead of TCP (the port is ignored) */
