@@ -10,6 +10,7 @@ const loop = @import("core/loop.zig");
 const stream = @import("http/stream.zig");
 const websocket = @import("websocket/session.zig");
 const tcp = @import("net/tcp.zig");
+const tcp_uring = @import("net/tcp_uring.zig");
 const udp = @import("net/udp.zig");
 
 export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.c) napi.Value {
@@ -30,6 +31,14 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "tcpEnd", &tcp.end);
     defineFn(env, exports, "tcpClose", &tcp.closeSocket);
     defineFn(env, exports, "tcpCloseServer", &tcp.closeServer);
+    // raw TCP server, io_uring backend (Linux; throws elsewhere)
+    defineFn(env, exports, "tcpUringListen", &tcp_uring.listen);
+    defineFn(env, exports, "tcpUringSend", &tcp_uring.send);
+    defineFn(env, exports, "tcpUringPeer", &tcp_uring.peer);
+    defineFn(env, exports, "tcpUringEnd", &tcp_uring.end);
+    defineFn(env, exports, "tcpUringClose", &tcp_uring.closeSocket);
+    defineFn(env, exports, "tcpUringCloseServer", &tcp_uring.closeServer);
+    defineFn(env, exports, "tcpUringAvailable", &tcp_uring.available);
     // UDP server
     defineFn(env, exports, "udpBind", &udp.bind);
     defineFn(env, exports, "udpSend", &udp.send);

@@ -36,6 +36,15 @@ export interface TcpServerOptions extends TcpOptions {
    */
   rateLimit?: { max: number; windowMs: number };
   /**
+   * I/O backend. `"libuv"` (default) runs on Node's libuv loop and works on every platform.
+   * `"io_uring"` runs the accept/recv/send path through a Linux io_uring ring driven on the
+   * same loop (no thread hop) with a shared provided-buffer pool — lower syscall overhead and
+   * flat memory under many connections. Linux only, plaintext only (TLS stays on `"libuv"`),
+   * and the kernel's io_uring syscalls must be permitted (containers often need a seccomp
+   * profile that allows them). On a non-Linux host it throws; fall back to `"libuv"`.
+   */
+  engine?: "libuv" | "io_uring";
+  /**
    * Terminate TLS on the raw socket (no reverse proxy). PEM cert chain (leaf first) +
    * private key — RSA or EC. TLS 1.3 only (AEAD suites). The handler runs once the
    * handshake completes, so the first `write` is already over an established session.
@@ -81,9 +90,65 @@ function toPem(value: string | Uint8Array): Buffer {
 
 const EMPTY_PEER: RemoteInfo = { address: "", port: 0 };
 
+// the native functions for one engine. The libuv and io_uring backends expose the same
+// six calls, so the Socket and server just hold whichever set the `engine` option picked.
+interface TcpBackend {
+  listen: typeof native.tcpListen;
+  send: typeof native.tcpSend;
+  peer: typeof native.tcpPeer;
+  end: typeof native.tcpEnd;
+  close: typeof native.tcpClose;
+  closeServer: typeof native.tcpCloseServer;
+}
+
+const LIBUV_BACKEND: TcpBackend = {
+  listen: native.tcpListen,
+  send: native.tcpSend,
+  peer: native.tcpPeer,
+  end: native.tcpEnd,
+  close: native.tcpClose,
+  closeServer: native.tcpCloseServer,
+};
+
+const URING_BACKEND: TcpBackend = {
+  listen: native.tcpUringListen,
+  send: native.tcpUringSend,
+  peer: native.tcpUringPeer,
+  end: native.tcpUringEnd,
+  close: native.tcpUringClose,
+  closeServer: native.tcpUringCloseServer,
+};
+
+// io_uring is opt-in and conditional: it's Linux-only and (for now) plaintext-only. When a
+// caller asks for it where it can't run, fall back to libuv and say why once, rather than
+// failing the server — the app keeps working, just on the portable engine.
+function selectBackend(options: TcpServerOptions): TcpBackend {
+  if (options.engine !== "io_uring") return LIBUV_BACKEND;
+  if (process.platform !== "linux") {
+    console.warn(
+      `toki: the io_uring engine is Linux-only — falling back to the default libuv engine on ${process.platform}.`,
+    );
+    return LIBUV_BACKEND;
+  }
+  if (options.tls) {
+    console.warn(
+      "toki: the io_uring engine does not terminate TLS yet — falling back to the default libuv engine for this TLS server.",
+    );
+    return LIBUV_BACKEND;
+  }
+  if (!native.tcpUringAvailable()) {
+    console.warn(
+      "toki: io_uring is unavailable here (kernel too old, or the syscalls are blocked by the container sandbox) — falling back to the default libuv engine.",
+    );
+    return LIBUV_BACKEND;
+  }
+  return URING_BACKEND;
+}
+
 class Socket implements TcpSocket {
   readonly #id: number;
   readonly #allowHalfOpen: boolean;
+  readonly #backend: TcpBackend;
   #peer?: RemoteInfo; // peer address, fetched from native on first access then cached
   #ended = false; // we've ended our write side
   #readEnded = false; // peer half-closed
@@ -93,16 +158,17 @@ class Socket implements TcpSocket {
   #end: Array<() => void> = [];
   #close: Array<() => void> = [];
 
-  constructor(id: number, allowHalfOpen: boolean) {
+  constructor(id: number, allowHalfOpen: boolean, backend: TcpBackend) {
     this.#id = id;
     this.#allowHalfOpen = allowHalfOpen;
+    this.#backend = backend;
   }
 
   // Peer fields are read lazily: a handler that never inspects the address costs no
   // getpeername and no native object build. An empty result (the connection closed before
   // anyone asked) is cached too, so native is hit at most once.
   #fetchPeer(): RemoteInfo {
-    return (this.#peer ??= native.tcpPeer(this.#id) ?? EMPTY_PEER);
+    return (this.#peer ??= this.#backend.peer(this.#id) ?? EMPTY_PEER);
   }
   get remoteAddress(): string {
     return this.#fetchPeer().address;
@@ -120,7 +186,7 @@ class Socket implements TcpSocket {
     if (this.#ended) return false;
     const bytes = typeof data === "string" ? Buffer.from(data) : data;
     // native returns the unflushed backlog; non-zero means the socket buffer is full.
-    const flushed = native.tcpSend(this.#id, bytes) === 0;
+    const flushed = this.#backend.send(this.#id, bytes) === 0;
     if (!flushed) this.#needDrain = true;
     return flushed;
   }
@@ -129,13 +195,13 @@ class Socket implements TcpSocket {
     if (this.#ended) return;
     if (data !== undefined) this.write(data);
     this.#ended = true;
-    native.tcpEnd(this.#id);
+    this.#backend.end(this.#id);
   }
 
   destroy(): void {
     if (this.#ended) return;
     this.#ended = true;
-    native.tcpClose(this.#id);
+    this.#backend.close(this.#id);
   }
 
   on(event: "data", listener: (chunk: Buffer) => void): this;
@@ -192,6 +258,7 @@ export function createTcpServer(
   options: TcpServerOptions = {},
 ): TcpServer {
   const allowHalfOpen = options.allowHalfOpen ?? false;
+  const backend = selectBackend(options);
   const sockets = new Map<number, Socket>();
 
   // flatten the tls option into the cert/key buffers native reads (mirrors app.listen).
@@ -225,7 +292,7 @@ export function createTcpServer(
   const dispatch = (id: number, event: Ev, arg: Uint8Array | undefined): void => {
     switch (event) {
       case Ev.Connection: {
-        const socket = new Socket(id, allowHalfOpen);
+        const socket = new Socket(id, allowHalfOpen, backend);
         sockets.set(id, socket);
         handler(socket);
         return;
@@ -253,13 +320,13 @@ export function createTcpServer(
   return {
     listen(port: number, host = "0.0.0.0"): { port: number } {
       if (active) throw new Error("toki: a TCP server is already listening in this process");
-      const bound = native.tcpListen(port, host, nativeOptions, dispatch as never);
+      const bound = backend.listen(port, host, nativeOptions, dispatch as never);
       active = true;
       return { port: bound };
     },
     close(): void {
       if (!active) return;
-      native.tcpCloseServer();
+      backend.closeServer();
       active = false;
       sockets.clear();
     },

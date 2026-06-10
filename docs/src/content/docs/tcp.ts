@@ -159,7 +159,9 @@ createTcpServer((socket) => {
         ["`reusePort`", "`boolean`", "`false`", "Set `SO_REUSEPORT` so several worker processes can share one port (Linux/BSD)."],
         ["`noDelay`", "`boolean`", "`false`", "Disable Nagle's algorithm — send small writes immediately for lower latency."],
         ["`backlog`", "`number`", "`512`", "Size of the kernel's pending-connection queue."],
+        ["`maxWriteQueue`", "`number`", "`16 MiB`", "Per-connection unflushed-write ceiling; a peer that stops reading is reset past it instead of buffered without bound."],
         ["`rateLimit`", "`{ max, windowMs }`", "off", "Native per-IP accept limit — see [Rate limiting accepts](#rate-limit)."],
+        ["`engine`", "`\"libuv\" | \"io_uring\"`", "`\"libuv\"`", "I/O backend — see [The io_uring engine](#io-uring)."],
       ],
     },
     {
@@ -171,6 +173,42 @@ createTcpServer((socket) => {
       kind: "callout",
       tone: "note",
       text: "The `Buffer` handed to `data` is a copy of the received bytes — it stays valid after the handler returns, so you can buffer or queue it freely. (This differs from the WebSocket `message` buffer, which is a transient view.)",
+    },
+    { kind: "heading", id: "io-uring", text: "The io_uring engine" },
+    {
+      kind: "paragraph",
+      text: "By default the raw TCP server runs on libuv, like the rest of toki. On Linux you can opt a server onto `engine: \"io_uring\"` instead: accept, receive, and send all go through a Linux io_uring ring that toki drives on Node's own event loop (watched with one `uv_poll` on the ring fd), so handlers are still called synchronously with no thread hop. Reads come from a shared, fixed-size pool of kernel-filled buffers, so read memory tracks the pool rather than the connection count, and the per-event syscall overhead is lower than the readiness-then-read model.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "io-uring.ts",
+        language: "ts",
+        code: `const server = createTcpServer(handler, {
+  engine: "io_uring", // Linux only; falls back to libuv elsewhere
+  maxWriteQueue: 8 * 1024 * 1024,
+});
+server.listen(9000);`,
+      },
+    },
+    {
+      kind: "paragraph",
+      text: "The backend is interchangeable: the socket API, events, backpressure, half-close, and TLS-engine fallback are identical to the libuv path, so the only change is the one option.",
+    },
+    {
+      kind: "callout",
+      tone: "note",
+      text: "io_uring is used only where it actually works — Linux, a recent kernel, and the io_uring syscalls permitted by the sandbox. On macOS or Windows, an old kernel, or inside a container whose seccomp profile blocks io_uring (the common default), toki prints a one-line notice and runs the server on libuv instead, so the same code is safe to ship everywhere.",
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "TLS is not terminated on the io_uring engine yet: a server that sets both `engine: \"io_uring\"` and `tls` runs on libuv (with a notice). Run io_uring plaintext behind a TLS-terminating proxy, or use the libuv engine for in-process TLS.",
+    },
+    {
+      kind: "callout",
+      tone: "tip",
+      text: "To use io_uring in Docker, allow its syscalls — e.g. `docker run --security-opt seccomp=unconfined …`, or a custom seccomp profile that permits `io_uring_setup`, `io_uring_enter`, and `io_uring_register`. Without that the server still runs, just on libuv.",
     },
     { kind: "heading", id: "rate-limit", text: "Rate limiting accepts" },
     {

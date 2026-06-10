@@ -147,6 +147,18 @@ interface Native {
   /** stop accepting and close every live TCP connection */
   tcpCloseServer(): void;
 
+  // io_uring TCP backend (Linux only; each throws elsewhere). Same contract as the
+  // libuv tcp* functions above — selected by the `engine` server option.
+  tcpUringListen(port: number, host: string, options: TcpOptions, dispatch: TcpDispatch): number;
+  tcpUringSend(id: number, data: Uint8Array): number;
+  tcpUringPeer(id: number): RemoteInfo | undefined;
+  tcpUringEnd(id: number): void;
+  tcpUringClose(id: number): void;
+  tcpUringCloseServer(): void;
+  /** whether io_uring will actually work here (Linux, kernel new enough, syscalls not
+   *  blocked by a container sandbox) — probed by setting up a throwaway ring */
+  tcpUringAvailable(): boolean;
+
   /** bind a UDP socket; `dispatch(data, rinfo)` fires per received datagram */
   udpBind(port: number, host: string, options: UdpOptions, dispatch: UdpDispatch): number;
   /** send a datagram to `host:port` */

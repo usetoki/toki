@@ -39,6 +39,7 @@ Raw TCP/UDP, TLS, and the secure-UDP layer. The TLS examples mint throwaway cert
 | File | Shows |
 |---|---|
 | `tcp.ts` | `createTcpServer` echo, backpressure (`write` → `false` / `drain`), half-close |
+| `tcp-io-uring.ts` | the same echo on the `engine: "io_uring"` backend (Linux), with libuv fallback |
 | `tcp-tls.ts` | TLS 1.3 termination on a raw socket (`tls: { cert, key }`) |
 | `tcp-mtls.ts` | mutual TLS — `requestCert` + `ca` + `rejectUnauthorized`, `socket.authorized` |
 | `tls.ts` | direct HTTPS (`app.listen(0, { tls: { cert, key } })`), TLS 1.3 only |

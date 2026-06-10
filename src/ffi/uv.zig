@@ -88,6 +88,16 @@ pub extern fn uv_tcp_close_reset(handle: *anyopaque, cb: ?CloseCb) c_int;
 pub extern fn uv_unref(handle: *anyopaque) void;
 pub extern fn uv_strerror(err: c_int) [*c]const u8;
 
+// uv_poll: watch a raw fd for readability on the loop. The io_uring transport polls the
+// ring fd this way, so completions are drained on the loop thread (no thread hop, same
+// rule as everything else in toki). uv_poll_t is small; over-size the block to be safe.
+pub const poll_size = 256;
+pub const UV_READABLE = 1;
+pub const PollCb = *const fn (handle: *anyopaque, status: c_int, events: c_int) callconv(.c) void;
+pub extern fn uv_poll_init(loop: *anyopaque, handle: *anyopaque, fd: c_int) c_int;
+pub extern fn uv_poll_start(handle: *anyopaque, events: c_int, cb: PollCb) c_int;
+pub extern fn uv_poll_stop(handle: *anyopaque) c_int;
+
 // UDP. recv_start hands every datagram to recv_cb with the sender's sockaddr; send is
 // async (req + cb), try_send is the non-blocking fast path (returns bytes or UV_EAGAIN).
 pub extern fn uv_udp_init(loop: *anyopaque, handle: *anyopaque) c_int;
