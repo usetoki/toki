@@ -43,38 +43,44 @@ describe("HTTP write-queue cap drops a non-reading peer", () => {
   let handle: { close(): void } | undefined;
   after(() => handle?.close());
 
-  test("a slow reader past the cap is reset, not buffered unbounded", async () => {
+  test("a slow reader past the cap is dropped before the whole body arrives", async () => {
     const port = await freePort();
     handle = app.listen(port, { host: "127.0.0.1", maxWriteQueue: 64 * 1024 });
 
-    // read just enough to fill the kernel buffer then stop draining for a beat: the
-    // server's backlog blows the 64 KB cap and it resets us. We keep the socket in
-    // reading mode (not paused) so the RST surfaces as a close/error here.
+    // The OS-independent invariant: a client that drains far slower than the server
+    // produces must have its connection dropped well before the full 96 MB lands —
+    // the server caps its backlog and lets go, rather than buffering it all. A drip
+    // reader (read a little, stall, read again) keeps the socket in reading mode so a
+    // reset surfaces here, while still building the server-side queue past the cap.
+    const total = big.length;
     const outcome = await new Promise<string>((resolve) => {
       const sock = net.connect(port, "127.0.0.1", () => {
         sock.write("GET /big HTTP/1.1\r\nHost: x\r\n\r\n");
+        sock.pause();
       });
       let received = 0;
       sock.on("data", (d) => {
         received += d.length;
-        // stall the reader once we've taken a little, forcing the server to queue
-        if (received > 128 * 1024) sock.pause();
+        sock.pause(); // take one chunk, then stall — the drip is driven by the timer
       });
+      const drip = setInterval(() => sock.resume(), 120);
       let settled = false;
       const done = (v: string) => {
-        if (!settled) {
-          settled = true;
-          resolve(v);
-        }
+        if (settled) return;
+        settled = true;
+        clearInterval(drip);
+        sock.destroy();
+        resolve(v);
       };
-      sock.on("close", () => done("closed"));
-      sock.on("error", () => done("closed"));
-      // resume late so the buffered reset is delivered to JS even if we stalled
-      setTimeout(() => sock.resume(), 1500);
-      setTimeout(() => done(`open:${received}`), 8000);
+      sock.on("close", () => done(received >= total ? "full-body" : "dropped"));
+      sock.on("error", () => done("dropped"));
+      setTimeout(() => done(received >= total ? "full-body" : `open:${received}`), 15000);
     });
 
-    assert.equal(outcome, "closed", "server should reset a peer that exceeds the write-queue cap");
-    // the server must not have streamed the whole 96 MB body before resetting
+    assert.equal(
+      outcome,
+      "dropped",
+      "server should drop a slow reader past the cap before the whole body lands",
+    );
   });
 });
