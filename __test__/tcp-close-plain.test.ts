@@ -3,8 +3,9 @@ import net from "node:net";
 import { after, test } from "node:test";
 import { createTcpServer, type CloseReason, type TcpSocket } from "../ts/index.ts";
 
-// Phase 0 on a plaintext socket: flush-aware end(), write-after-close → false, close reasons.
-// One server per process; the first line picks the behaviour.
+// Close and shutdown semantics on a plaintext socket: flush-aware end(), write() after close
+// returning false, and the close reason on ev_close. One server per process; the first line
+// picks the behaviour.
 type ServerInfo = { reason: CloseReason } & Record<string, unknown>;
 const pending = new Map<string, (info: ServerInfo) => void>();
 
@@ -103,26 +104,26 @@ function readToClose(s: net.Socket, done: (v: { body: Buffer; clean: boolean }) 
   s.on("close", (hadError) => done({ body: Buffer.concat(chunks), clean: !errored && !hadError }));
 }
 
-test("0a: plaintext end() under backlog delivers every byte then a clean FIN", async () => {
+test("plaintext end() under backlog delivers every byte then a clean FIN", async () => {
   const out = await drive("bigend", readToClose);
   assert.equal(out.client.body.length, 4 * 1024 * 1024);
   assert.ok(out.client.body.every((b) => b === 0x61));
   assert.ok(out.client.clean, "clean FIN, no RST");
 });
 
-test("0a: plaintext end(data) flushes the final chunk", async () => {
+test("plaintext end(data) flushes the final chunk", async () => {
   const out = await drive("idleend", readToClose);
   assert.equal(out.client.body.toString(), "hi");
   assert.ok(out.client.clean);
   assert.equal(out.server.reason, "normal");
 });
 
-test("0b: plaintext write() after end() returns false", async () => {
+test("plaintext write() after end() returns false", async () => {
   const out = await drive("endthenwrite", readToClose);
   assert.equal(out.server.afterEnd, false);
 });
 
-test("0b: plaintext write() after the socket is gone returns false", async () => {
+test("plaintext write() after the socket is gone returns false", async () => {
   const out = await drive<true>("wac", (s, done) => {
     s.once("data", () => s.resetAndDestroy());
     s.on("close", () => done(true));
@@ -130,7 +131,7 @@ test("0b: plaintext write() after the socket is gone returns false", async () =>
   assert.equal(out.server.lateWrite, false);
 });
 
-test("0c: plaintext blowing the write-queue cap reports 'write-queue-overflow'", async () => {
+test("plaintext blowing the write-queue cap reports 'write-queue-overflow'", async () => {
   const out = await drive<true>("overflow", (s, done) => {
     s.pause();
     s.on("error", () => {});
@@ -139,7 +140,7 @@ test("0c: plaintext blowing the write-queue cap reports 'write-queue-overflow'",
   assert.equal(out.server.reason, "write-queue-overflow");
 });
 
-test("0c: plaintext destroy() tears the connection down and reports reason 'normal'", async () => {
+test("plaintext destroy() tears the connection down and reports reason 'normal'", async () => {
   const out = await drive<{ closed: boolean }>("destroyme", (s, done) => {
     s.on("data", () => {});
     s.on("error", () => {}); // a graceful destroy may FIN or RST the peer — both are fine

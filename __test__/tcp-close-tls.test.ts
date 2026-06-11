@@ -6,9 +6,10 @@ import tls from "node:tls";
 import { fileURLToPath } from "node:url";
 import { createTcpServer, type CloseReason, type TcpSocket } from "../ts/index.ts";
 
-// Phase 0 correctness on the raw TLS socket: flush-aware end() (0a), write-after-close
-// reporting false (0b), close reasons (0c), and the edge cases around them. One TLS server
-// per process; each connection picks a behaviour with its first line.
+// Close and shutdown semantics on the raw TLS socket: flush-aware end() (every byte delivered
+// then a clean close_notify + FIN, no truncating reset), write() after close reporting false,
+// the close reason on ev_close, and the edge cases around them. One TLS server per process;
+// each connection picks a behaviour with its first line.
 const here = dirname(fileURLToPath(import.meta.url));
 const cert = readFileSync(join(here, "fixtures", "ec-cert.pem"));
 const key = readFileSync(join(here, "fixtures", "ec-key.pem"));
@@ -128,13 +129,13 @@ function readToClose(s: tls.TLSSocket, done: (v: { body: Buffer; clean: boolean 
   s.on("close", (hadError) => done({ body: Buffer.concat(chunks), clean: !errored && !hadError }));
 }
 
-test("0a: end() under write backlog delivers every byte then a clean TLS close", async () => {
+test("end() under write backlog delivers every byte then a clean TLS close", async () => {
   const out = await drive("bigend", readToClose);
   assert.equal(out.client.body.length, 4 * 1024 * 1024);
   assert.ok(out.client.clean, "no truncating RST");
 });
 
-test("0a: a 12 MiB backlog drains fully before the FIN", async () => {
+test("a 12 MiB backlog drains fully before the FIN", async () => {
   const out = await drive("hugeend", readToClose);
   assert.equal(out.client.body.length, 12 * 1024 * 1024);
   assert.ok(
@@ -144,31 +145,31 @@ test("0a: a 12 MiB backlog drains fully before the FIN", async () => {
   assert.ok(out.client.clean);
 });
 
-test("0a: end() on an idle connection closes promptly and cleanly", async () => {
+test("end() on an idle connection closes promptly and cleanly", async () => {
   const out = await drive("idleend", readToClose);
   assert.equal(out.client.body.toString(), "hi");
   assert.ok(out.client.clean);
 });
 
-test("0a: end(data) flushes the final chunk then closes cleanly", async () => {
+test("end(data) flushes the final chunk then closes cleanly", async () => {
   const out = await drive("enddata", readToClose);
   assert.equal(out.client.body.toString(), "ab");
   assert.ok(out.client.clean);
 });
 
-test("0a: end() twice is a no-op (one clean close)", async () => {
+test("end() twice is a no-op (one clean close)", async () => {
   const out = await drive("endtwice", readToClose);
   assert.equal(out.client.body.toString(), "hi");
   assert.ok(out.client.clean);
   assert.equal(out.server.reason, "normal");
 });
 
-test("0b: write() after end() returns false", async () => {
+test("write() after end() returns false", async () => {
   const out = await drive("endthenwrite", readToClose);
   assert.equal(out.server.afterEnd, false);
 });
 
-test("0b: write() after the socket is gone returns false, not a bogus flush", async () => {
+test("write() after the socket is gone returns false, not a bogus flush", async () => {
   const out = await drive<true>("wac", (s, done) => {
     s.once("data", () => s.destroy()); // close only after the server acked the mode
     s.on("close", () => done(true));
@@ -176,12 +177,12 @@ test("0b: write() after the socket is gone returns false, not a bogus flush", as
   assert.equal(out.server.lateWrite, false);
 });
 
-test("0c: a clean end() reports reason 'normal'", async () => {
+test("a clean end() reports reason 'normal'", async () => {
   const out = await drive("idleend", readToClose);
   assert.equal(out.server.reason, "normal");
 });
 
-test("0c: destroy() reports reason 'normal' (app-initiated)", async () => {
+test("destroy() reports reason 'normal' (app-initiated)", async () => {
   const out = await drive<true>("destroyme", (s, done) => {
     s.on("data", () => {});
     s.on("error", () => {});
@@ -190,7 +191,7 @@ test("0c: destroy() reports reason 'normal' (app-initiated)", async () => {
   assert.equal(out.server.reason, "normal");
 });
 
-test("0c: blowing the write-queue cap reports 'write-queue-overflow'", async () => {
+test("blowing the write-queue cap reports 'write-queue-overflow'", async () => {
   const out = await drive<true>("overflow", (s, done) => {
     s.pause(); // never read; keep the socket alive to apply backpressure past the cap
     s.on("error", () => {});
@@ -199,7 +200,7 @@ test("0c: blowing the write-queue cap reports 'write-queue-overflow'", async () 
   assert.equal(out.server.reason, "write-queue-overflow");
 });
 
-test("0c: a peer RST mid-session reports 'peer-reset'", async () => {
+test("a peer RST mid-session reports 'peer-reset'", async () => {
   const out = await drive<true>("peerreset", (s, done) => {
     s.once("data", () => s.destroy()); // close without close_notify while bytes are unread
     s.on("error", () => {});
@@ -208,7 +209,7 @@ test("0c: a peer RST mid-session reports 'peer-reset'", async () => {
   assert.equal(out.server.reason, "peer-reset");
 });
 
-test("0a: many connections end under backlog concurrently with no cross-talk", async () => {
+test("many connections end under backlog concurrently with no cross-talk", async () => {
   const results = await Promise.all(Array.from({ length: 12 }, () => drive("bigend", readToClose)));
   for (const out of results) {
     assert.equal(out.client.body.length, 4 * 1024 * 1024);
