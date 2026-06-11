@@ -589,8 +589,8 @@ fn onResolve(req: *anyopaque, status: c_int, res: ?*anyopaque) callconv(.c) void
         return;
     }
     // collect up to max_connect_addrs candidates from the resolver list. addrinfo's field order
-    // differs across platforms, so read it through std.c.addrinfo (correct on each).
-    var node: ?*std.c.addrinfo = @ptrCast(@alignCast(res.?));
+    // and addrlen width differ across platforms, so read it through uv.Addrinfo (correct on each).
+    var node: ?*uv.Addrinfo = @ptrCast(@alignCast(res.?));
     var k: usize = 0;
     while (node) |ai| : (node = ai.next) {
         if (k >= cc.addrs.len) break;

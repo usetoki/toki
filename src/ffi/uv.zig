@@ -81,6 +81,43 @@ pub const connect_size = 256;
 pub const getaddrinfo_size = 512;
 pub const ConnectCb = *const fn (req: *anyopaque, status: c_int) callconv(.c) void;
 pub const GetaddrinfoCb = *const fn (req: *anyopaque, status: c_int, res: ?*anyopaque) callconv(.c) void;
+
+// `struct addrinfo` as the C library lays it out — not portable via std (std.c.addrinfo doesn't
+// exist on Windows). Two things differ: ai_addrlen is size_t on Windows but socklen_t (u32)
+// elsewhere, and Linux puts ai_addr before ai_canonname while Windows/BSD put canonname first.
+// We only read addr/addrlen/next.
+pub const Addrinfo = switch (builtin.os.tag) {
+    .windows => extern struct {
+        flags: c_int,
+        family: c_int,
+        socktype: c_int,
+        protocol: c_int,
+        addrlen: usize,
+        canonname: ?[*:0]u8,
+        addr: ?*anyopaque,
+        next: ?*Addrinfo,
+    },
+    .linux => extern struct {
+        flags: c_int,
+        family: c_int,
+        socktype: c_int,
+        protocol: c_int,
+        addrlen: u32,
+        addr: ?*anyopaque,
+        canonname: ?[*:0]u8,
+        next: ?*Addrinfo,
+    },
+    else => extern struct { // darwin / BSD: ai_canonname precedes ai_addr, socklen_t addrlen
+        flags: c_int,
+        family: c_int,
+        socktype: c_int,
+        protocol: c_int,
+        addrlen: u32,
+        canonname: ?[*:0]u8,
+        addr: ?*anyopaque,
+        next: ?*Addrinfo,
+    },
+};
 pub extern fn uv_tcp_connect(req: *anyopaque, handle: *anyopaque, addr: *const anyopaque, cb: ConnectCb) c_int;
 pub extern fn uv_getaddrinfo(loop: *anyopaque, req: *anyopaque, cb: GetaddrinfoCb, node: [*c]const u8, service: [*c]const u8, hints: ?*const anyopaque) c_int;
 pub extern fn uv_freeaddrinfo(res: ?*anyopaque) void;
