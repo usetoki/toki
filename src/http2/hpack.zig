@@ -23,21 +23,26 @@ const IntResult = struct { value: usize, next: usize };
 
 fn decodeInt(buf: []const u8, start: usize, prefix_bits: u3) Error!IntResult {
     if (start >= buf.len) return error.CompressionError;
-    const prefix_max: usize = (@as(usize, 1) << prefix_bits) - 1;
-    var value: usize = buf[start] & prefix_max;
+    // accumulate in u64 so the shift type (u6) is valid on 32-bit targets too, where usize
+    // is 32-bit and would require a u5 shift
+    const prefix_max: u64 = (@as(u64, 1) << prefix_bits) - 1;
+    var value: u64 = buf[start] & prefix_max;
     var i = start + 1;
-    if (value < prefix_max) return .{ .value = value, .next = i };
+    if (value < prefix_max) return .{ .value = @intCast(value), .next = i };
     var shift: u6 = 0;
     while (true) {
         if (i >= buf.len) return error.CompressionError;
         const b = buf[i];
         i += 1;
-        if (shift > 28) return error.CompressionError; // 5 continuation bytes is already absurd
-        value += @as(usize, b & 0x7f) << shift;
+        if (shift >= 28) return error.CompressionError; // 4 continuation bytes already overshoots any real length
+        value += @as(u64, b & 0x7f) << shift;
         shift += 7;
         if (b & 0x80 == 0) break;
     }
-    return .{ .value = value, .next = i };
+    // HPACK integers here are indices, lengths, and table sizes — all far below 2^32; a larger
+    // value is invalid (and wouldn't fit usize on a 32-bit host)
+    if (value > std.math.maxInt(u32)) return error.CompressionError;
+    return .{ .value = @intCast(value), .next = i };
 }
 
 fn encodeInt(dest: []u8, value: usize, prefix_bits: u3, prefix_high: u8) usize {
