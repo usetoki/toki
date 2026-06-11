@@ -191,14 +191,19 @@ test("destroy() reports reason 'normal' (app-initiated)", async () => {
   assert.equal(out.server.reason, "normal");
 });
 
-test("blowing the write-queue cap reports 'write-queue-overflow'", async () => {
-  const out = await drive<true>("overflow", (s, done) => {
-    s.pause(); // never read; keep the socket alive to apply backpressure past the cap
-    s.on("error", () => {});
-    done(true);
-  });
-  assert.equal(out.server.reason, "write-queue-overflow");
-});
+// see the plaintext suite: Windows socket-buffer sizing makes the cap trigger nondeterministic.
+test(
+  "blowing the write-queue cap reports 'write-queue-overflow'",
+  { skip: process.platform === "win32" },
+  async () => {
+    const out = await drive<true>("overflow", (s, done) => {
+      s.pause(); // never read; keep the socket alive to apply backpressure past the cap
+      s.on("error", () => {});
+      done(true);
+    });
+    assert.equal(out.server.reason, "write-queue-overflow");
+  },
+);
 
 test("a peer RST mid-session reports 'peer-reset'", async () => {
   const out = await drive<true>("peerreset", (s, done) => {

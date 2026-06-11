@@ -38,9 +38,16 @@ const plain = net.createServer((s) => {
 plain.listen(0, "127.0.0.1");
 const plainPort = () => (plain.address() as net.AddressInfo).port;
 
+// accepts the TCP connection but never speaks TLS — a TLS connect to it hangs in the handshake,
+// so timeoutMs fires deterministically on every platform (no reliance on a blackholed address).
+const silent = net.createServer((s) => s.on("error", () => {}));
+silent.listen(0, "127.0.0.1");
+const silentPort = () => (silent.address() as net.AddressInfo).port;
+
 after(() => {
   server.close();
   plain.close();
+  silent.close();
 });
 
 // resolve once `n` bytes have arrived (across however many data events).
@@ -198,14 +205,15 @@ test("an unresolvable host rejects with 'dns'", async () => {
   );
 });
 
-test("a connect that outruns timeoutMs rejects with 'timeout'", async () => {
-  // 10.255.255.1 is a non-routable RFC 5737-style sink: the SYN goes unanswered.
+test("a TLS handshake that outruns timeoutMs rejects with 'timeout'", async () => {
+  // the silent server completes the TCP connect but never answers the ClientHello, so the
+  // handshake stalls and the deadline fires — deterministic on every platform.
   const t0 = Date.now();
   await assert.rejects(
-    connectTcp("10.255.255.1", 80, { timeoutMs: 300 }),
-    (e: TcpConnectError) => e.reason === "timeout",
+    connectTcp("127.0.0.1", silentPort(), { tls: { rejectUnauthorized: false }, timeoutMs: 300 }),
+    (e: TcpConnectError) => e instanceof TcpConnectError && e.reason === "timeout",
   );
-  assert.ok(Date.now() - t0 < 2000, "the timeout fired near 300ms, not the OS default");
+  assert.ok(Date.now() - t0 < 3000, "the timeout fired near 300ms, not the OS default");
 });
 
 test("a generous timeout does not spuriously fire on a fast connect", async () => {

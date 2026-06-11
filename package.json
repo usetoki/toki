@@ -51,7 +51,7 @@
     "lint": "zig fmt --check src build.zig && npm run typecheck && npm run format:check",
     "format": "zig fmt src build.zig && prettier --write \"{ts,examples,__test__}/**/*.ts\" \"plugins/*/{src,__test__}/**/*.ts\"",
     "format:check": "prettier --check \"{ts,examples,__test__}/**/*.ts\" \"plugins/*/{src,__test__}/**/*.ts\"",
-    "test": "zig build test && node --test --test-concurrency=1 --test-force-exit __test__/*.test.ts",
+    "test": "zig build test && node --test --test-concurrency=1 --test-force-exit --test-timeout=60000 __test__/*.test.ts",
     "test:plugins": "npm run test --workspaces --if-present"
   },
   "optionalDependencies": {

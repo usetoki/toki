@@ -624,10 +624,10 @@ fn onConnect(req: *anyopaque, status: c_int) callconv(.c) void {
         return;
     }
     const conn = cc.conn;
-    markResolved(cc);
-    conn.connect = null; // the conn outlives the connect now; drop the back-reference
-    ccMaybeFree(cc);
-
+    // TCP is up. A plaintext connect is finished now, so resolveConnect cancels the deadline; a TLS
+    // connect stays pending — the timeout must keep covering the handshake — and is resolved in
+    // tlsDrive once the handshake establishes. (A failed handshake tears the conn down, and
+    // closeConn stops the timer there.)
     var scope: napi.HandleScope = undefined;
     _ = napi.napi_open_handle_scope(env, &scope);
     defer _ = napi.napi_close_handle_scope(env, scope);
@@ -646,7 +646,17 @@ fn onConnect(req: *anyopaque, status: c_int) callconv(.c) void {
         dispatch(conn.id, ev_connection, undefinedValue());
         if (conn.closing) return; // a connect handler may have destroyed it
         armRead(conn);
+        resolveConnect(conn);
     }
+}
+
+// the connect (TCP for plaintext, the whole handshake for TLS) succeeded: cancel the timeout and
+// release the connect bookkeeping. The conn lives on as an established socket.
+fn resolveConnect(conn: *Conn) void {
+    const cc = conn.connect orelse return;
+    markResolved(cc);
+    conn.connect = null;
+    ccMaybeFree(cc);
 }
 
 // the timeout fired before the connect (or handshake) finished — abort with a timeout reason.
@@ -872,6 +882,9 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
         }
         if (!conn.tls_announced) {
             conn.tls_announced = true;
+            // an outbound client connect resolves here (handshake established), cancelling the
+            // connect deadline; a no-op on an accepted server connection.
+            resolveConnect(conn);
             dispatch(conn.id, ev_connection, undefinedValue());
             if (conn.closing) return; // handler may have destroyed it on connect
         }
@@ -1085,8 +1098,10 @@ pub fn closeSocket(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
 fn closeConn(conn: *Conn, reason: u32) void {
     if (conn.closing) return;
     conn.close_reason = reason;
-    // graceful TLS shutdown: best-effort close_notify before the socket goes away. Must run
-    // before closing flips on (rawWriteAll is a no-op once closing) and before the FIN/RST.
+    // tearing down a still-connecting / mid-handshake client: stop its connect deadline so the
+    // timer can't fire on a freed conn. markResolved leaves cc attached; it's freed by its own
+    // pending callbacks. (No-op for an accepted conn or a connect that already resolved.)
+    if (conn.connect) |cc| markResolved(cc);
     if (conn.tls) |st| {
         if (st.established and !st.sent_close) {
             st.sent_close = true;

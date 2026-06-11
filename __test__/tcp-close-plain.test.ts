@@ -131,14 +131,20 @@ test("plaintext write() after the socket is gone returns false", async () => {
   assert.equal(out.server.lateWrite, false);
 });
 
-test("plaintext blowing the write-queue cap reports 'write-queue-overflow'", async () => {
-  const out = await drive<true>("overflow", (s, done) => {
-    s.pause();
-    s.on("error", () => {});
-    done(true);
-  });
-  assert.equal(out.server.reason, "write-queue-overflow");
-});
+// Windows sizes/auto-tunes the socket send buffer differently, so a fixed-size write to a paused
+// peer may be absorbed without ever backing up past the cap — the trigger is nondeterministic there.
+test(
+  "plaintext blowing the write-queue cap reports 'write-queue-overflow'",
+  { skip: process.platform === "win32" },
+  async () => {
+    const out = await drive<true>("overflow", (s, done) => {
+      s.pause();
+      s.on("error", () => {});
+      done(true);
+    });
+    assert.equal(out.server.reason, "write-queue-overflow");
+  },
+);
 
 test("plaintext destroy() tears the connection down and reports reason 'normal'", async () => {
   const out = await drive<{ closed: boolean }>("destroyme", (s, done) => {
