@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import http2 from "node:http2";
+import { dirname, join } from "node:path";
 import { after, before, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { createApp, reply } from "../ts/index.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 // HTTP/2 over cleartext (h2c prior knowledge) — no certs, so it runs anywhere. The TLS
 // path (ALPN "h2") is covered in http2-tls.test.ts. One listen per process: this file is
@@ -24,7 +28,7 @@ app.get("/stream", () =>
     })(),
   ),
 );
-app.static("/assets", new URL("./fixtures/www", import.meta.url).pathname);
+app.static("/assets", join(here, "fixtures", "www"));
 
 const handle = app.listen(0, { host: "127.0.0.1", http2: true });
 const port = handle.port;
