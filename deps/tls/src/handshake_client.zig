@@ -234,6 +234,9 @@ pub const Handshake = struct {
     // public key len: x25519 = 32, secp256r1 = 65, secp384r1 = 97, x25519_ml_kem768 = 1120
     server_pub_key_buf: [1120]u8 = undefined,
     server_pub_key: []const u8 = undefined,
+    // the server's leaf certificate (DER), retained for peerCertificate. Filled by the cert
+    // parser during the handshake; `cert.leaf_len` is the length (0 if none / too large).
+    peer_cert_buf: [common.max_peer_certificate_len]u8 = undefined,
     pre_shared_selected_identity: ?u16 = null,
     /// ALPN protocol selected by the server, copied into alpn_protocol_buf.
     alpn_protocol: ?[]const u8 = null,
@@ -549,6 +552,7 @@ pub const Handshake = struct {
                             &.{.certificate};
                     },
                     .certificate => {
+                        h.cert.leaf_out = &h.peer_cert_buf; // retain the leaf for peerCertificate
                         try h.cert.parseCertificate(&d, h.tls_version);
                         handshake_states = if (h.cipher_suite.keyExchange() == .rsa)
                             &.{.server_hello_done}
@@ -740,6 +744,7 @@ pub const Handshake = struct {
                                     &.{.certificate};
                             },
                             .certificate => {
+                                h.cert.leaf_out = &h.peer_cert_buf; // retain the leaf for peerCertificate
                                 try h.cert.parseCertificate(&d, h.tls_version);
                                 handshake_states = &.{.certificate_verify};
                             },
@@ -1379,6 +1384,13 @@ pub const NonBlock = struct {
     pub fn exportKeyingMaterial(self: *Self, label: []const u8, context: []const u8, out: []u8) void {
         self.inner.transcript.exportKeyingMaterial(label, context, out);
     }
+
+    /// The server's leaf certificate in DER, or null if none was retained (the peer sent none, or
+    /// the leaf exceeded max_peer_certificate_len). Valid for the life of this handshake object.
+    pub fn peerCertificate(self: *Self) ?[]const u8 {
+        if (self.inner.cert.leaf_len == 0) return null;
+        return self.inner.peer_cert_buf[0..self.inner.cert.leaf_len];
+    }
 };
 
 test "nonblock handshake" {
@@ -1462,7 +1474,7 @@ test "note about sizes" {
     try testing.expectEqual(14384, @sizeOf(DhKeyPair));
     try testing.expectEqual(136, @sizeOf(Options));
     try testing.expectEqual(2792, @sizeOf(CertKeyPair));
-    try testing.expectEqual(1736, @sizeOf(CertificateParser));
+    try testing.expectEqual(1760, @sizeOf(CertificateParser));
     try testing.expectEqual(48, @sizeOf(cert.Bundle));
     try testing.expectEqual(208, @sizeOf(Cipher));
 }

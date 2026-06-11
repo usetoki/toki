@@ -92,6 +92,11 @@ pub const Handshake = struct {
     /// Always false when client_auth is null or the client sent an empty cert (.request mode).
     client_cert_verified: bool = false,
 
+    /// The client's leaf certificate (DER) retained for peerCertificate, with its length. Filled
+    /// from the transient cert parser during the mTLS handshake; 0 when no client cert was seen.
+    peer_cert_buf: [common.max_peer_certificate_len]u8 = undefined,
+    peer_cert_len: usize = 0,
+
     const Self = @This();
 
     fn writeAlert(h: *Self, cph: ?*Cipher, err: anyerror) !void {
@@ -291,7 +296,9 @@ pub const Handshake = struct {
                                     try d.skip(length);
                                     handshake_state = .finished;
                                 } else {
+                                    crt_parser.leaf_out = &h.peer_cert_buf; // retain for peerCertificate
                                     try crt_parser.parseCertificate(&d, .tls_1_3);
+                                    h.peer_cert_len = crt_parser.leaf_len;
                                     handshake_state = .certificate_verify;
                                 }
                             },
@@ -729,5 +736,12 @@ pub const NonBlock = struct {
     /// RFC 8446 §7.5 exporter — valid after the handshake completes. See Transcript.exportKeyingMaterial.
     pub fn exportKeyingMaterial(self: *Self, label: []const u8, context: []const u8, out: []u8) void {
         self.inner.transcript.exportKeyingMaterial(label, context, out);
+    }
+
+    /// The client's leaf certificate in DER (mutual TLS), or null if none was retained (no client
+    /// cert, or it exceeded max_peer_certificate_len). Valid for the life of this handshake object.
+    pub fn peerCertificate(self: *Self) ?[]const u8 {
+        if (self.inner.peer_cert_len == 0) return null;
+        return self.inner.peer_cert_buf[0..self.inner.peer_cert_len];
     }
 };

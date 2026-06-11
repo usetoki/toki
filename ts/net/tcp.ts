@@ -35,6 +35,10 @@ export interface TcpSocket {
    *  RFC 9266 `tls-exporter` channel binding) from `label` and an optional `context`. Both peers
    *  derive identical bytes. `undefined` on a plaintext connection. */
   exportKeyingMaterial(length: number, label: string, context?: Uint8Array): Buffer | undefined;
+  /** TLS only: the peer's leaf certificate in DER — the server's certificate on a `connectTcp`
+   *  client, the client's on a server (mutual TLS). `undefined` on a plaintext connection, or when
+   *  no peer certificate was retained (none was sent, or it exceeded the retained-cert size). */
+  peerCertificate(): Buffer | undefined;
   on(event: "data", listener: (chunk: Buffer) => void): this;
   on(event: "close", listener: (reason: CloseReason) => void): this;
   on(event: "drain" | "end", listener: () => void): this;
@@ -301,6 +305,10 @@ class Socket implements TcpSocket {
   // (a plaintext / io_uring id isn't in that connection table and simply yields undefined).
   exportKeyingMaterial(length: number, label: string, context?: Uint8Array): Buffer | undefined {
     return native.tcpExportKeyingMaterial(this.#id, length, label, context);
+  }
+
+  peerCertificate(): Buffer | undefined {
+    return native.tcpPeerCertificate(this.#id);
   }
 
   on(event: "data", listener: (chunk: Buffer) => void): this;

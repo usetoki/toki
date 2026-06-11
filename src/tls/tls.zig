@@ -208,6 +208,15 @@ pub fn exportKeyingMaterial(st: *State, label: []const u8, context: []const u8, 
     return true;
 }
 
+/// The peer's leaf certificate in DER, or null. On a client conn it's the server's certificate;
+/// on a server conn it's the client's (mutual TLS). The slice lives as long as the State.
+pub fn peerCertificate(st: *State) ?[]const u8 {
+    if (!st.established) return null;
+    return switch (st.handshake) {
+        inline else => |*h| h.peerCertificate(),
+    };
+}
+
 var pool: std.heap.MemoryPool(State) = .empty;
 
 /// `now_sec` is the current wall-clock time in Unix seconds — used to verify a client

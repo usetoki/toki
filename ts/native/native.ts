@@ -172,6 +172,9 @@ interface Native {
     label: string,
     context: Uint8Array | undefined,
   ): Buffer | undefined;
+  /** the peer's leaf certificate in DER for a TLS connection; `undefined` on plaintext / not yet
+   *  established / no peer certificate retained */
+  tcpPeerCertificate(id: number): Buffer | undefined;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */

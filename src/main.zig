@@ -30,6 +30,7 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "tcpSend", &tcp.send);
     defineFn(env, exports, "tcpPeer", &tcp.peer);
     defineFn(env, exports, "tcpExportKeyingMaterial", &tcp.exportKeyingMaterial);
+    defineFn(env, exports, "tcpPeerCertificate", &tcp.peerCertificate);
     defineFn(env, exports, "tcpEnd", &tcp.end);
     defineFn(env, exports, "tcpClose", &tcp.closeSocket);
     defineFn(env, exports, "tcpCloseServer", &tcp.closeServer);

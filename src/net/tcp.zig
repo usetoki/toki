@@ -785,6 +785,23 @@ pub fn exportKeyingMaterial(e: napi.Env, info: napi.CallbackInfo) callconv(.c) n
     return result;
 }
 
+// tcpPeerCertificate(id) -> Buffer | undefined. The peer's leaf certificate in DER — the server's
+// on a client connection, the client's on a server mTLS connection. undefined on a plaintext /
+// not-yet-established / unknown socket, or when no peer certificate was retained.
+pub fn peerCertificate(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return undefinedValue();
+    const st = conn.tls orelse return undefinedValue();
+    const der = tlsmod.peerCertificate(st) orelse return undefinedValue();
+    var result: napi.Value = undefined;
+    _ = napi.napi_create_buffer_copy(e, der.len, der.ptr, null, &result);
+    return result;
+}
+
 fn armRead(conn: *Conn) void {
     if (conn.reading or conn.closing) return;
     _ = uv.uv_read_start(opaqueOf(&conn.handle), &allocBuf, &onRead);

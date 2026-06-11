@@ -128,6 +128,11 @@ pub const CertKeyPair = struct {
     };
 };
 
+// Cap on the peer leaf certificate retained for inspection (peerCertificate). A leaf larger than
+// this isn't retained; the handshake itself is unaffected. Covers EC and RSA-4096 leaves with
+// room for a normal SAN list.
+pub const max_peer_certificate_len = 4096;
+
 pub const cert = struct {
     // A chain of one or more certificates.
     //
@@ -306,6 +311,10 @@ pub const CertificateParser = struct {
     host: []const u8,
     skip_verify: bool = false,
     now_sec: i64,
+    // optional: when set, the peer's leaf certificate (first in the chain) is copied here in DER
+    // form and `leaf_len` is set. Left untouched if the leaf is larger than the buffer.
+    leaf_out: ?[]u8 = null,
+    leaf_len: usize = 0,
 
     pub fn parseCertificate(h: *CertificateParser, d: *record.Decoder, tls_version: proto.Version) !void {
         if (tls_version == .tls_1_3) {
@@ -344,6 +353,10 @@ pub const CertificateParser = struct {
                 }
                 h.pub_key = try dupe(&h.pub_key_buf, subject.pubKey());
                 h.pub_key_algo = subject.pub_key_algo;
+                if (h.leaf_out) |buf| if (crt.len <= buf.len) {
+                    @memcpy(buf[0..crt.len], crt);
+                    h.leaf_len = crt.len;
+                };
                 last_cert = subject;
             }
             if (!h.skip_verify) {
