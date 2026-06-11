@@ -188,10 +188,14 @@ interface Native {
 }
 
 /** native TCP event tags (match src/net/tcp.zig) */
-export type TcpEvent = 0 | 1 | 2 | 3; // connection | data | drain | close
-/** TCP lifecycle callback. `arg` is a buffer on data, else undefined (peer info is fetched
- *  lazily via {@link Native.tcpPeer}, not handed to the connection event) */
-export type TcpDispatch = (id: number, event: TcpEvent, arg: Uint8Array | undefined) => void;
+export type TcpEvent = 0 | 1 | 2 | 3 | 4; // connection | data | drain | close | end
+/** TCP lifecycle callback. `arg` is a buffer on data, a close-reason code (number) on close,
+ *  else undefined (peer info is fetched lazily via {@link Native.tcpPeer}). */
+export type TcpDispatch = (
+  id: number,
+  event: TcpEvent,
+  arg: Uint8Array | number | undefined,
+) => void;
 /** UDP datagram callback */
 export type UdpDispatch = (data: Uint8Array, rinfo: RemoteInfo) => void;
 

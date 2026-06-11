@@ -512,14 +512,16 @@ const Linux = struct {
         var len: usize = 0;
         _ = napi.napi_get_buffer_info(e, argv[1], &data, &len);
 
-        const conn = conns.get(id) orelse return uintValue(e, 0);
-        if (conn.closing) return uintValue(e, 0);
+        // 0xFFFFFFFF (send_gone in src/net/tcp.zig) means the connection is gone, so the TS
+        // write() reports false instead of a bogus "flushed". A live backlog caps one below it.
+        const conn = conns.get(id) orelse return uintValue(e, 0xFFFFFFFF);
+        if (conn.closing) return uintValue(e, 0xFFFFFFFF);
         if (data) |d| if (len != 0) {
             enqueueSend(conn, @as([*]const u8, @ptrCast(d))[0..len]);
             kickSend(conn);
             _ = ring.submit() catch {};
         };
-        return uintValue(e, @intCast(@min(conn.queued_bytes, std.math.maxInt(u32))));
+        return uintValue(e, @intCast(@min(conn.queued_bytes, 0xFFFFFFFE)));
     }
 
     // append a copy of bytes to the connection's write FIFO. Over the backlog cap, drop the

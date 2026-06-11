@@ -63,8 +63,13 @@ console.log("listening on", port);`,
       rows: [
         ["`data`", "`(chunk: Buffer)` — a copy of received bytes, safe to retain."],
         ["`drain`", "`()` — the send buffer emptied after a backpressured `write`."],
-        ["`close`", "`()` — the connection ended."],
+        ["`end`", "`()` — the peer half-closed (FIN); your write side is still open."],
+        ["`close`", "`(reason: CloseReason)` — the connection ended; the reason says why."],
       ],
+    },
+    {
+      kind: "paragraph",
+      text: "`CloseReason` is `\"normal\"` for a clean close on either side, or one of `\"peer-reset\"` (the peer reset or truncated the connection), `\"write-queue-overflow\"` (the send backlog blew `maxWriteQueue` and the connection was dropped), `\"tls-error\"` (a TLS fault), or `\"handshake-timeout\"`. The same value is on `socket.closeReason`.",
     },
     { kind: "heading", id: "lines", text: "A line-based protocol" },
     {
@@ -121,7 +126,7 @@ createTcpServer((socket) => {
     { kind: "heading", id: "closing", text: "end() vs destroy()" },
     {
       kind: "paragraph",
-      text: "`end()` is the graceful path: it flushes everything you've queued, then sends a FIN to half-close your side while you can still receive the peer's reply. `destroy()` is the abrupt path: it drops the connection immediately and discards queued bytes. Use it for a misbehaving client or a hard timeout.",
+      text: "`end()` is the graceful path: it flushes everything you've queued, then sends a FIN to half-close your side while you can still receive the peer's reply. On a TLS connection it sends a `close_notify` alert first, queued behind your backlog — so the peer gets every byte, then a clean TLS close, then the FIN, never a truncating reset. `destroy()` is the abrupt path: it drops the connection immediately (RST) and discards queued bytes. Use it for a misbehaving client or a hard timeout. After the socket is gone, `write()` returns `false` rather than silently dropping the bytes.",
     },
     {
       kind: "code",

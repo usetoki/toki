@@ -2,6 +2,15 @@ import { native, type RemoteInfo, type TcpOptions } from "../native/native.ts";
 
 export type { RemoteInfo, TcpOptions } from "../native/native.ts";
 
+/** Why a connection closed, reported on the `close` event and via {@link TcpSocket.closeReason}.
+ *  `normal` covers a clean local/peer close; the rest are abnormal. */
+export type CloseReason =
+  | "normal"
+  | "peer-reset"
+  | "write-queue-overflow"
+  | "tls-error"
+  | "handshake-timeout";
+
 /** A single accepted TCP connection. Reads arrive as `data`; backpressure is reported
  *  by {@link TcpSocket.write} returning `false` until the next `drain`. */
 export interface TcpSocket {
@@ -11,15 +20,20 @@ export interface TcpSocket {
    *  server's `tls.ca`. `false` on a plaintext connection, or a TLS connection where no valid
    *  client cert was presented (only reachable without `rejectUnauthorized`). */
   readonly authorized: boolean;
-  /** Send bytes. Returns `false` when the send buffer is backed up: stop writing and
-   *  resume on `drain`. A string is encoded as UTF-8. */
+  /** Why the connection closed; `"normal"` until an abnormal close sets it. Read it inside a
+   *  `close` listener (also passed as the listener's argument). */
+  readonly closeReason: CloseReason;
+  /** Send bytes. Returns `false` when the send buffer is backed up (resume on `drain`) or the
+   *  socket is gone (closed or closing). A string is encoded as UTF-8. */
   write(data: Uint8Array | string): boolean;
-  /** Flush queued writes, optionally send a final chunk, then half-close (FIN). */
+  /** Flush queued writes, optionally send a final chunk, then half-close (FIN). On a TLS
+   *  connection a `close_notify` is sent first, so the peer gets a clean close, never a reset. */
   end(data?: Uint8Array | string): void;
-  /** Drop the connection now, without waiting for queued writes. */
+  /** Drop the connection now, without waiting for queued writes (RST). */
   destroy(): void;
   on(event: "data", listener: (chunk: Buffer) => void): this;
-  on(event: "drain" | "end" | "close", listener: () => void): this;
+  on(event: "close", listener: (reason: CloseReason) => void): this;
+  on(event: "drain" | "end", listener: () => void): this;
   off(event: "data" | "drain" | "end" | "close", listener: (...args: never[]) => void): this;
 }
 
@@ -78,6 +92,19 @@ export interface TcpServer {
 // event tags from the native dispatcher, matched in src/net/tcp.zig
 const Ev = { Connection: 0, Data: 1, Drain: 2, Close: 3, End: 4 } as const;
 type Ev = (typeof Ev)[keyof typeof Ev];
+
+// close-reason codes from the native dispatcher (ev_close arg), indexed by the code.
+const CLOSE_REASONS: readonly CloseReason[] = [
+  "normal",
+  "peer-reset",
+  "write-queue-overflow",
+  "tls-error",
+  "handshake-timeout",
+];
+
+// tcpSend returns this when the connection is gone — distinguishes a real "flushed" (0) from a
+// write that landed after close. Matched to send_gone in src/net/tcp.zig.
+const SEND_GONE = 0xffffffff;
 
 // One raw TCP server per process. The native engine is a singleton, so a second
 // listener would clobber the first. Mirrors the HTTP `app.listen` rule.
@@ -153,6 +180,7 @@ class Socket implements TcpSocket {
   #ended = false; // we've ended our write side
   #readEnded = false; // peer half-closed
   #needDrain = false; // a write is backed up; a drain is pending
+  #closeReason: CloseReason = "normal";
   #data: Array<(chunk: Buffer) => void> = [];
   #drain: Array<() => void> = [];
   #end: Array<() => void> = [];
@@ -181,12 +209,21 @@ class Socket implements TcpSocket {
   get authorized(): boolean {
     return this.#fetchPeer().authorized ?? false;
   }
+  get closeReason(): CloseReason {
+    return this.#closeReason;
+  }
 
   write(data: Uint8Array | string): boolean {
     if (this.#ended) return false;
     const bytes = typeof data === "string" ? Buffer.from(data) : data;
-    // native returns the unflushed backlog; non-zero means the socket buffer is full.
-    const flushed = this.#backend.send(this.#id, bytes) === 0;
+    // native returns the unflushed backlog; non-zero means the socket buffer is full, and
+    // SEND_GONE means the connection has gone (closed/closing) — either way, not flushed.
+    const backlog = this.#backend.send(this.#id, bytes);
+    if (backlog === SEND_GONE) {
+      this.#ended = true;
+      return false;
+    }
+    const flushed = backlog === 0;
     if (!flushed) this.#needDrain = true;
     return flushed;
   }
@@ -205,7 +242,8 @@ class Socket implements TcpSocket {
   }
 
   on(event: "data", listener: (chunk: Buffer) => void): this;
-  on(event: "drain" | "end" | "close", listener: () => void): this;
+  on(event: "close", listener: (reason: CloseReason) => void): this;
+  on(event: "drain" | "end", listener: () => void): this;
   on(event: string, listener: (...args: never[]) => void): this {
     this.#bucket(event).push(listener as never);
     return this;
@@ -246,8 +284,9 @@ class Socket implements TcpSocket {
     for (const fn of this.#end) fn();
     this.#maybeAutoEnd();
   }
-  /** @internal */ emitClose(): void {
-    for (const fn of this.#close) fn();
+  /** @internal */ emitClose(reason: CloseReason): void {
+    this.#closeReason = reason;
+    for (const fn of this.#close as Array<(r: CloseReason) => void>) fn(reason);
   }
 }
 
@@ -311,7 +350,8 @@ export function createTcpServer(
         const socket = sockets.get(id);
         if (socket === undefined) return;
         sockets.delete(id);
-        socket.emitClose();
+        // the close arg is a reason code (a number), not a buffer
+        socket.emitClose(CLOSE_REASONS[(arg as unknown as number) ?? 0] ?? "normal");
         return;
       }
     }

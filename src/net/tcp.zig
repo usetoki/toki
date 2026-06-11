@@ -22,6 +22,19 @@ const ev_drain: u32 = 2;
 const ev_close: u32 = 3;
 const ev_end: u32 = 4; // peer half-closed (FIN): our read side ended, write side still open
 
+// reason carried on ev_close (the arg slot), so JS can tell apart a clean close from an
+// abnormal one. Matched in ts/net/tcp.ts.
+const reason_normal: u32 = 0;
+const reason_peer_reset: u32 = 1;
+const reason_write_queue_overflow: u32 = 2;
+const reason_tls_error: u32 = 3;
+const reason_handshake_timeout: u32 = 4;
+
+// tcpSend returns this when the id is gone (the socket closed before the write landed), so
+// the TS write() reports false instead of a bogus "flushed". A live backlog is capped one
+// below it, so the two never collide.
+const send_gone: u32 = 0xFFFFFFFF;
+
 // a single non-reading peer plus a producer that ignores backpressure would grow the
 // heap without bound (one alloc.dupe per ignored write). Cap the per-connection send
 // backlog; a connection that blows past it is wedged or abusive, and gets dropped.
@@ -61,6 +74,9 @@ const Conn = struct {
     // on a TLS conn, ev_connection is held back until the handshake completes, so the JS
     // handler's first write is already over an established session (Node's 'secureConnection').
     tls_announced: bool,
+    // why the connection closed, reported to JS on ev_close. Set once at the first close
+    // request; defaults to a clean close.
+    close_reason: u32,
     next: ?*Conn,
     prev: ?*Conn,
 };
@@ -283,13 +299,14 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .rejected = false,
         .tls = null,
         .tls_announced = false,
+        .close_reason = reason_normal,
         .next = null,
         .prev = null,
     };
     _ = uv.uv_tcp_init(loop.?, opaqueOf(&conn.handle));
     addConn(conn);
     if (uv.uv_accept(srv, opaqueOf(&conn.handle)) != 0) {
-        closeConn(conn);
+        closeConn(conn, reason_normal);
         return;
     }
     // accept guard: over-limit peers are reset here, before the TLS state (and so the
@@ -305,7 +322,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
             guard.maybeSweep(now);
             if (guard.exceeded(addr.ipBytes(&storage), now)) {
                 conn.rejected = true;
-                closeConn(conn);
+                closeConn(conn, reason_normal);
                 return;
             }
             // getpeername is already paid for; record the peer so a later tcpPeer is free
@@ -316,12 +333,12 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
     }
     if (no_delay) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
     conns.put(alloc, conn.id, conn) catch {
-        closeConn(conn);
+        closeConn(conn, reason_normal);
         return;
     };
     if (tls_enabled) {
         conn.tls = tlsmod.newState(alloc, wallClockSeconds()) orelse {
-            closeConn(conn);
+            closeConn(conn, reason_normal);
             return;
         };
     }
@@ -414,7 +431,7 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
         // tlsDrive). A bare TCP FIN/RST without it is a truncation, possibly an injected
         // reset, so close abnormally rather than report a graceful half-close.
         if (conn.tls != null) {
-            closeConn(conn);
+            closeConn(conn, reason_peer_reset);
             return;
         }
         // peer half-closed (FIN/RST): the read side is done, but the write side stays open
@@ -468,13 +485,13 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
         const h = tlsmod.handshakeBuf(st, cipher, &tls_out_scratch);
         if (h.send.len > 0) rawWriteAll(conn, h.send); // already ciphertext — never re-encrypt
         if (h.failed) {
-            closeConn(conn);
+            closeConn(conn, reason_tls_error);
             return;
         }
         cipher = cipher[h.consumed..];
         if (!st.established) {
             // need more of the client's handshake — carry the partial record
-            if (!tlsmod.carry(st, cipher)) closeConn(conn);
+            if (!tlsmod.carry(st, cipher)) closeConn(conn, reason_tls_error);
             return;
         }
         if (!conn.tls_announced) {
@@ -489,7 +506,7 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
     // dropped); the trailing partial, if any, comes back as the unconsumed tail.
     const b = tlsmod.decryptBatch(st, cipher, &tls_plain_scratch);
     if (b.failed) {
-        closeConn(conn);
+        closeConn(conn, reason_tls_error);
         return;
     }
     if (b.plain_len > 0) {
@@ -513,14 +530,14 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
 
     const tail = cipher[b.consumed..];
     if (!tlsmod.carry(st, tail)) {
-        closeConn(conn); // carry overflow: an oversized record that can't be a legal TLS frame
+        closeConn(conn, reason_tls_error); // carry overflow: an oversized record that can't be a legal TLS frame
         return;
     }
     // A header claiming a payload past the TLS 1.3 cap (2^14 + 256) can never complete; left
     // alone it sits in the carry and stalls the connection — a TLS-level slowloris. Close it.
     if (st.in_len >= 5) {
         const claimed = (@as(usize, st.in[3]) << 8) | @as(usize, st.in[4]);
-        if (claimed > tlsmod.max_cleartext + 256) closeConn(conn);
+        if (claimed > tlsmod.max_cleartext + 256) closeConn(conn, reason_tls_error);
     }
 }
 
@@ -543,7 +560,7 @@ fn writeAll(conn: *Conn, plaintext: []const u8) void {
             const take = @min(rest.len, tlsmod.max_cleartext);
             const w = tlsmod.encrypt(st, rest[0..take], tls_out_scratch[0..tlsmod.out_record]);
             if (w.failed) {
-                closeConn(conn);
+                closeConn(conn, reason_tls_error);
                 return;
             }
             rawWriteAll(conn, w.ciphertext);
@@ -574,7 +591,7 @@ fn rawWriteAll(conn: *Conn, bytes: []const u8) void {
 // app keeps writing to can't be allowed to exhaust process memory.
 fn overCapacity(conn: *Conn, extra: usize) bool {
     if (conn.queued_bytes + extra <= max_write_queue) return false;
-    closeConn(conn);
+    closeConn(conn, reason_write_queue_overflow);
     return true;
 }
 
@@ -627,13 +644,19 @@ pub fn send(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var len: usize = 0;
     _ = napi.napi_get_buffer_info(e, argv[1], &data, &len);
 
-    const conn = conns.get(id) orelse return uintValue(e, 0);
+    // the id is gone (the socket closed before this write landed) or already closing — report
+    // send_gone so the write isn't silently dropped while looking flushed.
+    const conn = conns.get(id) orelse return uintValue(e, send_gone);
+    if (conn.closing or conn.shutting) return uintValue(e, send_gone);
     if (data) |d| if (len != 0) writeAll(conn, @as([*]const u8, @ptrCast(d))[0..len]);
-    return uintValue(e, @intCast(@min(conn.queued_bytes, std.math.maxInt(u32))));
+    return uintValue(e, @intCast(@min(conn.queued_bytes, send_gone - 1)));
 }
 
-// tcpEnd(id) — half-close: flush queued writes, then send FIN. The peer reads the rest,
-// then sees EOF; onClose still fires when the socket finally goes away.
+// tcpEnd(id) — flush-aware half-close. Queued writes drain, then FIN; the peer reads the
+// rest, then sees EOF; onClose fires when the socket finally goes away. On a TLS conn the
+// close_notify alert is encrypted and queued behind the existing backlog first, so the peer
+// gets every byte, then a clean TLS close, then the FIN — never a truncating RST. uv_shutdown
+// itself waits for pending writes (the close_notify and any backlog) before sending the FIN.
 pub fn end(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var argc: usize = 1;
     var argv: [1]napi.Value = undefined;
@@ -642,16 +665,16 @@ pub fn end(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     _ = napi.napi_get_value_uint32(e, argv[0], &id);
 
     const conn = conns.get(id) orelse return undefinedValue();
-    if (conn.closing) return undefinedValue();
-    // a TLS half-close must send close_notify, then tear down. a bare uv_shutdown FIN reads as
-    // a truncation attack to the peer. closeConn sends the alert and resets, which the client
-    // sees as a clean TLS close. Plaintext keeps the graceful uv_shutdown FIN.
-    if (conn.tls != null) {
-        closeConn(conn);
-        return undefinedValue();
+    if (conn.closing or conn.shutting) return undefinedValue();
+    if (conn.tls) |st| {
+        if (st.established and !st.sent_close) {
+            st.sent_close = true;
+            rawWriteAll(conn, tlsmod.closeNotify(st, &tls_out_scratch));
+            if (conn.closing) return undefinedValue(); // a backlog over the cap closed it
+        }
     }
     const sr = alloc.create(ShutdownReq) catch {
-        closeConn(conn);
+        closeConn(conn, reason_normal);
         return undefinedValue();
     };
     sr.conn = conn;
@@ -659,7 +682,7 @@ pub fn end(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     if (uv.uv_shutdown(opaqueOf(&sr.req), opaqueOf(&conn.handle), &onShutdown) != 0) {
         conn.shutting = false;
         alloc.destroy(sr);
-        closeConn(conn);
+        closeConn(conn, reason_normal);
     }
     return undefinedValue();
 }
@@ -669,7 +692,7 @@ fn onShutdown(req: *anyopaque, status: c_int) callconv(.c) void {
     const sr: *ShutdownReq = @ptrCast(@alignCast(req));
     const conn = sr.conn;
     alloc.destroy(sr);
-    closeConn(conn);
+    closeConn(conn, reason_normal);
 }
 
 // tcpClose(id) — drop a connection now (RST/FIN, no flush guarantee).
@@ -679,12 +702,13 @@ pub fn closeSocket(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
     _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
     var id: u32 = 0;
     _ = napi.napi_get_value_uint32(e, argv[0], &id);
-    if (conns.get(id)) |conn| closeConn(conn);
+    if (conns.get(id)) |conn| closeConn(conn, reason_normal);
     return undefinedValue();
 }
 
-fn closeConn(conn: *Conn) void {
+fn closeConn(conn: *Conn, reason: u32) void {
     if (conn.closing) return;
+    conn.close_reason = reason;
     // graceful TLS shutdown: best-effort close_notify before the socket goes away. Must run
     // before closing flips on (rawWriteAll is a no-op once closing) and before the FIN/RST.
     if (conn.tls) |st| {
@@ -718,7 +742,9 @@ fn onClose(handle: *anyopaque) callconv(.c) void {
         var scope: napi.HandleScope = undefined;
         _ = napi.napi_open_handle_scope(env, &scope);
         defer _ = napi.napi_close_handle_scope(env, scope);
-        dispatch(conn.id, ev_close, undefinedValue());
+        var reason_val: napi.Value = undefined;
+        _ = napi.napi_create_uint32(env, conn.close_reason, &reason_val);
+        dispatch(conn.id, ev_close, reason_val);
     }
 
     if (conn.tls) |st| {
@@ -745,7 +771,7 @@ pub fn closeServer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
     var node = conn_list;
     while (node) |conn| {
         const nxt = conn.next; // grab before closeConn unlinks conn
-        closeConn(conn);
+        closeConn(conn, reason_normal);
         node = nxt;
     }
     return undefinedValue();
