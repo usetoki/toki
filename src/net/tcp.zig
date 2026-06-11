@@ -29,6 +29,12 @@ const reason_peer_reset: u32 = 1;
 const reason_write_queue_overflow: u32 = 2;
 const reason_tls_error: u32 = 3;
 const reason_handshake_timeout: u32 = 4;
+// outbound connect failures (connectTcp): these reach JS on ev_close for a connection that
+// never announced ev_connection, so the TS side rejects the connect promise with a typed error.
+// They never appear on an established socket. Matched in ts/net/tcp.ts.
+const reason_connect_dns: u32 = 5; // host did not resolve
+const reason_connect_refused: u32 = 6; // TCP connect failed (refused / unreachable / reset)
+const reason_connect_timeout: u32 = 7; // connect or handshake outran timeoutMs
 
 // tcpSend returns this when the id is gone (the socket closed before the write landed), so
 // the TS write() reports false instead of a bogus "flushed". A live backlog is capped one
@@ -77,8 +83,39 @@ const Conn = struct {
     // why the connection closed, reported to JS on ev_close. Set once at the first close
     // request; defaults to a clean close.
     close_reason: u32,
+    // outbound connect bookkeeping (connectTcp), null on an accepted server connection and
+    // cleared once the connect resolves. The heavy connect/resolve/timeout reqs live off the
+    // Conn (a million idle accepted sockets must not each carry a connect block) — just a ptr.
+    connect: ?*ClientConnect,
+    // an outbound connection (connectTcp), not an accepted one. closeServer leaves these alone:
+    // stopping the listener must not tear down a client's own outbound connections.
+    is_client: bool,
+    // a failed connect attempt's handle is being closed so it can be re-initialised for the next
+    // resolved address (a uv_tcp_t can't be reconnected). Guards against a double-close if the
+    // timeout fires during that gap.
+    recycling: bool,
     next: ?*Conn,
     prev: ?*Conn,
+};
+
+// Per outbound connect: the libuv reqs (DNS resolve, TCP connect) plus an optional timeout
+// timer and the sockaddr for a literal-IP connect. Heap-allocated only for clients, freed once
+// every callback that can still reference it has fired (the three *_pending flags below).
+const max_connect_addrs = 4;
+const ClientConnect = struct {
+    req: [uv.connect_size]u8 align(16) = undefined, // uv_connect_t
+    gai: [uv.getaddrinfo_size]u8 align(16) = undefined, // uv_getaddrinfo_t (hostname path)
+    timer: [uv.timer_size]u8 align(16) = undefined, // single-shot timeout (timeoutMs > 0)
+    // resolved candidate addresses, tried in order: a name can yield both an IPv6 and an IPv4
+    // address (localhost is the classic case), so a refusal on the first falls through to the next.
+    addrs: [max_connect_addrs][128]u8 align(8) = undefined,
+    addr_count: u8 = 0,
+    addr_idx: u8 = 0,
+    conn: *Conn,
+    gai_pending: bool = false, // a uv_getaddrinfo callback is still owed
+    connect_pending: bool = false, // a uv_tcp_connect callback is still owed
+    timer_pending: bool = false, // a timer close callback is still owed
+    resolved: bool = false, // the connect outcome (ok / fail / timeout) is decided
 };
 
 const WriteReq = struct {
@@ -135,6 +172,17 @@ var tls_plain_scratch: [tls_batch_size]u8 = undefined;
 var eof_timer: [uv.timer_size]u8 align(16) = undefined;
 var eof_timer_active = false;
 fn eofPoll(_: *anyopaque) callconv(.c) void {}
+
+// start the shared FIN-poll tick if it isn't running. Both listen() and an outbound connect()
+// need it: macOS can leave a pending EOF undelivered on a server-accepted *or* client socket.
+fn ensureEofTimer() void {
+    if (eof_poll_ms == 0 or eof_timer_active) return;
+    if (loop == null) return;
+    _ = uv.uv_timer_init(loop.?, opaqueOf(&eof_timer));
+    _ = uv.uv_timer_start(opaqueOf(&eof_timer), &eofPoll, eof_poll_ms, eof_poll_ms);
+    uv.uv_unref(opaqueOf(&eof_timer)); // never keep the loop alive on its own
+    eof_timer_active = true;
+}
 
 fn opaqueOf(p: anytype) *anyopaque {
     return @ptrCast(p);
@@ -202,8 +250,13 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
 
     // a re-listen replaces the dispatcher; drop the prior strong ref so it doesn't pin
     // the old handler closure (and its captured sockets map) in V8 for the process life.
+    // A failed create (V8 OOM) would leave events undeliverable, so throw rather than listen.
     if (dispatch_ref) |r| _ = napi.napi_delete_reference(e, r);
-    _ = napi.napi_create_reference(e, argv[3], 1, &dispatch_ref);
+    dispatch_ref = null;
+    if (napi.napi_create_reference(e, argv[3], 1, &dispatch_ref) != napi.ok) {
+        _ = napi.napi_throw_error(e, null, "toki: failed to register the connection dispatcher");
+        return uintValue(e, 0);
+    }
 
     tls_enabled = false;
     if (!setupTls(e, argv[2])) return uintValue(e, 0); // bad cert/key → threw
@@ -226,12 +279,7 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         return uintValue(e, 0);
     }
     listening = true;
-    if (eof_poll_ms > 0 and !eof_timer_active) {
-        _ = uv.uv_timer_init(loop.?, opaqueOf(&eof_timer));
-        _ = uv.uv_timer_start(opaqueOf(&eof_timer), &eofPoll, eof_poll_ms, eof_poll_ms);
-        uv.uv_unref(opaqueOf(&eof_timer)); // never keep the loop alive on its own
-        eof_timer_active = true;
-    }
+    ensureEofTimer();
 
     var bound: [128]u8 align(8) = undefined;
     var blen: c_int = bound.len;
@@ -300,6 +348,9 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .tls = null,
         .tls_announced = false,
         .close_reason = reason_normal,
+        .connect = null,
+        .is_client = false,
+        .recycling = false,
         .next = null,
         .prev = null,
     };
@@ -354,6 +405,298 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
     }
 
     armRead(conn);
+}
+
+// --- outbound connect (connectTcp) -------------------------------------------------
+//
+// Reuses the whole connection machine — Conn, the read/write paths, tlsDrive, closeConn,
+// dispatch — and differs only at birth: a uv_tcp_connect (after an optional DNS resolve)
+// instead of an accept, and a client-driven TLS handshake (ClientHello first). The result
+// reaches JS through the same events: ev_connection on success, ev_close (with a connect
+// reason) on failure. The id is returned synchronously so the TS side can key its promise.
+
+// tcpConnect(host, port, options, dispatch) -> id (0 on an immediate failure, after throwing).
+pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 4;
+    var argv: [4]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+
+    if (closing) {
+        _ = napi.napi_throw_error(e, null, "toki: the TCP server is still closing");
+        return uintValue(e, 0);
+    }
+    env = e;
+    _ = napi.napi_get_uv_event_loop(e, &loop);
+    // one dispatch slot, shared with the server (the TS layer routes by id). A client-only
+    // process registers it here; re-registering the same JS function is harmless. If the ref
+    // can't be created (only under V8 OOM), throw rather than return an id whose ev_close could
+    // never be delivered — that would hang the connect promise forever.
+    if (dispatch_ref) |r| _ = napi.napi_delete_reference(e, r);
+    dispatch_ref = null;
+    if (napi.napi_create_reference(e, argv[3], 1, &dispatch_ref) != napi.ok) {
+        _ = napi.napi_throw_error(e, null, "toki: failed to register the connect dispatcher");
+        return uintValue(e, 0);
+    }
+
+    // tcpConnect(host, port, options, dispatch): host is argv[0], port argv[1].
+    var host: [256]u8 = .{0} ** 256;
+    var host_len: usize = 0;
+    _ = napi.napi_get_value_string_utf8(e, argv[0], &host, host.len, &host_len);
+    var port: i32 = 0;
+    _ = napi.napi_get_value_int32(e, argv[1], &port);
+
+    const conn = pool.create(alloc) catch {
+        _ = napi.napi_throw_error(e, null, "toki: out of memory");
+        return uintValue(e, 0);
+    };
+    conn.* = .{
+        .handle = undefined,
+        .id = nextId(),
+        .queued_bytes = 0,
+        .closing = false,
+        .reading = false,
+        .shutting = false,
+        .read_ended = false,
+        .remote_port = 0,
+        .remote_ip = [_]u8{0} ** 46,
+        .peer_recorded = false,
+        .rejected = false,
+        .tls = null,
+        .tls_announced = false,
+        .close_reason = reason_normal,
+        .connect = null,
+        .is_client = true,
+        .recycling = false,
+        .next = null,
+        .prev = null,
+    };
+    _ = uv.uv_tcp_init(loop.?, opaqueOf(&conn.handle));
+    if (optBoolDefault(e, argv[2], "noDelay", true)) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
+    addConn(conn);
+    conns.put(alloc, conn.id, conn) catch {
+        closeConn(conn, reason_connect_refused);
+        return uintValue(e, conn.id);
+    };
+
+    // TLS is set up before the TCP connect so the client State (and its stable host copy) exists
+    // when the socket comes up; the ClientHello is kicked from onConnect.
+    if (optBool(e, argv[2], "tlsClient")) {
+        var sni: [256]u8 = .{0} ** 256;
+        var sni_len: usize = host_len;
+        if (optString(e, argv[2], "tlsServerName", &sni)) |n| {
+            sni_len = n;
+        } else {
+            @memcpy(sni[0..host_len], host[0..host_len]);
+        }
+        conn.tls = tlsmod.newClientState(alloc, wallClockSeconds(), .{
+            .host = sni[0..sni_len],
+            .ca_pem = readBufferProp(e, argv[2], "tlsCa"),
+            .insecure = optBool(e, argv[2], "tlsInsecure"),
+            .cert_pem = readBufferProp(e, argv[2], "tlsCert"), // optional client cert (mTLS)
+            .key_pem = readBufferProp(e, argv[2], "tlsKey"),
+        }) orelse {
+            closeConn(conn, reason_tls_error);
+            return uintValue(e, conn.id);
+        };
+    }
+
+    const cc = alloc.create(ClientConnect) catch {
+        closeConn(conn, reason_connect_refused);
+        return uintValue(e, conn.id);
+    };
+    cc.* = .{ .conn = conn };
+    conn.connect = cc;
+
+    if (optInt(e, argv[2], "timeoutMs")) |v| {
+        if (v > 0) {
+            _ = uv.uv_timer_init(loop.?, opaqueOf(&cc.timer));
+            _ = uv.uv_timer_start(opaqueOf(&cc.timer), &onConnectTimeout, @intCast(v), 0);
+            cc.timer_pending = true;
+        }
+    }
+    ensureEofTimer();
+
+    // literal IP: connect straight away. a name resolves through uv_getaddrinfo first. libuv
+    // copies the node/service strings into the request, so the stack buffers are safe.
+    if (addr.parse(&host, host_len, port, &cc.addrs[0])) {
+        cc.addr_count = 1;
+        startConnect(cc);
+    } else {
+        var portstr: [8]u8 = undefined;
+        const ps = std.fmt.bufPrintZ(&portstr, "{d}", .{port}) catch {
+            abortConnect(cc, reason_connect_refused);
+            return uintValue(e, conn.id);
+        };
+        cc.gai_pending = true;
+        if (uv.uv_getaddrinfo(loop.?, opaqueOf(&cc.gai), &onResolve, &host, ps.ptr, null) != 0) {
+            cc.gai_pending = false;
+            abortConnect(cc, reason_connect_dns);
+        }
+    }
+    return uintValue(e, conn.id);
+}
+
+fn startConnect(cc: *ClientConnect) void {
+    cc.connect_pending = true;
+    if (uv.uv_tcp_connect(opaqueOf(&cc.req), opaqueOf(&cc.conn.handle), opaqueOf(&cc.addrs[cc.addr_idx]), &onConnect) != 0) {
+        cc.connect_pending = false;
+        nextAddrOrFail(cc);
+    }
+}
+
+// a connect attempt failed: move to the next resolved address, or give up with a refusal. A
+// uv_tcp_t that failed to connect can't be reconnected, so the handle is closed and re-initialised
+// before the next attempt (onRetryClose continues the loop once the old handle is gone).
+fn nextAddrOrFail(cc: *ClientConnect) void {
+    cc.addr_idx += 1;
+    if (cc.addr_idx >= cc.addr_count) {
+        abortConnect(cc, reason_connect_refused);
+        return;
+    }
+    cc.conn.recycling = true;
+    uv.uv_close(opaqueOf(&cc.conn.handle), &onRetryClose);
+}
+
+fn onRetryClose(h: *anyopaque) callconv(.c) void {
+    const conn: *Conn = @ptrCast(@alignCast(h));
+    conn.recycling = false;
+    const cc = conn.connect orelse return;
+    if (cc.resolved) {
+        // the connect was aborted (timeout) during the recycle gap; the handle is already gone,
+        // so finish the teardown here instead of re-initialising it.
+        releaseConn(conn);
+        ccMaybeFree(cc);
+        return;
+    }
+    _ = uv.uv_tcp_init(loop.?, opaqueOf(&conn.handle));
+    if (no_delay) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
+    startConnect(cc);
+}
+
+fn onResolve(req: *anyopaque, status: c_int, res: ?*anyopaque) callconv(.c) void {
+    const reqp: *align(16) [uv.getaddrinfo_size]u8 = @ptrCast(@alignCast(req));
+    const cc: *ClientConnect = @fieldParentPtr("gai", reqp);
+    cc.gai_pending = false;
+    if (cc.resolved) {
+        // a timeout already tore the connect down; just release the result and maybe free cc.
+        uv.uv_freeaddrinfo(res);
+        ccMaybeFree(cc);
+        return;
+    }
+    if (status != 0 or res == null) {
+        uv.uv_freeaddrinfo(res);
+        abortConnect(cc, reason_connect_dns);
+        return;
+    }
+    // collect up to max_connect_addrs candidates from the resolver list. addrinfo's field order
+    // differs across platforms, so read it through std.c.addrinfo (correct on each).
+    var node: ?*std.c.addrinfo = @ptrCast(@alignCast(res.?));
+    var k: usize = 0;
+    while (node) |ai| : (node = ai.next) {
+        if (k >= cc.addrs.len) break;
+        const sockaddr = ai.addr orelse continue;
+        const len: usize = @intCast(ai.addrlen);
+        if (len == 0 or len > cc.addrs[k].len) continue;
+        @memcpy(cc.addrs[k][0..len], @as([*]const u8, @ptrCast(sockaddr))[0..len]);
+        k += 1;
+    }
+    uv.uv_freeaddrinfo(res);
+    if (k == 0) {
+        abortConnect(cc, reason_connect_dns);
+        return;
+    }
+    cc.addr_count = @intCast(k);
+    startConnect(cc);
+}
+
+fn onConnect(req: *anyopaque, status: c_int) callconv(.c) void {
+    const reqp: *align(16) [uv.connect_size]u8 = @ptrCast(@alignCast(req));
+    const cc: *ClientConnect = @fieldParentPtr("req", reqp);
+    cc.connect_pending = false;
+    if (cc.resolved) {
+        // timed out (or already failed): the conn is tearing down, just release cc.
+        ccMaybeFree(cc);
+        return;
+    }
+    if (status != 0) {
+        // this address refused/unreachable — fall through to the next resolved one, or fail.
+        nextAddrOrFail(cc);
+        return;
+    }
+    const conn = cc.conn;
+    markResolved(cc);
+    conn.connect = null; // the conn outlives the connect now; drop the back-reference
+    ccMaybeFree(cc);
+
+    var scope: napi.HandleScope = undefined;
+    _ = napi.napi_open_handle_scope(env, &scope);
+    defer _ = napi.napi_close_handle_scope(env, scope);
+    if (conn.tls) |st| {
+        // client drives the handshake: emit the ClientHello now, then read the server's flights.
+        // ev_connection is held back until tlsDrive sees the handshake complete.
+        const h = tlsmod.handshakeBuf(st, &.{}, &tls_out_scratch);
+        if (h.failed) {
+            closeConn(conn, reason_tls_error);
+            return;
+        }
+        if (h.send.len > 0) rawWriteAll(conn, h.send);
+        if (conn.closing) return;
+        armRead(conn);
+    } else {
+        dispatch(conn.id, ev_connection, undefinedValue());
+        if (conn.closing) return; // a connect handler may have destroyed it
+        armRead(conn);
+    }
+}
+
+// the timeout fired before the connect (or handshake) finished — abort with a timeout reason.
+fn onConnectTimeout(h: *anyopaque) callconv(.c) void {
+    const tp: *align(16) [uv.timer_size]u8 = @ptrCast(@alignCast(h));
+    const cc: *ClientConnect = @fieldParentPtr("timer", tp);
+    abortConnect(cc, reason_connect_timeout);
+}
+
+// decide the connect failure once and tear the connection down. If the handle is mid-recycle
+// (a uv_close for the next address is in flight), don't close it again — onRetryClose sees the
+// resolved flag and finishes the teardown. Otherwise close it now; onClose releases the conn.
+fn abortConnect(cc: *ClientConnect, reason: u32) void {
+    if (cc.resolved) {
+        ccMaybeFree(cc);
+        return;
+    }
+    markResolved(cc);
+    const conn = cc.conn;
+    conn.close_reason = reason;
+    if (conn.recycling) {
+        conn.closing = true; // onRetryClose will release the (already-closing) handle
+        return;
+    }
+    closeConn(conn, reason);
+    ccMaybeFree(cc);
+}
+
+// settle the outcome once: close the timeout timer (its close callback is the timer's leg of the
+// cc refcount). Leaves conn.connect intact so the recycle path can still recover cc.
+fn markResolved(cc: *ClientConnect) void {
+    if (cc.resolved) return;
+    cc.resolved = true;
+    if (cc.timer_pending) {
+        _ = uv.uv_timer_stop(opaqueOf(&cc.timer));
+        uv.uv_close(opaqueOf(&cc.timer), &onCCClose); // timer_pending cleared in onCCClose
+    }
+}
+
+fn onCCClose(h: *anyopaque) callconv(.c) void {
+    const tp: *align(16) [uv.timer_size]u8 = @ptrCast(@alignCast(h));
+    const cc: *ClientConnect = @fieldParentPtr("timer", tp);
+    cc.timer_pending = false;
+    ccMaybeFree(cc);
+}
+
+// free cc once every callback that could still reference it has fired.
+fn ccMaybeFree(cc: *ClientConnect) void {
+    if (cc.gai_pending or cc.connect_pending or cc.timer_pending) return;
+    alloc.destroy(cc);
 }
 
 fn recordPeer(conn: *Conn) void {
@@ -734,10 +1077,16 @@ fn closeConn(conn: *Conn, reason: u32) void {
 
 fn onClose(handle: *anyopaque) callconv(.c) void {
     const conn: *Conn = @ptrCast(@alignCast(handle));
+    releaseConn(conn);
+}
+
+// the handle is gone: drop the conn from the table + list, tell JS why it closed (unless it was
+// guard-rejected before JS ever saw it), free the TLS state, and return the Conn to the pool.
+// Called from onClose, and from onRetryClose when a connect is aborted mid-handle-recycle.
+fn releaseConn(conn: *Conn) void {
     _ = conns.remove(conn.id);
     removeConn(conn);
 
-    // a guard-rejected conn never reached JS; don't spend an N-API call closing it there
     if (!conn.rejected) {
         var scope: napi.HandleScope = undefined;
         _ = napi.napi_open_handle_scope(env, &scope);
@@ -771,7 +1120,9 @@ pub fn closeServer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
     var node = conn_list;
     while (node) |conn| {
         const nxt = conn.next; // grab before closeConn unlinks conn
-        closeConn(conn, reason_normal);
+        // leave outbound client connections alone — closing the listener must not drop the
+        // connections this process dialed out itself.
+        if (!conn.is_client) closeConn(conn, reason_normal);
         node = nxt;
     }
     return undefinedValue();
@@ -858,4 +1209,17 @@ fn optInt(e: napi.Env, options: napi.Value, name: [*c]const u8) ?c_int {
     var out: i32 = 0;
     _ = napi.napi_get_value_int32(e, value, &out);
     return @intCast(out);
+}
+
+// reads a string option into `out`, returning the byte length, or null when it's absent or
+// not a string. `out` is null-terminated by N-API within its capacity.
+fn optString(e: napi.Env, options: napi.Value, name: [*c]const u8, out: []u8) ?usize {
+    var value: napi.Value = undefined;
+    _ = napi.napi_get_named_property(e, options, name, &value);
+    var kind: c_int = 0;
+    _ = napi.napi_typeof(e, value, &kind);
+    if (kind != napi.valuetype.string) return null;
+    var copied: usize = 0;
+    _ = napi.napi_get_value_string_utf8(e, value, out.ptr, out.len, &copied);
+    return copied;
 }

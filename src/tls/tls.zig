@@ -120,21 +120,77 @@ fn serverOptions(now_sec: i64) lib.config.Server {
 
 // --- per-connection state ---------------------------------------------------
 
+// a connection's handshake driver: an inbound server handshake, or an outbound client one.
+// Both expose the same run/done/cipher/alpnProtocol surface; only a server reports a verified
+// *client* cert (clientCertVerified), so `authorized` is filled per-role at completion.
+pub const Side = union(enum) {
+    server: lib.nonblock.Server,
+    client: lib.nonblock.Client,
+};
+
 pub const State = struct {
-    handshake: lib.nonblock.Server, // drives the handshake, until established
+    handshake: Side, // drives the handshake, until established
     record: lib.nonblock.Connection = undefined, // encrypt/decrypt, after established
     established: bool = false,
     sent_close: bool = false,
     // true once established if the peer presented a client cert that verified against the
     // configured CA. Meaningful only when client_auth is on; always false otherwise. With
     // .require an unauthorized peer never reaches `established`, so this is true there.
+    // On a client conn it mirrors `client_verified`: a completed verified handshake.
     authorized: bool = false,
     // true once established if ALPN negotiated "h2"; the loop then drives the connection
     // through the HTTP/2 engine instead of the HTTP/1.1 pipeline
     alpn_h2: bool = false,
+    // client only: a trust bundle we allocated and must free (a custom CA passed to connect).
+    // null on a server conn, a client using the cached system roots, or insecure verify.
+    ca: ?lib.config.cert.Bundle = null,
+    // client only: our own cert chain + key for mutual TLS (the server asked for a client cert).
+    // Owned, freed in freeState; the handshake holds a pointer to it, so it lives in the State.
+    auth_kp: ?lib.config.CertKeyPair = null,
+    // client only: verification was on, so a completed handshake means the server cert + host
+    // name checked out. Copied into `authorized` at completion so JS reads it uniformly.
+    client_verified: bool = false,
+    // client only: stable storage for the SNI / verify host — the vendored client keeps a slice
+    // of it through the whole handshake (ClientHello SNI and the later cert host-name check), so
+    // it must outlive the JS string it came from. Lives here, freed with the State.
+    host_buf: [256]u8 = undefined,
+    host_len: usize = 0,
     in: [in_size]u8 = undefined, // ciphertext from the socket, not yet consumed
     in_len: usize = 0,
 };
+
+// both handshake variants share the run/done/cipher/alpnProtocol surface; dispatch on the tag.
+const RunResult = struct { recv_pos: usize, send_pos: usize };
+fn hsRun(st: *State, recv: []const u8, send: []u8) !RunResult {
+    switch (st.handshake) {
+        inline else => |*h| {
+            const r = try h.run(recv, send);
+            return .{ .recv_pos = r.recv_pos, .send_pos = r.send_pos };
+        },
+    }
+}
+fn hsDone(st: *State) bool {
+    switch (st.handshake) {
+        inline else => |*h| return h.done(),
+    }
+}
+fn hsCipher(st: *State) ?lib.Cipher {
+    switch (st.handshake) {
+        inline else => |*h| return h.cipher(),
+    }
+}
+fn hsAlpn(st: *State) ?[]const u8 {
+    switch (st.handshake) {
+        inline else => |*h| return h.alpnProtocol(),
+    }
+}
+// server reports the verified *client* cert; a client mirrors its own verification result.
+fn hsAuthorized(st: *State) bool {
+    return switch (st.handshake) {
+        .server => |*s| s.clientCertVerified(),
+        .client => st.client_verified,
+    };
+}
 
 /// Whether this connection negotiated HTTP/2 over ALPN. Meaningful only once established.
 pub fn negotiatedH2(st: *const State) bool {
@@ -147,12 +203,137 @@ var pool: std.heap.MemoryPool(State) = .empty;
 /// cert's validity window when client_auth is on (ignored otherwise).
 pub fn newState(gpa: std.mem.Allocator, now_sec: i64) ?*State {
     const st = pool.create(gpa) catch return null;
-    st.* = .{ .handshake = lib.nonblock.Server.init(serverOptions(now_sec)) };
+    st.* = .{ .handshake = .{ .server = lib.nonblock.Server.init(serverOptions(now_sec)) } };
     return st;
 }
 
 pub fn freeState(st: *State) void {
+    // a client conn may own a parsed CA bundle (custom `ca`) and a client cert/key pair (mTLS);
+    // the system roots are cached and never freed here. Allocated with the c_allocator.
+    if (st.ca) |*b| b.deinit(std.heap.c_allocator);
+    if (st.auth_kp) |*kp| kp.deinit(std.heap.c_allocator);
     pool.destroy(st);
+}
+
+// --- client config, built per outbound connect ------------------------------
+
+// the client CSPRNG is seeded once, lazily — a process that only dials out never calls the
+// server-side init() that seeds g_csprng, so the client keeps its own.
+var g_client_csprng: std.Random.DefaultCsprng = undefined;
+var g_client_seeded = false;
+fn clientRng() ?std.Random {
+    if (!g_client_seeded) {
+        var threaded = std.Io.Threaded.init(std.heap.c_allocator, .{});
+        const io = threaded.io();
+        var seed: [std.Random.DefaultCsprng.secret_seed_length]u8 = undefined;
+        io.randomSecure(&seed) catch return null;
+        g_client_csprng = std.Random.DefaultCsprng.init(seed);
+        g_client_seeded = true;
+    }
+    return g_client_csprng.random();
+}
+
+// OS trust store, loaded once and shared by every connect that doesn't pass its own CA. The
+// rescan reads disk, so do it a single time; a failure caches null and those connects fail closed.
+var g_system_roots: ?lib.config.cert.Bundle = null;
+var g_system_tried = false;
+fn systemRoots() ?lib.config.cert.Bundle {
+    if (!g_system_tried) {
+        g_system_tried = true;
+        var threaded = std.Io.Threaded.init(std.heap.c_allocator, .{});
+        const io = threaded.io();
+        g_system_roots = lib.config.cert.fromSystem(std.heap.c_allocator, io) catch null;
+    }
+    return g_system_roots;
+}
+
+fn parseBundle(gpa: std.mem.Allocator, pem: []const u8) ?lib.config.cert.Bundle {
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    const io = threaded.io();
+    return lib.config.cert.fromSlice(gpa, io, pem) catch null;
+}
+
+fn parseCertKey(gpa: std.mem.Allocator, cert_pem: []const u8, key_pem: []const u8) ?lib.config.CertKeyPair {
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    const io = threaded.io();
+    return lib.config.CertKeyPair.fromSlice(gpa, io, cert_pem, key_pem) catch null;
+}
+
+/// What an outbound connect needs to drive a client handshake: the host (SNI + the name the
+/// server cert is verified against), an optional custom CA bundle (PEM; else the system roots),
+/// whether to skip verification, an optional client cert/key for mutual TLS, and ALPN.
+pub const ClientConfig = struct {
+    host: []const u8,
+    ca_pem: ?[]const u8,
+    insecure: bool,
+    cert_pem: ?[]const u8 = null,
+    key_pem: ?[]const u8 = null,
+    alpn: []const []const u8 = &.{},
+};
+
+/// Build the per-connection client TLS state. `now_sec` dates the server cert's validity check.
+/// Returns null on allocation / RNG / trust-store failure (the caller fails the connect closed).
+pub fn newClientState(gpa: std.mem.Allocator, now_sec: i64, cfg: ClientConfig) ?*State {
+    const st = pool.create(gpa) catch return null;
+    // NB: the return type is ?*State, so `return null` is a normal return — an errdefer would
+    // never fire on it. Every failure path below frees st (and any bundle) explicitly.
+
+    var owned_ca: ?lib.config.cert.Bundle = null;
+    const root_ca: lib.config.cert.Bundle = blk: {
+        if (cfg.insecure) break :blk .empty; // unused when verification is off
+        if (cfg.ca_pem) |pem| {
+            const b = parseBundle(gpa, pem) orelse {
+                pool.destroy(st);
+                return null;
+            };
+            owned_ca = b;
+            break :blk b;
+        }
+        break :blk systemRoots() orelse {
+            pool.destroy(st);
+            return null;
+        };
+    };
+    const rng = clientRng() orelse {
+        if (owned_ca) |*b| b.deinit(gpa);
+        pool.destroy(st);
+        return null;
+    };
+    // defaults for everything; host + handshake are filled below so the client can hold a slice
+    // of st.host_buf (stable for the State's life) rather than the caller's transient string.
+    st.* = .{ .handshake = undefined, .ca = owned_ca, .client_verified = !cfg.insecure };
+    const n = @min(cfg.host.len, st.host_buf.len);
+    @memcpy(st.host_buf[0..n], cfg.host[0..n]);
+    st.host_len = n;
+
+    // optional client cert/key for mutual TLS. The handshake keeps a pointer, so it lives in the
+    // State (stable) and is freed in freeState. A cert without a key (or a parse failure) fails
+    // the connect closed rather than silently connecting without the credential the peer wants.
+    var auth_ptr: ?*lib.config.CertKeyPair = null;
+    if (cfg.cert_pem) |cp| {
+        const kp = cfg.key_pem orelse {
+            if (owned_ca) |*b| b.deinit(gpa);
+            pool.destroy(st);
+            return null;
+        };
+        st.auth_kp = parseCertKey(gpa, cp, kp) orelse {
+            if (owned_ca) |*b| b.deinit(gpa);
+            pool.destroy(st);
+            return null;
+        };
+        auth_ptr = &st.auth_kp.?;
+    }
+
+    st.handshake = .{ .client = lib.nonblock.Client.init(.{
+        .rng = rng,
+        .now = .fromNanoseconds(@as(i96, now_sec) * std.time.ns_per_s),
+        .host = st.host_buf[0..n],
+        .root_ca = root_ca,
+        .insecure_skip_verify = cfg.insecure,
+        .auth = auth_ptr,
+        .alpn_protocols = cfg.alpn,
+    }) };
+    return st;
 }
 
 // --- handshake / record ops -------------------------------------------------
@@ -165,14 +346,14 @@ pub const Handshake = struct {
 /// feed buffered ciphertext to the handshake, write any reply into `out`. sets up the
 /// record layer once the handshake completes (check st.established after).
 pub fn handshake(st: *State, out: []u8) Handshake {
-    const r = st.handshake.run(st.in[0..st.in_len], out) catch
+    const r = hsRun(st, st.in[0..st.in_len], out) catch
         return .{ .send = &.{}, .failed = true };
     consume(st, r.recv_pos);
-    if (st.handshake.done()) {
-        const c = st.handshake.cipher() orelse return .{ .send = out[0..r.send_pos], .failed = true };
+    if (hsDone(st)) {
+        const c = hsCipher(st) orelse return .{ .send = out[0..r.send_pos], .failed = true };
         st.record = lib.nonblock.Connection.init(c);
-        st.authorized = st.handshake.clientCertVerified();
-        st.alpn_h2 = if (st.handshake.alpnProtocol()) |p| std.mem.eql(u8, p, "h2") else false;
+        st.authorized = hsAuthorized(st);
+        st.alpn_h2 = if (hsAlpn(st)) |p| std.mem.eql(u8, p, "h2") else false;
         st.established = true;
     }
     return .{ .send = out[0..r.send_pos], .failed = false };
@@ -189,12 +370,13 @@ pub const HandshakeBuf = struct {
 /// and st.established when the handshake completes; `cipher[consumed..]` is then application
 /// data the caller can hand to decryptBatch.
 pub fn handshakeBuf(st: *State, cipher: []const u8, out: []u8) HandshakeBuf {
-    const r = st.handshake.run(cipher, out) catch
+    const r = hsRun(st, cipher, out) catch
         return .{ .send = &.{}, .consumed = 0, .failed = true };
-    if (st.handshake.done()) {
-        const c = st.handshake.cipher() orelse return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = true };
+    if (hsDone(st)) {
+        const c = hsCipher(st) orelse return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = true };
         st.record = lib.nonblock.Connection.init(c);
-        st.authorized = st.handshake.clientCertVerified();
+        st.authorized = hsAuthorized(st);
+        st.alpn_h2 = if (hsAlpn(st)) |p| std.mem.eql(u8, p, "h2") else false;
         st.established = true;
     }
     return .{ .send = out[0..r.send_pos], .consumed = r.recv_pos, .failed = false };

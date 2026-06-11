@@ -89,6 +89,58 @@ export interface TcpServer {
   close(): void;
 }
 
+/** Why an outbound {@link connectTcp} failed, carried on {@link TcpConnectError.reason}. */
+export type ConnectErrorReason =
+  | "dns" // the host did not resolve
+  | "refused" // the TCP connection was refused, unreachable, or reset before it came up
+  | "timeout" // the connect (or TLS handshake) outran `timeoutMs`
+  | "tls-verify"; // the server certificate failed verification (chain or host name)
+
+/** Rejection from {@link connectTcp}: a typed {@link ConnectErrorReason} plus the target. */
+export class TcpConnectError extends Error {
+  readonly reason: ConnectErrorReason;
+  readonly host: string;
+  readonly port: number;
+  constructor(reason: ConnectErrorReason, host: string, port: number) {
+    super(`toki: connect to ${host}:${port} failed (${reason})`);
+    this.name = "TcpConnectError";
+    this.reason = reason;
+    this.host = host;
+    this.port = port;
+  }
+}
+
+/** Options for {@link connectTcp}. */
+export interface TcpConnectOptions {
+  /** Nagle's algorithm; default off (low latency), like the server. */
+  noDelay?: boolean;
+  /** Fail the connect (and TLS handshake) if it hasn't completed within this many ms. */
+  timeoutMs?: number;
+  /** Keep the read side open after we half-close. Default `false` (Node `net` behaviour). */
+  allowHalfOpen?: boolean;
+  /**
+   * Terminate TLS as the client. `true` uses the system trust store and verifies the server
+   * certificate against `host`. An object customises it: `servername` overrides the SNI/verify
+   * name, `ca` supplies a PEM bundle to trust instead of the system roots, `cert`/`key` present
+   * a client certificate for mutual TLS, and `rejectUnauthorized: false` skips verification
+   * entirely (test/self-signed only).
+   */
+  tls?:
+    | boolean
+    | {
+        /** SNI sent and the name the server certificate is verified against; defaults to `host` */
+        servername?: string;
+        /** PEM CA bundle to trust instead of the system roots */
+        ca?: string | Uint8Array;
+        /** PEM client-certificate chain to present for mutual TLS (with `key`) */
+        cert?: string | Uint8Array;
+        /** PEM private key for the client `cert` */
+        key?: string | Uint8Array;
+        /** verify the server certificate; default `true`. `false` accepts any cert (unsafe) */
+        rejectUnauthorized?: boolean;
+      };
+}
+
 // event tags from the native dispatcher, matched in src/net/tcp.zig
 const Ev = { Connection: 0, Data: 1, Drain: 2, Close: 3, End: 4 } as const;
 type Ev = (typeof Ev)[keyof typeof Ev];
@@ -290,6 +342,81 @@ class Socket implements TcpSocket {
   }
 }
 
+// The native engine is a process singleton with one dispatch slot, so the server (libuv or
+// io_uring) and every outbound client share this one dispatcher and connection map. Events are
+// routed by id; a still-pending connect (in `pendingConnects`) is told apart from a live socket.
+const sockets = new Map<number, Socket>();
+type PendingConnect = {
+  allowHalfOpen: boolean;
+  resolve: (socket: TcpSocket) => void;
+  reject: (err: TcpConnectError) => void;
+  host: string;
+  port: number;
+};
+const pendingConnects = new Map<number, PendingConnect>();
+let serverHandler: ((socket: TcpSocket) => void) | undefined;
+let serverHalfOpen = false;
+let serverBackend: TcpBackend = LIBUV_BACKEND;
+let serverIsUring = false;
+
+// ev_close reason codes (src/net/tcp.zig) for a connect that never reached ev_connection,
+// mapped to a typed connect error. tls-error (3) during the client handshake reads as a
+// verification failure; a peer reset (1) before establish reads as a refusal.
+const CONNECT_ERRORS: Record<number, ConnectErrorReason> = {
+  1: "refused",
+  3: "tls-verify",
+  5: "dns",
+  6: "refused",
+  7: "timeout",
+};
+
+const dispatch = (id: number, event: Ev, arg: Uint8Array | undefined): void => {
+  switch (event) {
+    case Ev.Connection: {
+      const pending = pendingConnects.get(id);
+      if (pending !== undefined) {
+        pendingConnects.delete(id);
+        const socket = new Socket(id, pending.allowHalfOpen, LIBUV_BACKEND);
+        sockets.set(id, socket);
+        pending.resolve(socket);
+        return;
+      }
+      if (serverHandler === undefined) return;
+      const socket = new Socket(id, serverHalfOpen, serverBackend);
+      sockets.set(id, socket);
+      serverHandler(socket);
+      return;
+    }
+    case Ev.Data:
+      // native already hands us a private, V8-owned copy; safe to retain
+      sockets.get(id)?.emitData(arg as Buffer);
+      return;
+    case Ev.Drain:
+      sockets.get(id)?.emitDrain();
+      return;
+    case Ev.End:
+      sockets.get(id)?.emitEnd();
+      return;
+    case Ev.Close: {
+      const code = (arg as unknown as number) ?? 0;
+      // a connect that closed before establishing rejects its promise with a typed error.
+      const pending = pendingConnects.get(id);
+      if (pending !== undefined) {
+        pendingConnects.delete(id);
+        pending.reject(
+          new TcpConnectError(CONNECT_ERRORS[code] ?? "refused", pending.host, pending.port),
+        );
+        return;
+      }
+      const socket = sockets.get(id);
+      if (socket === undefined) return;
+      sockets.delete(id);
+      socket.emitClose(CLOSE_REASONS[code] ?? "normal");
+      return;
+    }
+  }
+};
+
 /** Start a raw TCP server. `handler` runs once per accepted connection. One server per
  *  process (scale across cores with `reusePort` and multiple processes). */
 export function createTcpServer(
@@ -298,7 +425,6 @@ export function createTcpServer(
 ): TcpServer {
   const allowHalfOpen = options.allowHalfOpen ?? false;
   const backend = selectBackend(options);
-  const sockets = new Map<number, Socket>();
 
   // flatten the tls option into the cert/key buffers native reads (mirrors app.listen).
   // mTLS: a `ca` bundle + `requestCert` turns on client-cert auth; `rejectUnauthorized`
@@ -328,47 +454,65 @@ export function createTcpServer(
     }
   }
 
-  const dispatch = (id: number, event: Ev, arg: Uint8Array | undefined): void => {
-    switch (event) {
-      case Ev.Connection: {
-        const socket = new Socket(id, allowHalfOpen, backend);
-        sockets.set(id, socket);
-        handler(socket);
-        return;
-      }
-      case Ev.Data:
-        // native already hands us a private, V8-owned copy; safe to retain
-        sockets.get(id)?.emitData(arg as Buffer);
-        return;
-      case Ev.Drain:
-        sockets.get(id)?.emitDrain();
-        return;
-      case Ev.End:
-        sockets.get(id)?.emitEnd();
-        return;
-      case Ev.Close: {
-        const socket = sockets.get(id);
-        if (socket === undefined) return;
-        sockets.delete(id);
-        // the close arg is a reason code (a number), not a buffer
-        socket.emitClose(CLOSE_REASONS[(arg as unknown as number) ?? 0] ?? "normal");
-        return;
-      }
-    }
-  };
-
   return {
     listen(port: number, host = "0.0.0.0"): { port: number } {
       if (active) throw new Error("toki: a TCP server is already listening in this process");
       const bound = backend.listen(port, host, nativeOptions, dispatch as never);
       active = true;
+      serverHandler = handler;
+      serverHalfOpen = allowHalfOpen;
+      serverBackend = backend;
+      serverIsUring = backend === URING_BACKEND;
       return { port: bound };
     },
     close(): void {
       if (!active) return;
       backend.closeServer();
       active = false;
-      sockets.clear();
+      serverHandler = undefined;
+      serverIsUring = false;
     },
   };
+}
+
+// native flattens the connect tls option the same way the server flattens its own.
+function flattenConnect(options: TcpConnectOptions): TcpOptions {
+  const o: TcpOptions = {};
+  if (options.noDelay !== undefined) o.noDelay = options.noDelay;
+  if (options.timeoutMs !== undefined) o.timeoutMs = options.timeoutMs;
+  if (options.tls) {
+    o.tlsClient = true;
+    const t = options.tls === true ? {} : options.tls;
+    if (t.servername !== undefined) o.tlsServerName = t.servername;
+    if (t.ca !== undefined) o.tlsCa = toPem(t.ca);
+    if (t.cert !== undefined) o.tlsCert = toPem(t.cert);
+    if (t.key !== undefined) o.tlsKey = toPem(t.key);
+    if (t.rejectUnauthorized === false) o.tlsInsecure = true;
+  }
+  return o;
+}
+
+/** Open an outbound TCP (or TLS) connection. Resolves with a {@link TcpSocket} once connected —
+ *  and, for TLS, once the handshake completes and the server certificate has verified. Rejects
+ *  with a {@link TcpConnectError} carrying a typed {@link ConnectErrorReason} on failure. */
+export function connectTcp(
+  host: string,
+  port: number,
+  options: TcpConnectOptions = {},
+): Promise<TcpSocket> {
+  if (serverIsUring) {
+    throw new Error(
+      "toki: connectTcp shares the libuv engine and can't run alongside an io_uring server in the same process",
+    );
+  }
+  const allowHalfOpen = options.allowHalfOpen ?? false;
+  const nativeOptions = flattenConnect(options);
+  return new Promise<TcpSocket>((resolve, reject) => {
+    const id = native.tcpConnect(host, port, nativeOptions, dispatch as never);
+    if (id === 0) {
+      reject(new TcpConnectError("refused", host, port));
+      return;
+    }
+    pendingConnects.set(id, { allowHalfOpen, resolve, reject, host, port });
+  });
 }

@@ -72,6 +72,19 @@ pub extern fn uv_timer_init(loop: *anyopaque, handle: *anyopaque) c_int;
 pub extern fn uv_timer_start(handle: *anyopaque, cb: TimerCb, timeout: u64, repeat: u64) c_int;
 pub extern fn uv_listen(stream: *anyopaque, backlog: c_int, cb: ConnectionCb) c_int;
 pub extern fn uv_accept(server: *anyopaque, client: *anyopaque) c_int;
+
+// outbound connect. uv_connect_t is a small req; uv_getaddrinfo_t is larger (it embeds the
+// hints) — over-size both like the other req blocks. The connect cb gets the req + a status
+// (0 ok, negative UV_* on failure); the getaddrinfo cb gets the req, a status, and a
+// system `struct addrinfo*` chain to walk (read via std.c.addrinfo; free with uv_freeaddrinfo).
+pub const connect_size = 256;
+pub const getaddrinfo_size = 512;
+pub const ConnectCb = *const fn (req: *anyopaque, status: c_int) callconv(.c) void;
+pub const GetaddrinfoCb = *const fn (req: *anyopaque, status: c_int, res: ?*anyopaque) callconv(.c) void;
+pub extern fn uv_tcp_connect(req: *anyopaque, handle: *anyopaque, addr: *const anyopaque, cb: ConnectCb) c_int;
+pub extern fn uv_getaddrinfo(loop: *anyopaque, req: *anyopaque, cb: GetaddrinfoCb, node: [*c]const u8, service: [*c]const u8, hints: ?*const anyopaque) c_int;
+pub extern fn uv_freeaddrinfo(res: ?*anyopaque) void;
+pub extern fn uv_timer_stop(handle: *anyopaque) c_int;
 pub extern fn uv_read_start(stream: *anyopaque, alloc_cb: AllocCb, read_cb: ReadCb) c_int;
 pub extern fn uv_read_stop(stream: *anyopaque) c_int;
 pub extern fn uv_write(req: *anyopaque, stream: *anyopaque, bufs: [*]const Buf, nbufs: c_uint, cb: WriteCb) c_int;

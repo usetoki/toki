@@ -155,6 +155,10 @@ interface Native {
 
   /** start a raw TCP server; `dispatch(id, event, arg)` fires per connection lifecycle event */
   tcpListen(port: number, host: string, options: TcpOptions, dispatch: TcpDispatch): number;
+  /** open an outbound TCP/TLS connection; returns the connection id synchronously (0 on an
+   *  immediate failure). Resolution is async via `dispatch`: ev_connection on success, ev_close
+   *  with a connect-reason code on failure. Shares the dispatcher/id space with `tcpListen`. */
+  tcpConnect(host: string, port: number, options: TcpOptions, dispatch: TcpDispatch): number;
   /** write to a TCP connection; returns the queued-byte backlog (0 when flushed) */
   tcpSend(id: number, data: Uint8Array): number;
   /** peer address (+ TLS `authorized`) of a connection, read lazily on first access;
@@ -235,6 +239,16 @@ export interface TcpOptions {
   /** @internal `tls.requestCert && tls.rejectUnauthorized`: fail the handshake on a
    *  missing/untrusted client cert (.require) rather than just request one (.request) */
   tlsRequireClient?: boolean;
+  /** @internal {@link TcpConnectOptions.timeoutMs}: fail an outbound connect/handshake after ms */
+  timeoutMs?: number;
+  /** @internal terminate TLS as the client on an outbound connect */
+  tlsClient?: boolean;
+  /** @internal SNI + the name the server cert is verified against (defaults to the host) */
+  tlsServerName?: string;
+  /** @internal PEM CA bundle to trust on a client connect instead of the system roots */
+  tlsCa?: Uint8Array;
+  /** @internal skip server-cert verification on a client connect (unsafe; test/self-signed) */
+  tlsInsecure?: boolean;
 }
 
 /** {@link Native.udpBind} tuning */

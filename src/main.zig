@@ -26,6 +26,7 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "close", &server.closeServer);
     // raw TCP server
     defineFn(env, exports, "tcpListen", &tcp.listen);
+    defineFn(env, exports, "tcpConnect", &tcp.connect);
     defineFn(env, exports, "tcpSend", &tcp.send);
     defineFn(env, exports, "tcpPeer", &tcp.peer);
     defineFn(env, exports, "tcpEnd", &tcp.end);

@@ -24,8 +24,16 @@ export type {
 export type { FormFile, ParsedForm } from "./http/forms.ts";
 export type { StaticOptions } from "./http/static.ts";
 export type { ServerOptions } from "./native/native.ts";
-export { createTcpServer } from "./net/tcp.ts";
-export type { TcpServer, TcpSocket, TcpOptions, TcpServerOptions, CloseReason } from "./net/tcp.ts";
+export { createTcpServer, connectTcp, TcpConnectError } from "./net/tcp.ts";
+export type {
+  TcpServer,
+  TcpSocket,
+  TcpOptions,
+  TcpServerOptions,
+  TcpConnectOptions,
+  ConnectErrorReason,
+  CloseReason,
+} from "./net/tcp.ts";
 export { createUdpServer, sealDatagram, openDatagram, ReplayWindow, keysEqual } from "./net/udp.ts";
 export type { UdpSocket, UdpOptions, UdpServerOptions, SecureUdpOptions } from "./net/udp.ts";
 export {
