@@ -742,6 +742,39 @@ fn remoteInfo(conn: *Conn) napi.Value {
     return obj;
 }
 
+// tcpExportKeyingMaterial(id, length, label, context?) -> Buffer | undefined. RFC 8446 §7.5
+// exporter for channel binding; undefined on a plaintext / not-yet-established / unknown socket.
+pub fn exportKeyingMaterial(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 4;
+    var argv: [4]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    var length: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[1], &length);
+    // RFC 8446 caps an export at 255 * Hash.length; 255 * 32 is the safe ceiling for every suite.
+    if (length == 0 or length > 255 * 32) return undefinedValue();
+
+    const conn = conns.get(id) orelse return undefinedValue();
+    const st = conn.tls orelse return undefinedValue();
+
+    var label_buf: [256]u8 = undefined;
+    var label_len: usize = 0;
+    _ = napi.napi_get_value_string_utf8(e, argv[2], &label_buf, label_buf.len, &label_len);
+
+    // optional context buffer (argv[3]); an absent / non-buffer arg means an empty context.
+    var ctx_data: ?*anyopaque = null;
+    var ctx_len: usize = 0;
+    _ = napi.napi_get_buffer_info(e, argv[3], &ctx_data, &ctx_len);
+    const context: []const u8 = if (ctx_data) |d| @as([*]const u8, @ptrCast(d))[0..ctx_len] else &.{};
+
+    const out = tls_plain_scratch[0..length];
+    if (!tlsmod.exportKeyingMaterial(st, label_buf[0..label_len], context, out)) return undefinedValue();
+    var result: napi.Value = undefined;
+    _ = napi.napi_create_buffer_copy(e, length, &tls_plain_scratch, null, &result);
+    return result;
+}
+
 fn armRead(conn: *Conn) void {
     if (conn.reading or conn.closing) return;
     _ = uv.uv_read_start(opaqueOf(&conn.handle), &allocBuf, &onRead);

@@ -164,6 +164,14 @@ interface Native {
   /** peer address (+ TLS `authorized`) of a connection, read lazily on first access;
    *  `undefined` once the connection has closed */
   tcpPeer(id: number): RemoteInfo | undefined;
+  /** RFC 8446 §7.5 keying-material exporter for a TLS connection; `undefined` on a plaintext or
+   *  not-yet-established or unknown socket. `length` bytes from `label` (+ optional `context`). */
+  tcpExportKeyingMaterial(
+    id: number,
+    length: number,
+    label: string,
+    context: Uint8Array | undefined,
+  ): Buffer | undefined;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */

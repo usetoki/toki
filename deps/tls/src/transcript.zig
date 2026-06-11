@@ -155,6 +155,16 @@ pub const Transcript = struct {
         };
     }
 
+    /// RFC 8446 §7.5 TLS 1.3 exporter. Derives `out.len` bytes of keying material bound to this
+    /// session from `label` and `context`. Valid only after the handshake (exporter_master_secret
+    /// is captured in applicationSecret); identical on both peers, which is what makes it usable
+    /// for channel binding (RFC 9266 `tls-exporter`). out.len must be <= 255 * hashLength.
+    pub fn exportKeyingMaterial(t: *Transcript, label: []const u8, context: []const u8, out: []u8) void {
+        switch (t.tag) {
+            inline else => |h| @field(t, @tagName(h)).exportKeyingMaterial(label, context, out),
+        }
+    }
+
     pub fn resumptionSecret(t: *Transcript) []const u8 {
         return switch (t.tag) {
             inline else => |h| @field(t, @tagName(h)).resumptionSecret(),
@@ -202,6 +212,9 @@ fn TranscriptT(comptime Hash: type) type {
         handshake_secret: ?[hash_length]u8 = null,
         server_finished_key: [hash_length]u8 = undefined,
         client_finished_key: [hash_length]u8 = undefined,
+        // RFC 8446 §7.5: Derive-Secret(Master Secret, "exp master", ...server Finished), captured
+        // in applicationSecret. Survives the handshake so exportKeyingMaterial can run later.
+        exporter_master_secret: [hash_length]u8 = undefined,
         buffer: [hash_length + 64 + 34]u8 = undefined,
 
         const Self = @This();
@@ -351,10 +364,43 @@ fn TranscriptT(comptime Hash: type) type {
 
             self.buffer[0..hash_length].* = hkdfExpandLabel(Hkdf, master_secret, "c ap traffic", &handshake_hash, hash_length);
             self.buffer[hash_length .. 2 * hash_length].* = hkdfExpandLabel(Hkdf, master_secret, "s ap traffic", &handshake_hash, hash_length);
+            // capture the exporter secret at the same transcript point (...server Finished)
+            self.exporter_master_secret = hkdfExpandLabel(Hkdf, master_secret, "exp master", &handshake_hash, hash_length);
             return .{
                 .client = self.buffer[0..hash_length],
                 .server = self.buffer[hash_length .. 2 * hash_length],
             };
+        }
+
+        // RFC 8446 §7.5: HKDF-Expand-Label(Derive-Secret(EMS, label, ""), "exporter", Hash(context), len)
+        fn exportKeyingMaterial(self: *Self, label: []const u8, context: []const u8, out: []u8) void {
+            // step 1: Derive-Secret(EMS, <caller label>, "") = HKDF-Expand-Label(EMS, label, Hash(""))
+            const empty_hash = tls.emptyHash(Hash);
+            const secret = hkdfExpandLabel(Hkdf, self.exporter_master_secret, label, &empty_hash, hash_length);
+            // step 2: HKDF-Expand-Label(secret, "exporter", Hash(context), out.len). The label here
+            // is the fixed string "exporter" — NOT the caller's label, which only feeds step 1.
+            var ctx_hash: Hash = .init(.{});
+            ctx_hash.update(context);
+            var ctx_digest: [hash_length]u8 = undefined;
+            ctx_hash.final(&ctx_digest);
+            // HKDF-Expand-Label with a runtime output length (the std helper's len is comptime).
+            const exporter_label = "exporter";
+            var info: [2 + 1 + 6 + exporter_label.len + 1 + hash_length]u8 = undefined;
+            var n: usize = 0;
+            info[0] = @intCast((out.len >> 8) & 0xff);
+            info[1] = @intCast(out.len & 0xff);
+            n = 2;
+            info[n] = 6 + exporter_label.len;
+            n += 1;
+            @memcpy(info[n..][0..6], "tls13 ");
+            n += 6;
+            @memcpy(info[n..][0..exporter_label.len], exporter_label);
+            n += exporter_label.len;
+            info[n] = @intCast(ctx_digest.len);
+            n += 1;
+            @memcpy(info[n..][0..ctx_digest.len], &ctx_digest);
+            n += ctx_digest.len;
+            Hkdf.expand(out, info[0..n], secret);
         }
 
         fn resumptionSecret(self: *Self) []const u8 {

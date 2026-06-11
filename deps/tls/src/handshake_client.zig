@@ -1374,6 +1374,11 @@ pub const NonBlock = struct {
     pub fn alpnProtocol(self: Self) ?[]const u8 {
         return self.inner.alpn_protocol;
     }
+
+    /// RFC 8446 §7.5 exporter — valid after the handshake completes. See Transcript.exportKeyingMaterial.
+    pub fn exportKeyingMaterial(self: *Self, label: []const u8, context: []const u8, out: []u8) void {
+        self.inner.transcript.exportKeyingMaterial(label, context, out);
+    }
 };
 
 test "nonblock handshake" {

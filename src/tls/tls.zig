@@ -197,6 +197,17 @@ pub fn negotiatedH2(st: *const State) bool {
     return st.alpn_h2;
 }
 
+/// RFC 8446 §7.5 keying-material exporter (RFC 9266 `tls-exporter` channel binding). Fills `out`
+/// with material bound to this session, derived from `label` + `context`. Returns false before the
+/// handshake is established. Both peers derive identical bytes — the channel-binding guarantee.
+pub fn exportKeyingMaterial(st: *State, label: []const u8, context: []const u8, out: []u8) bool {
+    if (!st.established) return false;
+    switch (st.handshake) {
+        inline else => |*h| h.exportKeyingMaterial(label, context, out),
+    }
+    return true;
+}
+
 var pool: std.heap.MemoryPool(State) = .empty;
 
 /// `now_sec` is the current wall-clock time in Unix seconds — used to verify a client

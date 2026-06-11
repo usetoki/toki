@@ -31,6 +31,10 @@ export interface TcpSocket {
   end(data?: Uint8Array | string): void;
   /** Drop the connection now, without waiting for queued writes (RST). */
   destroy(): void;
+  /** TLS only: derive `length` bytes of keying material bound to this session (RFC 8446 §7.5;
+   *  RFC 9266 `tls-exporter` channel binding) from `label` and an optional `context`. Both peers
+   *  derive identical bytes. `undefined` on a plaintext connection. */
+  exportKeyingMaterial(length: number, label: string, context?: Uint8Array): Buffer | undefined;
   on(event: "data", listener: (chunk: Buffer) => void): this;
   on(event: "close", listener: (reason: CloseReason) => void): this;
   on(event: "drain" | "end", listener: () => void): this;
@@ -291,6 +295,12 @@ class Socket implements TcpSocket {
     if (this.#ended) return;
     this.#ended = true;
     this.#backend.close(this.#id);
+  }
+
+  // TLS sockets always run on the libuv engine, so the exporter is read straight from native
+  // (a plaintext / io_uring id isn't in that connection table and simply yields undefined).
+  exportKeyingMaterial(length: number, label: string, context?: Uint8Array): Buffer | undefined {
+    return native.tcpExportKeyingMaterial(this.#id, length, label, context);
   }
 
   on(event: "data", listener: (chunk: Buffer) => void): this;

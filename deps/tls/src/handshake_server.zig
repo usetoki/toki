@@ -725,4 +725,9 @@ pub const NonBlock = struct {
     pub fn clientCertVerified(self: Self) bool {
         return self.inner.client_cert_verified;
     }
+
+    /// RFC 8446 §7.5 exporter — valid after the handshake completes. See Transcript.exportKeyingMaterial.
+    pub fn exportKeyingMaterial(self: *Self, label: []const u8, context: []const u8, out: []u8) void {
+        self.inner.transcript.exportKeyingMaterial(label, context, out);
+    }
 };
