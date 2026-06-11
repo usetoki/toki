@@ -124,6 +124,18 @@ pub fn render(head_dest: []u8, entry: Entry, accept_encoding: ?[]const u8, if_no
     return .{ .head_len = head_len, .body = if (is_head) "" else chosen.body };
 }
 
+/// Variant choice for a caller that frames its own head (e.g. the HTTP/2 engine): the
+/// header block + body to serve, or a 304 with the identity headers and no body.
+pub const Choice = struct { not_modified: bool, headers: []const u8, body: []const u8 };
+
+pub fn choose(entry: Entry, accept_encoding: ?[]const u8, if_none_match: ?[]const u8) Choice {
+    if (etagMatches(if_none_match, entry.etag)) {
+        return .{ .not_modified = true, .headers = entry.identity.headers, .body = "" };
+    }
+    const v = negotiate(entry, accept_encoding);
+    return .{ .not_modified = false, .headers = v.headers, .body = v.body };
+}
+
 /// preference order: brotli > gzip > identity
 fn negotiate(entry: Entry, accept_encoding: ?[]const u8) Variant {
     const accept = accept_encoding orelse return entry.identity;

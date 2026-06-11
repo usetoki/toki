@@ -42,7 +42,7 @@ app.listen(443, {
         ["Key exchange", "ECDHE (forward secrecy)"],
         ["Server keys", "RSA and EC (ECDSA)"],
         ["Client auth", "None — server-authenticated only (mTLS lives on the raw TCP server)"],
-        ["ALPN", "`http/1.1`"],
+        ["ALPN", "`http/1.1`, plus `h2` when [HTTP/2](/docs/http2) is enabled"],
         ["SNI", "supported"],
       ],
     },
@@ -54,7 +54,7 @@ app.listen(443, {
     {
       kind: "callout",
       tone: "note",
-      text: "HTTP/2 is intentionally out of scope. ALPN advertises `http/1.1`; if you need h2, put it behind a reverse proxy.",
+      text: "Want HTTP/2? Add `http2: true` alongside `tls` and ALPN negotiates `h2` automatically, falling back to HTTP/1.1 for older clients. See [HTTP/2](/docs/http2).",
     },
     { kind: "heading", id: "loading", text: "Loading the cert and key" },
     {

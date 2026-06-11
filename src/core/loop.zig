@@ -12,6 +12,7 @@ const static = @import("../http/static.zig");
 const ratelimit = @import("../security/ratelimit.zig");
 const websocket = @import("../websocket/session.zig");
 const tlsmod = @import("../tls/tls.zig");
+const h2 = @import("../http2/connection.zig");
 const eng = @import("engine.zig");
 
 const alloc = eng.alloc;
@@ -52,6 +53,8 @@ pub fn onConnection(server: *anyopaque, status: c_int) callconv(.c) void {
         .ws_deflate = false,
         .ws_msg_compressed = false,
         .tls = null,
+        .h2 = null,
+        .h2_probe = eng.http2,
         .next = null,
         .prev = null,
     };
@@ -138,7 +141,35 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
         return;
     }
     conn.filled += @intCast(nread);
-    if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+    // h2c (prior knowledge): a plaintext connection that opens with the HTTP/2 preface is
+    // handed to the h2 engine. Decided once, at the start, so a pipelined preface can't
+    // smuggle an upgrade mid-stream.
+    if (conn.h2_probe and !conn.is_ws and conn.tls == null) {
+        switch (h2.detectPreface(eng.activeBuf(conn)[0..conn.filled])) {
+            .partial => return, // still a possible preface; wait for more bytes
+            .yes => {
+                conn.h2_probe = false;
+                if (!h2.start(conn)) {
+                    closeConn(stream);
+                    return;
+                }
+            },
+            .no => {
+                // exclusive h2c: no HTTP/1.1 fallback — a non-preface connection is rejected
+                if (eng.http2_exclusive) {
+                    h2.rejectCleartext(conn);
+                    return;
+                }
+                conn.h2_probe = false; // committed to HTTP/1.1
+            },
+        }
+    }
+    deliver(stream, conn);
+}
+
+// route buffered plaintext to the right protocol engine
+fn deliver(stream: *anyopaque, conn: *Conn) void {
+    if (conn.h2 != null) h2.onData(conn) else if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
 }
 
 // finish the handshake, then decrypt buffered records straight into the plaintext
@@ -154,6 +185,14 @@ fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
             return;
         }
         if (!st.established) return; // need more of the client's handshake
+        // ALPN chose h2: spin up the HTTP/2 engine (it sends the server preface) before any
+        // application data is decrypted into the buffer below
+        if (conn.h2 == null and st.alpn_h2) {
+            if (!h2.start(conn)) {
+                closeConn(stream);
+                return;
+            }
+        }
     }
 
     while (tlsmod.recordReady(st)) {
@@ -161,7 +200,7 @@ fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
         if (active.len - conn.filled < tlsmod.in_size) {
             // no room for a full record yet; drain/slide/grow, then retry
             const space_before = active.len - conn.filled;
-            if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+            deliver(stream, conn);
             if (conn.closing or conn.awaiting) return; // leftover records stay encrypted
             active = eng.activeBuf(conn);
             if (active.len - conn.filled <= space_before) {
@@ -178,13 +217,13 @@ fn tlsDrive(stream: *anyopaque, conn: *Conn, st: *tlsmod.State) void {
         }
         conn.filled += r.plain_len;
         if (r.closed) {
-            if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+            deliver(stream, conn);
             closeConn(stream); // peer's close_notify; our own rides along in closeConn
             return;
         }
     }
 
-    if (conn.is_ws) websocket.onData(conn) else drain(stream, conn);
+    deliver(stream, conn);
 }
 
 /// Process buffered requests, corking sync responses into one write. An async
@@ -441,6 +480,13 @@ pub fn submitResponse(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.
     var id: u32 = 0;
     _ = napi.napi_get_value_uint32(env, argv[0], &id);
 
+    // an h2 stream's async response is settled by the h2 engine; ids are unique across both
+    // maps, so a hit here unambiguously means this dispatch belonged to an HTTP/2 stream
+    if (eng.h2_pending.fetchRemove(id)) |kv| {
+        h2.submit(kv.value.conn, kv.value.stream_id, env, argv[1]);
+        return eng.undefinedValue(env);
+    }
+
     const conn = eng.pending.get(id) orelse return eng.undefinedValue(env); // stale id
     _ = eng.pending.remove(id);
     if (conn.closing) return eng.undefinedValue(env);
@@ -591,6 +637,8 @@ fn onClose(handle: *anyopaque) callconv(.c) void {
     const conn: *Conn = @ptrCast(@alignCast(handle));
     // ws teardown: drop from the id map, free any partial message, fire the close event
     websocket.onClosed(conn);
+    // h2 teardown: free streams, HPACK state, and the connection buffers
+    if (conn.h2 != null) h2.onClosed(conn);
     // drop any pending entry so a late submitResponse can't touch freed memory
     if (conn.awaiting) _ = eng.pending.remove(conn.dispatch_id);
     if (conn.overflow) |buffer| alloc.free(buffer);

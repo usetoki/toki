@@ -10,6 +10,7 @@ const static = @import("../http/static.zig");
 const ratelimit = @import("../security/ratelimit.zig");
 const websocket = @import("../websocket/session.zig");
 const tlsmod = @import("../tls/tls.zig");
+const h2 = @import("../http2/connection.zig");
 const eng = @import("engine.zig");
 const loop = @import("loop.zig");
 
@@ -176,6 +177,21 @@ fn readOptions(env: napi.Env, options: napi.Value) void {
     if (readOptUint(env, options, "maxWsMessageBytes")) |v| eng.max_ws_message = v;
     if (readOptBool(env, options, "wsCompression")) eng.ws_compression = true;
 
+    // HTTP/2 (reset each listen so a re-listen without it reverts to HTTP/1.1 only)
+    eng.http2 = readOptBool(env, options, "http2");
+    tlsmod.setOfferH2(eng.http2);
+    eng.http2_exclusive = eng.http2 and readOptStringEql(env, options, "http2Cleartext", "exclusive");
+    eng.h2_initial_window = 256 * 1024;
+    if (readOptUint(env, options, "http2InitialWindow")) |v| {
+        // cap to the largest legal flow-control window (2^31-1); a bigger SETTINGS value is
+        // itself a FLOW_CONTROL_ERROR a peer would reject
+        if (v > 0) eng.h2_initial_window = @intCast(@min(v, 0x7fffffff));
+    }
+    eng.h2_max_concurrent = 128;
+    if (readOptUint(env, options, "http2MaxConcurrentStreams")) |v| {
+        if (v > 0) eng.h2_max_concurrent = @intCast(v);
+    }
+
     var value: napi.Value = undefined;
     _ = napi.napi_get_named_property(env, options, "host", &value);
     var kind: c_int = 0;
@@ -217,6 +233,19 @@ fn readOptBool(env: napi.Env, options: napi.Value, name: [*c]const u8) bool {
     var out: bool = false;
     _ = napi.napi_get_value_bool(env, value, &out);
     return out;
+}
+
+// true when option `name` is a string equal to `expected`
+fn readOptStringEql(env: napi.Env, options: napi.Value, name: [*c]const u8, expected: []const u8) bool {
+    var value: napi.Value = undefined;
+    _ = napi.napi_get_named_property(env, options, name, &value);
+    var kind: c_int = 0;
+    _ = napi.napi_typeof(env, value, &kind);
+    if (kind != napi.valuetype.string) return false;
+    var buf: [32]u8 = undefined;
+    var copied: usize = 0;
+    if (napi.napi_get_value_string_utf8(env, value, &buf, buf.len, &copied) != napi.ok) return false;
+    return std.mem.eql(u8, buf[0..copied], expected);
 }
 
 /// loads { path, body, mtimeMs, cacheControl, gzip?, brotli? }[]
@@ -302,8 +331,12 @@ fn onSweep(handle: *anyopaque) callconv(.c) void {
         var node = eng.conn_list;
         while (node) |conn| {
             const next = conn.next; // grab before closeConn unlinks conn
-            // partial plaintext request, or buffered TLS bytes mid-handshake / mid-record
-            const partial = conn.filled > 0 or (if (conn.tls) |st| st.in_len > 0 else false);
+            // partial plaintext request, buffered TLS bytes mid-handshake/record, or an h2
+            // connection stalled mid-request (a partial frame hides in its own rx buffer, so
+            // conn.filled is 0 — h2.stalled looks where the bytes actually are)
+            const partial = conn.filled > 0 or
+                (if (conn.tls) |st| st.in_len > 0 else false) or
+                (conn.h2 != null and h2.stalled(conn));
             if (!conn.closing and !conn.awaiting and partial and now - conn.last_read > eng.header_timeout_ms) {
                 loop.closeConn(eng.opaqueOf(&conn.tcp));
             }

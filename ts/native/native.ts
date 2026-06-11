@@ -78,6 +78,26 @@ export interface ServerOptions {
   /** offer permessage-deflate (RFC 7692) when a client requests it */
   wsCompression?: boolean;
   /**
+   * Serve HTTP/2. Over TLS it is negotiated via ALPN (`h2`), falling back to HTTP/1.1
+   * for clients that don't offer it; in cleartext it accepts the h2c prior-knowledge
+   * preface. Multiplexing, flow control, and HPACK run in native code; handlers are
+   * unchanged. TLS is recommended — most clients only speak h2 over TLS.
+   */
+  http2?: boolean;
+  /** Cleartext HTTP/2 mode. `"multiplex"` (default) serves h2c and HTTP/1.1 on the same
+   *  port — a connection is HTTP/2 only if it opens with the h2c preface. `"exclusive"`
+   *  serves h2c only: a non-preface connection gets a `GOAWAY` and is closed, for
+   *  prior-knowledge-only deployments (gRPC, pure-h2 internal services). Ignored over TLS,
+   *  where ALPN selects the protocol. */
+  http2Cleartext?: "multiplex" | "exclusive";
+  /** h2 per-stream receive window we advertise (`SETTINGS_INITIAL_WINDOW_SIZE`); also the
+   *  connection window we raise to. Larger lifts upload throughput at some memory cost.
+   *  Default 256 KiB. */
+  http2InitialWindow?: number;
+  /** h2 `SETTINGS_MAX_CONCURRENT_STREAMS` — caps simultaneous streams per connection, the
+   *  main per-connection memory bound. Default 128. */
+  http2MaxConcurrentStreams?: number;
+  /**
    * Terminate HTTPS directly (no reverse proxy). PEM cert chain (leaf first) +
    * private key — RSA or EC. TLS 1.3 only (AEAD suites).
    */

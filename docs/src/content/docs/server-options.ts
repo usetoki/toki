@@ -61,6 +61,26 @@ export const serverOptionsPage: DocPage = {
           "`{ cert, key }` PEM (text or bytes) — terminate HTTPS in-process, TLS 1.3 only. See [HTTPS / TLS](/docs/https).",
         ],
         [
+          "`http2`",
+          "`false`",
+          "Serve [HTTP/2](/docs/http2) — ALPN `h2` over TLS, h2c in cleartext. Multiplexing, flow control, and HPACK run in native code.",
+        ],
+        [
+          "`http2Cleartext`",
+          "`\"multiplex\"`",
+          "Cleartext h2 mode: `\"multiplex\"` shares the port with HTTP/1.1; `\"exclusive\"` serves h2c only (non-preface connections get `GOAWAY`). Ignored over TLS.",
+        ],
+        [
+          "`http2InitialWindow`",
+          "256 KiB",
+          "h2 per-stream receive window we advertise (and the connection window we raise to). Higher lifts upload throughput.",
+        ],
+        [
+          "`http2MaxConcurrentStreams`",
+          "128",
+          "h2 `SETTINGS_MAX_CONCURRENT_STREAMS` — the cap on simultaneous streams per connection.",
+        ],
+        [
           "`maxWsMessageBytes`",
           "16 MiB",
           "Largest accepted WebSocket message; a larger one closes the socket with `1009`.",

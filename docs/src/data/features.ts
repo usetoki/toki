@@ -26,6 +26,12 @@ export const FEATURES: readonly Feature[] = [
       "createUdpServer for datagrams, plus per-packet AES-256-GCM under a shared key or a Noise-XX session with mutual auth and forward secrecy.",
   },
   {
+    icon: "🔀",
+    title: "HTTP/2",
+    description:
+      "Optional native HTTP/2 — ALPN h2 over TLS or h2c — with stream multiplexing, flow control, and HPACK header compression. Same handlers as HTTP/1.1.",
+  },
+  {
     icon: "🔭",
     title: "WebSockets",
     description:

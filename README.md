@@ -43,6 +43,7 @@ console.log("listening on http://127.0.0.1:3000");
 - 🗜️ **Compression** — gzip + brotli, negotiated per `Accept-Encoding`, off the event loop.
 - 🌊 **Streaming** — `reply.stream` over chunked transfer encoding, with native backpressure.
 - 🔭 **WebSockets** — full RFC 6455 in native code: framing, masking, fragmentation, ping/pong, close codes, subprotocols, and a per-IP message-size guard.
+- 🔀 **HTTP/2** — optional native h2 (ALPN over TLS, or h2c) with stream multiplexing, flow control, and HPACK; same handlers as HTTP/1.1.
 - 🔒 **Direct HTTPS** — terminate TLS 1.2/1.3 in the native engine (AEAD ciphers, ALPN, SNI; RSA + EC keys), no reverse proxy required.
 - 🛡️ **Hardened** — schema validation, JWT, a native per-IP rate limiter, slowloris guard, configurable limits.
 - 🧪 **Testable** — `app.inject()` runs a real request in-process, no port needed.
@@ -127,6 +128,10 @@ app.listen(3000, { host: "0.0.0.0", maxBodyBytes: 5_000_000 });
 | `rateLimit` | — | `{ max, windowMs }` — native per-IP limiter; over-limit requests get a `429` before reaching JS. |
 | `unixPath` | — | Bind a unix-domain socket at this path instead of TCP (the port is ignored). Ideal for a reverse proxy → app on the same host. |
 | `tls` | — | `{ cert, key }` PEM — terminate HTTPS directly (TLS 1.2/1.3); see [HTTPS](#-https). |
+| `http2` | `false` | Serve HTTP/2 — ALPN `h2` over TLS, h2c in cleartext; see [HTTP/2](#-http2). |
+| `http2Cleartext` | `"multiplex"` | Cleartext h2 mode: `"multiplex"` (shares the port with HTTP/1.1) or `"exclusive"` (h2c only). Ignored over TLS. |
+| `http2InitialWindow` | 256 KiB | h2 per-stream receive window (and the connection window we raise to). |
+| `http2MaxConcurrentStreams` | 128 | h2 cap on simultaneous streams per connection. |
 | `maxWsMessageBytes` | 16 MiB | Largest accepted WebSocket message; a larger one is closed with `1009`. |
 | `wsCompression` | `false` | Offer `permessage-deflate` (RFC 7692) when a client requests it. |
 
@@ -151,8 +156,35 @@ app.listen(443, {
 ```
 
 `cert` and `key` take a PEM string or a `Buffer`/`Uint8Array`. WebSockets (`wss://`),
-streaming, and static files all ride over TLS unchanged. ALPN advertises `http/1.1`;
-HTTP/2 is not offered (put it behind a reverse proxy if you need it).
+streaming, and static files all ride over TLS unchanged. ALPN advertises `http/1.1`, plus
+`h2` when HTTP/2 is enabled (see below).
+
+## 🔀 HTTP/2
+
+Set `http2: true` and toki serves HTTP/2. Over TLS it's negotiated with ALPN (`h2`),
+falling back to HTTP/1.1 for clients that don't offer it; in cleartext it accepts the h2c
+prior-knowledge preface. Frame parsing, stream multiplexing, flow control, and HPACK header
+compression all run in native code — your routes, hooks, and `reply` builders are unchanged.
+
+```ts
+import { readFileSync } from "node:fs";
+
+app.listen(443, {
+  http2: true,
+  tls: { cert: readFileSync("fullchain.pem"), key: readFileSync("privkey.pem") },
+});
+```
+
+Many requests share one connection as independent streams, so a slow handler never blocks
+the others. Async handlers, `reply.stream`/SSE, and static files all work over h2. In
+cleartext, h2c shares the port with HTTP/1.1 by default; set `http2Cleartext: "exclusive"`
+for an h2c-only port (gRPC, pure-h2 internal services). Every peer-controlled resource is
+bounded — concurrent streams, header-list size (with a CONTINUATION-flood guard), the HPACK
+table, per-stream send buffers, and the aggregate in-flight request body per connection. A
+reset-without-progress flood (CVE-2023-44487) trips a `GOAWAY`, and `headerTimeoutMs` sweeps
+connections stalled mid-request. Passes the full h2spec conformance suite and a frame/HPACK
+fuzzer under a memory-checked build. There's no server push or TLS session resumption. Use
+TLS in production: browsers only speak h2 over TLS, and ALPN picks it automatically.
 
 ## 🔭 WebSockets
 

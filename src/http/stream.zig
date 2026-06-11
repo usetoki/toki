@@ -9,6 +9,7 @@ const napi = @import("../ffi/napi.zig");
 const response = @import("response.zig");
 const eng = @import("../core/engine.zig");
 const loop = @import("../core/loop.zig");
+const h2 = @import("../http2/connection.zig");
 
 const Conn = eng.Conn;
 
@@ -20,13 +21,20 @@ pub fn startStream(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Val
 
     var id: u32 = 0;
     _ = napi.napi_get_value_uint32(env, argv[0], &id);
-    const conn = eng.pending.get(id) orelse return eng.undefinedValue(env);
-    if (conn.closing) return eng.undefinedValue(env);
 
     var status: u32 = 200;
     _ = napi.napi_get_value_uint32(env, argv[1], &status);
     var hlen: usize = 0;
     _ = napi.napi_get_value_string_utf8(env, argv[2], &eng.headers_scratch, eng.headers_scratch.len, &hlen);
+
+    // an h2 stream frames its head differently (HEADERS, no chunked encoding)
+    if (eng.h2_pending.get(id)) |ref| {
+        h2.streamStart(ref.conn, ref.stream_id, @intCast(status), eng.headers_scratch[0..hlen]);
+        return eng.undefinedValue(env);
+    }
+
+    const conn = eng.pending.get(id) orelse return eng.undefinedValue(env);
+    if (conn.closing) return eng.undefinedValue(env);
 
     // honor the inbound Connection. with keep-alive off the conn closes after endStream,
     // so the head must say close. otherwise the client reuses a dead socket.
@@ -44,14 +52,19 @@ pub fn writeStreamChunk(env: napi.Env, info: napi.CallbackInfo) callconv(.c) nap
 
     var id: u32 = 0;
     _ = napi.napi_get_value_uint32(env, argv[0], &id);
-    const conn = eng.pending.get(id) orelse return makeInt(env, -1);
-    if (conn.closing) return makeInt(env, -1);
 
     var data: ?*anyopaque = null;
     var len: usize = 0;
-    if (napi.napi_get_buffer_info(env, argv[1], &data, &len) != napi.ok or len == 0) {
-        return makeInt(env, backlog(conn));
+    const have_buf = napi.napi_get_buffer_info(env, argv[1], &data, &len) == napi.ok;
+
+    if (eng.h2_pending.get(id)) |ref| {
+        const slice: []const u8 = if (have_buf and data != null) @as([*]const u8, @ptrCast(data.?))[0..len] else "";
+        return makeInt(env, h2.streamChunk(ref.conn, ref.stream_id, slice));
     }
+
+    const conn = eng.pending.get(id) orelse return makeInt(env, -1);
+    if (conn.closing) return makeInt(env, -1);
+    if (!have_buf or len == 0) return makeInt(env, backlog(conn));
     const tcp = eng.opaqueOf(&conn.tcp);
     var hdr: [18]u8 = undefined;
     loop.writeAll(tcp, hdr[0..response.writeChunkHeader(&hdr, len)]);
@@ -68,6 +81,12 @@ pub fn endStream(env: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
 
     var id: u32 = 0;
     _ = napi.napi_get_value_uint32(env, argv[0], &id);
+
+    if (eng.h2_pending.get(id)) |ref| {
+        h2.streamEnd(ref.conn, ref.stream_id);
+        return eng.undefinedValue(env);
+    }
+
     const conn = eng.pending.get(id) orelse return eng.undefinedValue(env);
     _ = eng.pending.remove(id);
     if (conn.closing) return eng.undefinedValue(env);

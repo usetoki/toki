@@ -60,6 +60,9 @@ pub fn build(b: *std.Build) void {
         "src/security/ratelimit.test.zig",
         "src/websocket/frame.test.zig",
         "src/tls/tls.test.zig",
+        "src/http2/frame.test.zig",
+        "src/http2/huffman.test.zig",
+        "src/http2/hpack.test.zig",
     }) |file| {
         const unit_mod = b.createModule(.{
             .root_source_file = b.path(file),

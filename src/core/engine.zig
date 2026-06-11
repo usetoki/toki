@@ -69,6 +69,21 @@ pub var pending: std.AutoHashMapUnmanaged(u32, *Conn) = .empty;
 /// monotonic, never 0 (0 means "no dispatch")
 pub var next_id: u32 = 1;
 
+/// HTTP/2: opt-in (ALPN "h2" over TLS, or the h2c prior-knowledge preface in cleartext)
+pub var http2: bool = false;
+/// cleartext h2c only — no HTTP/1.1 fallback on the plaintext port: a connection that
+/// doesn't open with the HTTP/2 preface gets a GOAWAY and is closed. For prior-knowledge-
+/// only deployments (gRPC, pure-h2 internal services). Ignored over TLS (ALPN selects).
+pub var http2_exclusive: bool = false;
+/// our advertised SETTINGS_INITIAL_WINDOW_SIZE and the connection receive window we raise to
+pub var h2_initial_window: u32 = 256 * 1024;
+/// our advertised SETTINGS_MAX_CONCURRENT_STREAMS; bounds per-connection stream memory
+pub var h2_max_concurrent: u32 = 128;
+/// async h2 handlers: dispatch id → the stream awaiting a response (shares next_id with
+/// `pending`, so submitResponse can tell an h2 stream from an HTTP/1.1 conn by which map hits)
+pub const H2Ref = struct { conn: *Conn, stream_id: u32 };
+pub var h2_pending: std.AutoHashMapUnmanaged(u32, H2Ref) = .empty;
+
 /// upgraded websocket connections: ws id → conn, for wsSend/wsClose lookup
 pub var ws_conns: std.AutoHashMapUnmanaged(u32, *Conn) = .empty;
 pub var next_ws_id: u32 = 1;
@@ -85,7 +100,11 @@ pub var ws_compression: bool = false;
 
 /// reused scratch. single thread, so statics are safe and there's zero per-request alloc
 pub var cork: [cork_size]u8 = undefined;
-pub var headers_scratch: [read_buf_size]u8 = undefined;
+/// holds the response header block read back from JS. Sized well past the inline read
+/// buffer so a large header set (many Set-Cookie, a big JWT, an HTTP/2 response near the
+/// 32 KiB header-list limit) isn't truncated.
+pub const headers_scratch_size = 64 * 1024;
+pub var headers_scratch: [headers_scratch_size]u8 = undefined;
 /// TLS ciphertext scratch: a handshake reply flight, or one batch of encrypted
 /// application-data records. Reused per write (single thread → sequential).
 pub var tls_out: [tlsmod.out_size]u8 = undefined;
@@ -146,6 +165,13 @@ pub const Conn = struct {
     /// decrypted into the buffers above, writes encrypted, transparently to the
     /// HTTP/WS layers.
     tls: ?*tlsmod.State,
+    /// HTTP/2 engine when this connection negotiated h2 (ALPN) or began with the h2c
+    /// preface; null for HTTP/1.1. Opaque here to keep engine.zig free of the http2 import;
+    /// loop.zig routes reads to it and frees it in onClose.
+    h2: ?*anyopaque,
+    /// true until the first read decides the plaintext protocol. Gates h2c prior-knowledge
+    /// detection to connection start, so a pipelined preface can't smuggle an upgrade.
+    h2_probe: bool,
     next: ?*Conn,
     prev: ?*Conn,
 };

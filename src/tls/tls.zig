@@ -23,7 +23,16 @@ var g_enabled = false;
 var g_auth: lib.config.CertKeyPair = undefined;
 // seeded from the OS once at boot, reused for every handshake (no per-handshake syscall)
 var g_csprng: std.Random.DefaultCsprng = undefined;
-const g_alpn: []const []const u8 = &.{"http/1.1"};
+// ALPN offer order is server preference: with HTTP/2 enabled, h2 wins over http/1.1 for any
+// client that supports it; otherwise only http/1.1 is offered so a plain server never upgrades.
+const alpn_h2: []const []const u8 = &.{ "h2", "http/1.1" };
+const alpn_h1: []const []const u8 = &.{"http/1.1"};
+var g_offer_h2 = false;
+
+/// Offer "h2" in the ALPN list (set from the listen options before any handshake).
+pub fn setOfferH2(on: bool) void {
+    g_offer_h2 = on;
+}
 
 // Optional mutual-TLS: when a client-CA bundle is supplied, the server sends a
 // CertificateRequest and verifies the client cert against this bundle. Parsed once at
@@ -101,7 +110,7 @@ fn serverOptions(now_sec: i64) lib.config.Server {
         .auth = &g_auth,
         .client_auth = g_client_auth,
         .cipher_suites = lib.config.cipher_suites.secure,
-        .alpn_protocols = g_alpn,
+        .alpn_protocols = if (g_offer_h2) alpn_h2 else alpn_h1,
         // real wall-clock time: client_auth verifies the client cert's validity window
         // against this, so .zero (1970) would reject every in-date cert. The caller passes
         // the current time at accept. Harmless without client_auth (the server signs, not verifies).
@@ -120,9 +129,17 @@ pub const State = struct {
     // configured CA. Meaningful only when client_auth is on; always false otherwise. With
     // .require an unauthorized peer never reaches `established`, so this is true there.
     authorized: bool = false,
+    // true once established if ALPN negotiated "h2"; the loop then drives the connection
+    // through the HTTP/2 engine instead of the HTTP/1.1 pipeline
+    alpn_h2: bool = false,
     in: [in_size]u8 = undefined, // ciphertext from the socket, not yet consumed
     in_len: usize = 0,
 };
+
+/// Whether this connection negotiated HTTP/2 over ALPN. Meaningful only once established.
+pub fn negotiatedH2(st: *const State) bool {
+    return st.alpn_h2;
+}
 
 var pool: std.heap.MemoryPool(State) = .empty;
 
@@ -155,6 +172,7 @@ pub fn handshake(st: *State, out: []u8) Handshake {
         const c = st.handshake.cipher() orelse return .{ .send = out[0..r.send_pos], .failed = true };
         st.record = lib.nonblock.Connection.init(c);
         st.authorized = st.handshake.clientCertVerified();
+        st.alpn_h2 = if (st.handshake.alpnProtocol()) |p| std.mem.eql(u8, p, "h2") else false;
         st.established = true;
     }
     return .{ .send = out[0..r.send_pos], .failed = false };

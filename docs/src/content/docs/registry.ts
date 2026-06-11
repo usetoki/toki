@@ -24,6 +24,7 @@ import { decoratorsPage } from "./decorators";
 import { errorHandlingPage } from "./error-handling";
 import { helmetPluginPage } from "./plugin-helmet";
 import { hooksPage } from "./hooks";
+import { http2Page } from "./http2";
 import { httpsPage } from "./https";
 import { installationPage } from "./installation";
 import { introductionPage } from "./introduction";
@@ -81,6 +82,7 @@ export const DOC_CATEGORIES: readonly DocCategory[] = [
       corsSecurityPage,
       jwtPage,
       httpsPage,
+      http2Page,
       rateLimitingPage,
       loggingPage,
       testingPage,

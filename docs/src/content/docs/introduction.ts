@@ -51,6 +51,10 @@ app.listen(3000);`,
           "Methods, `:params`, `*` wildcards, prefixed [groups](/docs/routing), a not-found handler.",
         ],
         [
+          "HTTP/2",
+          "Optional native [HTTP/2](/docs/http2) — ALPN `h2` over TLS or h2c — with multiplexing, flow control, and HPACK. Same handlers as HTTP/1.1.",
+        ],
+        [
           "Lifecycle hooks",
           "`onRequest` → `preHandler` → handler → `onResponse` → `onSend`, plus [error handling](/docs/error-handling).",
         ],
