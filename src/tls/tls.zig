@@ -28,10 +28,18 @@ var g_csprng: std.Random.DefaultCsprng = undefined;
 const alpn_h2: []const []const u8 = &.{ "h2", "http/1.1" };
 const alpn_h1: []const []const u8 = &.{"http/1.1"};
 var g_offer_h2 = false;
+// The HTTP server advertises http/1.1 by default; the raw TCP server sends no ALPN extension
+// unless the caller configures one (RFC 7301 — a service must not invent a protocol id).
+var g_http_alpn = false;
 
 /// Offer "h2" in the ALPN list (set from the listen options before any handshake).
 pub fn setOfferH2(on: bool) void {
     g_offer_h2 = on;
+}
+
+/// The HTTP server defaults its ALPN to http/1.1; raw TCP TLS does not (set before handshakes).
+pub fn setHttpAlpnDefault(on: bool) void {
+    g_http_alpn = on;
 }
 
 // ALPN list, wire format shared with the TS layer: each protocol is a 1-byte length followed by
@@ -107,7 +115,13 @@ fn sniSelect(server_name: []const u8) ?*lib.config.CertKeyPair {
 /// Call after init(); freed by deinit(). False on a parse failure, a bad name, or when full.
 pub fn addSniCert(gpa: std.mem.Allocator, servername: []const u8, cert_pem: []const u8, key_pem: []const u8) bool {
     if (g_sni_count >= g_sni.len or servername.len == 0 or servername.len > 128) return false;
-    const kp = parseCertKey(gpa, cert_pem, key_pem) orelse return false;
+    var kp = parseCertKey(gpa, cert_pem, key_pem) orelse return false;
+    // the signature scheme is picked from the default cert before SNI is read, so a vhost cert
+    // with a different key algorithm would fail every handshake. Reject it at registration.
+    if (kp.key.signature_scheme != g_auth.key.signature_scheme) {
+        kp.deinit(gpa);
+        return false;
+    }
     const c = &g_sni[g_sni_count];
     @memcpy(c.name[0..servername.len], servername);
     c.name_len = servername.len;
@@ -131,6 +145,10 @@ pub fn deinit(gpa: std.mem.Allocator) void {
     if (g_client_auth) |*c| c.root_ca.deinit(gpa);
     g_client_auth = null;
     g_enabled = false;
+    // a fresh listen starts from the defaults; the caller re-sets what it wants afterwards.
+    g_offer_h2 = false;
+    g_http_alpn = false;
+    g_alpn = &.{};
 }
 
 /// Optional client-certificate authentication, supplied to `init`.
@@ -186,7 +204,7 @@ fn serverOptions(now_sec: i64) lib.config.Server {
         .auth = &g_auth,
         .client_auth = g_client_auth,
         .cipher_suites = lib.config.cipher_suites.secure,
-        .alpn_protocols = if (g_alpn.len > 0) g_alpn else if (g_offer_h2) alpn_h2 else alpn_h1,
+        .alpn_protocols = if (g_alpn.len > 0) g_alpn else if (g_offer_h2) alpn_h2 else if (g_http_alpn) alpn_h1 else &.{},
         .cert_selector = if (g_sni_count > 0) &sniSelect else null,
         // real wall-clock time: client_auth verifies the client cert's validity window
         // against this, so .zero (1970) would reject every in-date cert. The caller passes

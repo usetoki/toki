@@ -180,6 +180,7 @@ fn readOptions(env: napi.Env, options: napi.Value) void {
     // HTTP/2 (reset each listen so a re-listen without it reverts to HTTP/1.1 only)
     eng.http2 = readOptBool(env, options, "http2");
     tlsmod.setOfferH2(eng.http2);
+    tlsmod.setHttpAlpnDefault(true); // an HTTPS listener advertises http/1.1 even without explicit ALPN
     eng.http2_exclusive = eng.http2 and readOptStringEql(env, options, "http2Cleartext", "exclusive");
     eng.h2_initial_window = 256 * 1024;
     if (readOptUint(env, options, "http2InitialWindow")) |v| {

@@ -39,5 +39,16 @@ pub fn name(addr: *const anyopaque, dst: []u8) void {
 pub fn ipBytes(addr: *const anyopaque) []const u8 {
     const bytes: [*]const u8 = @ptrCast(addr);
     if (bytes[0] == 2 or bytes[1] == 2) return bytes[4..8];
-    return bytes[8..24];
+    const v6 = bytes[8..24];
+    // a v4-mapped address (::ffff:a.b.c.d) is the same peer as its native IPv4 form on a
+    // dual-stack listener — key it on the embedded 4 bytes so it can't earn a second bucket.
+    if (isV4Mapped(v6)) return v6[12..16];
+    return v6;
+}
+
+fn isV4Mapped(v6: []const u8) bool {
+    for (v6[0..10]) |b| {
+        if (b != 0) return false;
+    }
+    return v6[10] == 0xff and v6[11] == 0xff;
 }
