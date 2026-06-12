@@ -129,6 +129,38 @@ try {
     "-out",
     p("srv2-cert.pem"),
   ]);
+  // an SNI virtual-host leaf (same RSA algo as the default) for a different host name.
+  sh([
+    "req",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    p("vhost-key.pem"),
+    "-out",
+    p("vhost.csr"),
+    "-subj",
+    "/CN=vhost.localhost",
+    "-addext",
+    "subjectAltName=DNS:vhost.localhost",
+  ]);
+  sh([
+    "x509",
+    "-req",
+    "-in",
+    p("vhost.csr"),
+    "-CA",
+    p("ca-cert.pem"),
+    "-CAkey",
+    p("ca-key.pem"),
+    "-CAcreateserial",
+    "-days",
+    "1",
+    "-copy_extensions",
+    "copy",
+    "-out",
+    p("vhost-cert.pem"),
+  ]);
 } catch {
   console.log("skipped: openssl not available to mint demo certificates");
   rmSync(dir, { recursive: true, force: true });
@@ -145,6 +177,7 @@ const BINDING = "EXPORTER-tokira-channel-binding";
 
 // what the server learned about each upgraded connection, keyed by role (c2s / s2s).
 const seen = new Map<string, { authorized: boolean; exporter: string }>();
+let lastServername: string | undefined;
 // every close reason the server observed, so a graceful shutdown can be logged.
 const closeReasons: string[] = [];
 
@@ -158,6 +191,7 @@ const server = createTcpServer(
     sock.on("close", (reason) => closeReasons.push(reason));
     sock.on("secure", () => {
       secure = true;
+      lastServername = sock.servername;
       const ekm = sock.exportKeyingMaterial(32, BINDING);
       seen.set(role, { authorized: sock.authorized, exporter: ekm!.toString("hex") });
     });
@@ -181,7 +215,20 @@ const server = createTcpServer(
   },
   {
     startTls: true,
-    tls: { cert: srvCert, key: srvKey, requestCert: true, ca: caCert, alpn: ["xmpp-server"] },
+    tls: {
+      cert: srvCert,
+      key: srvKey,
+      requestCert: true,
+      ca: caCert,
+      alpn: ["xmpp-server"],
+      sni: [
+        {
+          servername: "vhost.localhost",
+          cert: readFileSync(p("vhost-cert.pem")),
+          key: readFileSync(p("vhost-key.pem")),
+        },
+      ],
+    },
   },
 );
 const c2s = server.listen(0, HOST); // pretend :5222
@@ -247,6 +294,15 @@ peer.destroy();
 console.log(
   `s2s upgraded: mutual TLS authorized=${seen.get("s2s")!.authorized}, peer cert ${leaf!.length} bytes`,
 );
+
+// --- virtual hosts: a client requesting a different SNI name gets that host's certificate, and
+// the server reads back the requested name. The default cert still covers the c2s/s2s upgrades. ---
+const vhost = await startTlsPeer(c2s.port, { servername: "vhost.localhost", ca: caCert });
+vhost.write("hi");
+assert.equal((await once(vhost, "data")).toString(), "c2s:hi"); // a round-trip: the server's 'secure' ran
+assert.equal(lastServername, "vhost.localhost", "the server saw the requested SNI host");
+vhost.destroy();
+console.log(`SNI: served the vhost.localhost certificate, server saw servername=${lastServername}`);
 
 // --- read flow control: a slow consumer pauses, the writer's bytes back up, then it drains. ---
 const slow = await startTlsPeer(c2s.port, { servername: "localhost", ca: caCert });
