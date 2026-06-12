@@ -896,6 +896,9 @@ pub fn exportKeyingMaterial(e: napi.Env, info: napi.CallbackInfo) callconv(.c) n
     var label_buf: [256]u8 = undefined;
     var label_len: usize = 0;
     _ = napi.napi_get_value_string_utf8(e, argv[2], &label_buf, label_buf.len, &label_len);
+    // the HkdfLabel length byte holds len("tls13 ") + label = 6 + label_len in a u8, so the
+    // label tops out at 249 (RFC 8446 label<7..255>). Past that the prefix wraps — reject it.
+    if (label_len == 0 or label_len > 249) return undefinedValue();
 
     // optional context buffer (argv[3]); an absent / non-buffer arg means an empty context.
     var ctx_data: ?*anyopaque = null;

@@ -131,6 +131,29 @@ test("the context and label change the output; the length is honoured", async ()
   c.destroy();
 });
 
+test("a label at the RFC length boundary works; an over-long or empty label is rejected without crashing", async () => {
+  const c = await connectTcp("127.0.0.1", port, { tls: { servername: "localhost", ca: cert } });
+  // the HkdfLabel length prefix is len("tls13 ") + label = 6 + label in a single byte, so 249 is
+  // the largest label that fits (6 + 249 = 255). 250 would wrap the prefix — it must be rejected,
+  // not derived and not panic the process (the safety build would otherwise abort here).
+  const max = c.exportKeyingMaterial(32, "A".repeat(249));
+  assert.ok(max && max.length === 32, "a 249-byte label derives normally");
+  assert.equal(
+    c.exportKeyingMaterial(32, "A".repeat(250)),
+    undefined,
+    "a 250-byte label is rejected",
+  );
+  assert.equal(
+    c.exportKeyingMaterial(32, "A".repeat(4096)),
+    undefined,
+    "a far-too-long label is rejected",
+  );
+  assert.equal(c.exportKeyingMaterial(32, ""), undefined, "an empty label is rejected");
+  // still usable afterwards — the rejections didn't corrupt the session
+  assert.equal(c.exportKeyingMaterial(32, LABEL)!.length, 32);
+  c.destroy();
+});
+
 test("exportKeyingMaterial is undefined on a plaintext connection", async () => {
   const sock = await connectTcp("127.0.0.1", plainPort(), {});
   assert.equal(sock.exportKeyingMaterial(32, LABEL), undefined);
