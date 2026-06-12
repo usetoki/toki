@@ -16,10 +16,10 @@ after(() => server.close());
 function once(s: TcpSocket, ev: "data"): Promise<Buffer> {
   return new Promise((resolve) => {
     const h = (chunk: Buffer) => {
-      s.off("data", h as never);
+      s.off(ev, h as never);
       resolve(chunk);
     };
-    s.on("data", h);
+    s.on(ev, h);
   });
 }
 

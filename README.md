@@ -78,21 +78,28 @@ app.group("/api/v1", (api) => {
 });
 
 // Encapsulated plugins
-app.register(async (instance) => {
-  instance.get("/health", () => ({ status: "ok" }));
-}, { prefix: "/internal" });
+app.register(
+  async (instance) => {
+    instance.get("/health", () => ({ status: "ok" }));
+  },
+  { prefix: "/internal" },
+);
 
 // Schema validation (custom messages) + response serialization
-app.post("/users", {
-  schema: {
-    body: {
-      type: "object",
-      required: ["name"],
-      properties: { name: { type: "string", minLength: 2 } },
-      errorMessage: { required: { name: "name is required" } },
+app.post(
+  "/users",
+  {
+    schema: {
+      body: {
+        type: "object",
+        required: ["name"],
+        properties: { name: { type: "string", minLength: 2 } },
+        errorMessage: { required: { name: "name is required" } },
+      },
     },
   },
-}, (req) => reply.json({ created: req.json<{ name: string }>().name }, 201));
+  (req) => reply.json({ created: req.json<{ name: string }>().name }, 201),
+);
 
 // Uploads (req.form), static files, streaming, rate limiting
 app.post("/upload", (req) => reply.json({ files: req.form?.files.length ?? 0 }));
@@ -117,23 +124,23 @@ app.listen(3000, { rateLimit: { max: 100, windowMs: 60_000 } });
 app.listen(3000, { host: "0.0.0.0", maxBodyBytes: 5_000_000 });
 ```
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `host` | `0.0.0.0` | Bind interface. Pass `0` as the port to pick a free one. |
-| `maxBodyBytes` | 1 MiB | Largest accepted request body (`413` above it). |
-| `maxHeaders` | 128 | Max header lines per request. |
-| `backlog` | 512 | Listen backlog. |
-| `headerTimeoutMs` | 0 | Close a connection stalled mid-request, in ms; `0` disables (slowloris guard). |
-| `reusePort` | `false` | `SO_REUSEPORT` for kernel-balanced multi-worker scaling (Linux/BSD). |
-| `rateLimit` | — | `{ max, windowMs }` — native per-IP limiter; over-limit requests get a `429` before reaching JS. |
-| `unixPath` | — | Bind a unix-domain socket at this path instead of TCP (the port is ignored). Ideal for a reverse proxy → app on the same host. |
-| `tls` | — | `{ cert, key }` PEM — terminate HTTPS directly (TLS 1.2/1.3); see [HTTPS](#-https). |
-| `http2` | `false` | Serve HTTP/2 — ALPN `h2` over TLS, h2c in cleartext; see [HTTP/2](#-http2). |
-| `http2Cleartext` | `"multiplex"` | Cleartext h2 mode: `"multiplex"` (shares the port with HTTP/1.1) or `"exclusive"` (h2c only). Ignored over TLS. |
-| `http2InitialWindow` | 256 KiB | h2 per-stream receive window (and the connection window we raise to). |
-| `http2MaxConcurrentStreams` | 128 | h2 cap on simultaneous streams per connection. |
-| `maxWsMessageBytes` | 16 MiB | Largest accepted WebSocket message; a larger one is closed with `1009`. |
-| `wsCompression` | `false` | Offer `permessage-deflate` (RFC 7692) when a client requests it. |
+| Option                      | Default       | Description                                                                                                                    |
+| --------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `host`                      | `0.0.0.0`     | Bind interface. Pass `0` as the port to pick a free one.                                                                       |
+| `maxBodyBytes`              | 1 MiB         | Largest accepted request body (`413` above it).                                                                                |
+| `maxHeaders`                | 128           | Max header lines per request.                                                                                                  |
+| `backlog`                   | 512           | Listen backlog.                                                                                                                |
+| `headerTimeoutMs`           | 0             | Close a connection stalled mid-request, in ms; `0` disables (slowloris guard).                                                 |
+| `reusePort`                 | `false`       | `SO_REUSEPORT` for kernel-balanced multi-worker scaling (Linux/BSD).                                                           |
+| `rateLimit`                 | —             | `{ max, windowMs }` — native per-IP limiter; over-limit requests get a `429` before reaching JS.                               |
+| `unixPath`                  | —             | Bind a unix-domain socket at this path instead of TCP (the port is ignored). Ideal for a reverse proxy → app on the same host. |
+| `tls`                       | —             | `{ cert, key }` PEM — terminate HTTPS directly (TLS 1.2/1.3); see [HTTPS](#-https).                                            |
+| `http2`                     | `false`       | Serve HTTP/2 — ALPN `h2` over TLS, h2c in cleartext; see [HTTP/2](#-http2).                                                    |
+| `http2Cleartext`            | `"multiplex"` | Cleartext h2 mode: `"multiplex"` (shares the port with HTTP/1.1) or `"exclusive"` (h2c only). Ignored over TLS.                |
+| `http2InitialWindow`        | 256 KiB       | h2 per-stream receive window (and the connection window we raise to).                                                          |
+| `http2MaxConcurrentStreams` | 128           | h2 cap on simultaneous streams per connection.                                                                                 |
+| `maxWsMessageBytes`         | 16 MiB        | Largest accepted WebSocket message; a larger one is closed with `1009`.                                                        |
+| `wsCompression`             | `false`       | Offer `permessage-deflate` (RFC 7692) when a client requests it.                                                               |
 
 `createApp({ logger, requestTimeoutMs })` configures the app; `app.listen` returns a
 handle whose `close()` shuts the server down gracefully.
@@ -239,9 +246,22 @@ udp.bind(9001);
 ```
 
 `socket.write()` returns `false` under backpressure (resume on `drain`); `socket.end()`
-half-closes after flushing. One TCP and one UDP server per process — scale across cores
-with `reusePort` and a process per core. See the [TCP](https://usetoki.github.io/toki/)
-and UDP docs for the full API.
+half-closes after flushing. The engine is process-global: one `createTcpServer` (and one
+UDP server) owns it, but that server can `listen()` on several ports with a single handler —
+route by `socket.localPort` — so e.g. an XMPP server runs c2s and s2s side by side. Scale
+across cores with `reusePort` and a process per core.
+
+The TCP socket is a full TLS peer, not just a server. Terminate TLS at accept with
+`tls: { cert, key }` (mutual TLS via `requestCert` + `ca`, virtual hosts via `sni`, ALPN
+via `alpn`); dial out with `connectTcp(host, port, { tls })`; or start in cleartext and
+**STARTTLS**-upgrade in place with `socket.upgradeTLS()` (a synchronous `secure` event fires
+when the handshake establishes). Either side can read `socket.peerCertificate()`,
+`socket.alpnProtocol`, `socket.servername`, and derive RFC 9266 channel-binding material with
+`socket.exportKeyingMaterial(len, label)`. See `examples/tcp-tls-peer.ts` for the whole story,
+and the [TCP](https://usetoki.github.io/toki/) and UDP docs for the full API.
+
+> There's no TLS session resumption yet — the server completes a full handshake per
+> connection and issues no session tickets.
 
 ## 🔌 Plugins
 
@@ -250,44 +270,44 @@ A plugin is a function you call on the app (or any scope) to extend that scope.
 
 **Auth & security**
 
-| Package | What it does |
-| --- | --- |
-| [`@usetoki/toki-auth`](./plugins/auth) | Multi-strategy auth — basic, bearer, API key, composed with `anyOf`/`allOf`. |
-| [`@usetoki/toki-jwt`](./plugins/jwt) | Asymmetric JWT — RS/PS/ES/EdDSA sign + verify with remote JWKS. |
-| [`@usetoki/toki-csrf`](./plugins/csrf) | CSRF protection — signed double-submit tokens with optional origin checks. |
-| [`@usetoki/toki-helmet`](./plugins/helmet) | Secure response headers — CSP, HSTS, frameguard, and more. |
-| [`@usetoki/toki-ip-filter`](./plugins/ip-filter) | Allow/deny by IP and CIDR (IPv4 + IPv6), dependency-free. |
-| [`@usetoki/toki-ratelimiter`](./plugins/ratelimiter) | Per-route, per-key rate limiting with pluggable stores. |
+| Package                                              | What it does                                                                 |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [`@usetoki/toki-auth`](./plugins/auth)               | Multi-strategy auth — basic, bearer, API key, composed with `anyOf`/`allOf`. |
+| [`@usetoki/toki-jwt`](./plugins/jwt)                 | Asymmetric JWT — RS/PS/ES/EdDSA sign + verify with remote JWKS.              |
+| [`@usetoki/toki-csrf`](./plugins/csrf)               | CSRF protection — signed double-submit tokens with optional origin checks.   |
+| [`@usetoki/toki-helmet`](./plugins/helmet)           | Secure response headers — CSP, HSTS, frameguard, and more.                   |
+| [`@usetoki/toki-ip-filter`](./plugins/ip-filter)     | Allow/deny by IP and CIDR (IPv4 + IPv6), dependency-free.                    |
+| [`@usetoki/toki-ratelimiter`](./plugins/ratelimiter) | Per-route, per-key rate limiting with pluggable stores.                      |
 
 **Sessions & cookies**
 
-| Package | What it does |
-| --- | --- |
-| [`@usetoki/toki-cookie`](./plugins/cookie) | Signed and encrypted cookies — HMAC + AES-256-GCM with key rotation. |
-| [`@usetoki/toki-session`](./plugins/session) | Stateful sessions — signed id cookie, store (memory, Redis, memcached). |
-| [`@usetoki/toki-secure-session`](./plugins/secure-session) | Stateless encrypted-cookie sessions — no server-side store. |
+| Package                                                    | What it does                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`@usetoki/toki-cookie`](./plugins/cookie)                 | Signed and encrypted cookies — HMAC + AES-256-GCM with key rotation.    |
+| [`@usetoki/toki-session`](./plugins/session)               | Stateful sessions — signed id cookie, store (memory, Redis, memcached). |
+| [`@usetoki/toki-secure-session`](./plugins/secure-session) | Stateless encrypted-cookie sessions — no server-side store.             |
 
 **HTTP features**
 
-| Package | What it does |
-| --- | --- |
-| [`@usetoki/toki-cache`](./plugins/cache) | Route response caching — TTL + Vary over memory, Redis, or memcached. |
-| [`@usetoki/toki-etag`](./plugins/etag) | Automatic ETag validators and `304 Not Modified`. |
-| [`@usetoki/toki-range`](./plugins/range) | HTTP Range requests and `206 Partial Content` — buffers or files. |
-| [`@usetoki/toki-sse`](./plugins/sse) | Server-Sent Events — heartbeats, event ids, `Last-Event-ID` resume. |
-| [`@usetoki/toki-idempotency`](./plugins/idempotency) | `Idempotency-Key` dedup and replay over memory, Redis, or memcached. |
-| [`@usetoki/toki-multipart-storage`](./plugins/multipart-storage) | Stream multipart uploads to disk, S3, or a custom store. |
+| Package                                                          | What it does                                                          |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [`@usetoki/toki-cache`](./plugins/cache)                         | Route response caching — TTL + Vary over memory, Redis, or memcached. |
+| [`@usetoki/toki-etag`](./plugins/etag)                           | Automatic ETag validators and `304 Not Modified`.                     |
+| [`@usetoki/toki-range`](./plugins/range)                         | HTTP Range requests and `206 Partial Content` — buffers or files.     |
+| [`@usetoki/toki-sse`](./plugins/sse)                             | Server-Sent Events — heartbeats, event ids, `Last-Event-ID` resume.   |
+| [`@usetoki/toki-idempotency`](./plugins/idempotency)             | `Idempotency-Key` dedup and replay over memory, Redis, or memcached.  |
+| [`@usetoki/toki-multipart-storage`](./plugins/multipart-storage) | Stream multipart uploads to disk, S3, or a custom store.              |
 
 **Infrastructure & DX**
 
-| Package | What it does |
-| --- | --- |
-| [`@usetoki/toki-proxy`](./plugins/proxy) | Reverse-proxy gateway — streaming pass-through to an upstream. |
+| Package                                                      | What it does                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| [`@usetoki/toki-proxy`](./plugins/proxy)                     | Reverse-proxy gateway — streaming pass-through to an upstream.            |
 | [`@usetoki/toki-circuit-breaker`](./plugins/circuit-breaker) | Per-route circuit breaker — fast-fail `503` when a dependency is failing. |
-| [`@usetoki/toki-view`](./plugins/view) | Server-side templates — bring eta, ejs, or handlebars. |
-| [`@usetoki/toki-autoload`](./plugins/autoload) | Filesystem routing — auto-register a directory tree of route modules. |
-| [`@usetoki/toki-env`](./plugins/env) | Validate and coerce env vars at boot into a typed, frozen config. |
-| [`@usetoki/toki-sensible`](./plugins/sensible) | Sensible defaults — HTTP errors, RFC 9457 problem+json, assertions. |
+| [`@usetoki/toki-view`](./plugins/view)                       | Server-side templates — bring eta, ejs, or handlebars.                    |
+| [`@usetoki/toki-autoload`](./plugins/autoload)               | Filesystem routing — auto-register a directory tree of route modules.     |
+| [`@usetoki/toki-env`](./plugins/env)                         | Validate and coerce env vars at boot into a typed, frozen config.         |
+| [`@usetoki/toki-sensible`](./plugins/sensible)               | Sensible defaults — HTTP errors, RFC 9457 problem+json, assertions.       |
 
 ## 🧭 Native vs JavaScript — the boundary
 
@@ -317,16 +337,16 @@ addon for any platform from one host.
 
 ## 📂 Layout
 
-| Folder | What |
-| --- | --- |
-| `src/core/` | Engine state, the libuv hot path, and server lifecycle (`engine`, `loop`, `server`). |
-| `src/http/` | HTTP layer — `parser`, `router`, `request`, `response`, `static`, `stream`, `mime`. |
-| `src/websocket/` | WebSocket wire format (`frame`) and the session/dispatch layer (`session`). |
-| `src/security/` | The native rate limiter. |
-| `src/ffi/` | Hand-declared N-API and libuv bindings. |
-| `ts/` | TypeScript framework layer (`core/`, `http/`, `websocket/`, `security/`, `native/`) → `dist/`. |
-| `__test__/` | Node test suite (`node:test`, run as `.ts`); Zig unit tests live in `*.test.zig` beside their module. |
-| `examples/` | A runnable, self-checking example per feature. |
+| Folder           | What                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `src/core/`      | Engine state, the libuv hot path, and server lifecycle (`engine`, `loop`, `server`).                  |
+| `src/http/`      | HTTP layer — `parser`, `router`, `request`, `response`, `static`, `stream`, `mime`.                   |
+| `src/websocket/` | WebSocket wire format (`frame`) and the session/dispatch layer (`session`).                           |
+| `src/security/`  | The native rate limiter.                                                                              |
+| `src/ffi/`       | Hand-declared N-API and libuv bindings.                                                               |
+| `ts/`            | TypeScript framework layer (`core/`, `http/`, `websocket/`, `security/`, `native/`) → `dist/`.        |
+| `__test__/`      | Node test suite (`node:test`, run as `.ts`); Zig unit tests live in `*.test.zig` beside their module. |
+| `examples/`      | A runnable, self-checking example per feature.                                                        |
 
 ## 🧪 Examples
 
