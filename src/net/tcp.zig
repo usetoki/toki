@@ -281,7 +281,8 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     _ = napi.napi_get_value_string_utf8(e, argv[1], &host, host.len, &copied);
 
     var bind_flags: c_uint = 0;
-    if (optBool(e, argv[2], "reusePort")) bind_flags = 2; // UV_TCP_REUSEPORT
+    if (optBool(e, argv[2], "ipv6Only")) bind_flags |= 1; // UV_TCP_IPV6ONLY
+    if (optBool(e, argv[2], "reusePort")) bind_flags |= 2; // UV_TCP_REUSEPORT
     no_delay = optBoolDefault(e, argv[2], "noDelay", true); // TCP_NODELAY on unless told otherwise
     const backlog: c_int = optInt(e, argv[2], "backlog") orelse 512;
     max_write_queue = default_max_write_queue;
@@ -971,6 +972,17 @@ pub fn resumeRead(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value 
         if (!conn.read_ended) armRead(conn);
     }
     return undefinedValue();
+}
+
+// tcpBufferedAmount(id) -> queued (unflushed) write bytes; 0 for an unknown id.
+pub fn bufferedAmount(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return uintValue(e, 0);
+    return uintValue(e, @intCast(@min(conn.queued_bytes, std.math.maxInt(u32))));
 }
 
 // tcpStopAccepting() — stop accepting new connections; live ones keep running.

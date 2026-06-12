@@ -181,6 +181,8 @@ interface Native {
   /** the SNI host name a server connection's client requested; `undefined` on plaintext / not yet
    *  established / no SNI / a client connection */
   tcpServerName(id: number): string | undefined;
+  /** queued (unflushed) write bytes on a TCP connection */
+  tcpBufferedAmount(id: number): number;
   /** stop reading from a TCP connection (backpressure); queued writes still flush */
   tcpPause(id: number): void;
   /** resume reading after a pause */
@@ -245,6 +247,8 @@ export interface RemoteInfo {
 export interface TcpOptions {
   /** `SO_REUSEPORT` so workers can share the port (Linux/BSD) */
   reusePort?: boolean;
+  /** bind IPv6-only on an IPv6 host (no dual-stack v4-mapped accepts); default off */
+  ipv6Only?: boolean;
   /** Nagle's algorithm; default off (low latency) */
   noDelay?: boolean;
   /** pending-connection queue. Default 512 */

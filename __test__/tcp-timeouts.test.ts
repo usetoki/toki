@@ -32,6 +32,10 @@ test("handshakeTimeoutMs closes a TLS connection that never completes its handsh
 
 test("idleTimeoutMs closes an established connection that goes idle", async () => {
   const sock = await connectTcp("127.0.0.1", port, { tls: { servername: "localhost", ca: cert } });
+  const t0 = Date.now();
   const reason = await new Promise<string>((resolve) => sock.on("close", (r) => resolve(r)));
-  assert.equal(reason, "normal", "the idle connection was closed cleanly by the server");
+  // the server drops the idle connection; whether the peer observes the close as a clean FIN
+  // ("normal") or a reset ("peer-reset") is OS-dependent (Windows tends to RST an unread close).
+  assert.ok(["normal", "peer-reset"].includes(reason), `closed by the idle sweep, got ${reason}`);
+  assert.ok(Date.now() - t0 < 2500, "closed within the idle window");
 });

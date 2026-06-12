@@ -23,6 +23,9 @@ export interface TcpSocket {
   /** Why the connection closed; `"normal"` until an abnormal close sets it. Read it inside a
    *  `close` listener (also passed as the listener's argument). */
   readonly closeReason: CloseReason;
+  /** Bytes queued for sending but not yet handed to the OS. Rises when {@link write} returns
+   *  `false` (the peer is slow); falls back toward `0` as the backlog flushes (`drain`). */
+  readonly bufferedAmount: number;
   /** TLS only: the ALPN protocol negotiated for this connection, or `undefined` on a plaintext
    *  connection or when none was negotiated. */
   readonly alpnProtocol: string | undefined;
@@ -370,6 +373,10 @@ class Socket implements TcpSocket {
   }
   get closeReason(): CloseReason {
     return this.#closeReason;
+  }
+  // queued bytes not yet handed to the OS; rises under backpressure, drains on `drain`.
+  get bufferedAmount(): number {
+    return native.tcpBufferedAmount(this.#id);
   }
   // negotiated ALPN, fetched once from native (it doesn't change after the handshake).
   get alpnProtocol(): string | undefined {
