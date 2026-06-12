@@ -183,6 +183,8 @@ interface Native {
   tcpServerName(id: number): string | undefined;
   /** queued (unflushed) write bytes on a TCP connection */
   tcpBufferedAmount(id: number): number;
+  /** the local port a TCP connection was accepted/connected on (routing across listeners) */
+  tcpLocalPort(id: number): number;
   /** stop reading from a TCP connection (backpressure); queued writes still flush */
   tcpPause(id: number): void;
   /** resume reading after a pause */

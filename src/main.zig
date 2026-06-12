@@ -34,6 +34,7 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "tcpAlpnProtocol", &tcp.alpnProtocol);
     defineFn(env, exports, "tcpServerName", &tcp.serverName);
     defineFn(env, exports, "tcpBufferedAmount", &tcp.bufferedAmount);
+    defineFn(env, exports, "tcpLocalPort", &tcp.localPort);
     defineFn(env, exports, "tcpPause", &tcp.pause);
     defineFn(env, exports, "tcpResume", &tcp.resumeRead);
     defineFn(env, exports, "tcpStopAccepting", &tcp.stopAccepting);

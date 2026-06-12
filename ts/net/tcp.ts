@@ -16,6 +16,9 @@ export type CloseReason =
 export interface TcpSocket {
   readonly remoteAddress: string;
   readonly remotePort: number;
+  /** The local port this connection landed on. With several {@link TcpServer.listen} ports
+   *  sharing one handler (e.g. XMPP c2s + s2s), route on this to tell them apart. */
+  readonly localPort: number;
   /** TLS only: `true` when the peer presented a client certificate that verified against the
    *  server's `tls.ca`. `false` on a plaintext connection, or a TLS connection where no valid
    *  client cert was presented (only reachable without `rejectUnauthorized`). */
@@ -121,7 +124,9 @@ export interface TcpServerOptions extends TcpOptions {
 
 /** The listening TCP server returned by {@link createTcpServer}. */
 export interface TcpServer {
-  /** Bind and start accepting. `0` picks a free port; the chosen port is returned. */
+  /** Bind and start accepting. `0` picks a free port; the chosen port is returned. Call it more
+   *  than once to listen on several ports with one handler (route by {@link TcpSocket.localPort});
+   *  the `io_uring` engine supports a single listener. */
   listen(port: number, host?: string): { port: number };
   /** Stop accepting and close every live connection. */
   close(): void;
@@ -339,6 +344,7 @@ class Socket implements TcpSocket {
   #alpnProtocol: string | undefined = undefined;
   #servernameFetched = false;
   #servername: string | undefined = undefined;
+  #localPort = 0;
   // a pending STARTTLS upgrade, settled by ev_secure / ev_close
   #upgradeResolve: (() => void) | undefined = undefined;
   #upgradeReject: ((err: Error) => void) | undefined = undefined;
@@ -377,6 +383,12 @@ class Socket implements TcpSocket {
   // queued bytes not yet handed to the OS; rises under backpressure, drains on `drain`.
   get bufferedAmount(): number {
     return native.tcpBufferedAmount(this.#id);
+  }
+  // local port this connection landed on; fetched once. Lets one handler serve several
+  // listeners (e.g. route by port) since the engine shares a handler across all of them.
+  get localPort(): number {
+    if (this.#localPort === 0) this.#localPort = native.tcpLocalPort(this.#id);
+    return this.#localPort;
   }
   // negotiated ALPN, fetched once from native (it doesn't change after the handshake).
   get alpnProtocol(): string | undefined {
@@ -646,21 +658,31 @@ export function createTcpServer(
     nativeOptions = { ...nativeOptions, ...flattenServerTls(options.tls) };
   }
 
+  // the engine is process-global, so one server object owns it; this server can bind several
+  // ports (one handler, route by socket.localPort), but a second server can't take over.
+  let listenCount = 0;
   return {
     listen(port: number, host = "0.0.0.0"): { port: number } {
-      if (active) throw new Error("toki: a TCP server is already listening in this process");
+      if (active && listenCount === 0)
+        throw new Error("toki: a TCP server is already listening in this process");
+      if (listenCount > 0 && backend === URING_BACKEND)
+        throw new Error("toki: the io_uring engine supports a single listener");
       const bound = backend.listen(port, host, nativeOptions, dispatch as never);
-      active = true;
-      serverHandler = handler;
-      serverHalfOpen = allowHalfOpen;
-      serverBackend = backend;
-      serverIsUring = backend === URING_BACKEND;
+      if (listenCount === 0) {
+        active = true;
+        serverHandler = handler;
+        serverHalfOpen = allowHalfOpen;
+        serverBackend = backend;
+        serverIsUring = backend === URING_BACKEND;
+      }
+      listenCount += 1;
       return { port: bound };
     },
     close(): void {
-      if (!active) return;
-      backend.closeServer();
+      if (!active || listenCount === 0) return;
+      backend.closeServer(); // closes every listener this server opened
       active = false;
+      listenCount = 0;
       serverHandler = undefined;
       serverIsUring = false;
     },

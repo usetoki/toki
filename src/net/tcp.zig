@@ -144,9 +144,14 @@ const read_scratch_size = 64 * 1024;
 var env: napi.Env = null;
 var loop: ?*anyopaque = null;
 var dispatch_ref: napi.Ref = null;
-var server: [uv.tcp_size]u8 align(16) = undefined;
-var listening = false;
-var closing = false;
+// one accept handle per listen(). Several ports share one handler, one options set, and one
+// TLS config in this process; a connection is routed by its local port (socket.localPort), so
+// e.g. XMPP c2s (5222) and s2s (5269) run off a single createTcpServer.
+const max_listeners = 16;
+var servers: [max_listeners][uv.tcp_size]u8 align(16) = undefined;
+var server_count: usize = 0;
+// outstanding listener-handle closes; a re-listen waits until every one has drained.
+var closing_count: u32 = 0;
 var no_delay = true;
 var eof_poll_ms: u64 = default_eof_poll_ms;
 // 0 = unlimited. A new accept past the cap is reset before it reaches JS.
@@ -268,8 +273,12 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
 
     // a close from a previous server is still draining on the loop — the handle block
     // can't be re-initialized until its close callback fires.
-    if (closing) {
+    if (closing_count > 0) {
         _ = napi.napi_throw_error(e, null, "toki: the previous TCP server is still closing");
+        return uintValue(e, 0);
+    }
+    if (server_count >= max_listeners) {
+        _ = napi.napi_throw_error(e, null, "toki: too many TCP listeners in this process");
         return uintValue(e, 0);
     }
 
@@ -283,74 +292,81 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var bind_flags: c_uint = 0;
     if (optBool(e, argv[2], "ipv6Only")) bind_flags |= 1; // UV_TCP_IPV6ONLY
     if (optBool(e, argv[2], "reusePort")) bind_flags |= 2; // UV_TCP_REUSEPORT
-    no_delay = optBoolDefault(e, argv[2], "noDelay", true); // TCP_NODELAY on unless told otherwise
     const backlog: c_int = optInt(e, argv[2], "backlog") orelse 512;
-    max_write_queue = default_max_write_queue;
-    if (optInt(e, argv[2], "maxWriteQueue")) |v| {
-        if (v > 0) max_write_queue = @intCast(v);
-    }
-    eof_poll_ms = default_eof_poll_ms;
-    if (optInt(e, argv[2], "eofPollMs")) |v| {
-        eof_poll_ms = if (v >= 0) @intCast(v) else 0;
-    }
-    guard.init(alloc);
-    guard.max = 0;
-    guard.window_ms = 0;
-    if (optInt(e, argv[2], "rateLimitMax")) |v| {
-        if (v > 0) guard.max = @intCast(v);
-    }
-    if (optInt(e, argv[2], "rateLimitWindowMs")) |v| {
-        if (v > 0) guard.window_ms = @intCast(v);
-    }
-    accepting = true;
-    max_connections = 0;
-    if (optInt(e, argv[2], "maxConnections")) |v| {
-        if (v > 0) max_connections = @intCast(v);
-    }
-    keep_alive = optBool(e, argv[2], "keepAlive");
-    keep_alive_delay = if (optInt(e, argv[2], "keepAliveDelaySecs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
-    idle_timeout_ms = if (optInt(e, argv[2], "idleTimeoutMs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
-    handshake_timeout_ms = if (optInt(e, argv[2], "handshakeTimeoutMs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
 
-    // a re-listen replaces the dispatcher; drop the prior strong ref so it doesn't pin
-    // the old handler closure (and its captured sockets map) in V8 for the process life.
-    // A failed create (V8 OOM) would leave events undeliverable, so throw rather than listen.
-    if (dispatch_ref) |r| _ = napi.napi_delete_reference(e, r);
-    dispatch_ref = null;
-    if (napi.napi_create_reference(e, argv[3], 1, &dispatch_ref) != napi.ok) {
-        _ = napi.napi_throw_error(e, null, "toki: failed to register the connection dispatcher");
-        return uintValue(e, 0);
+    // process-wide config (options, dispatcher, TLS) is set by the first listener; later
+    // listeners on this server share it and only add another accept handle for their port.
+    if (server_count == 0) {
+        no_delay = optBoolDefault(e, argv[2], "noDelay", true); // TCP_NODELAY on unless told otherwise
+        max_write_queue = default_max_write_queue;
+        if (optInt(e, argv[2], "maxWriteQueue")) |v| {
+            if (v > 0) max_write_queue = @intCast(v);
+        }
+        eof_poll_ms = default_eof_poll_ms;
+        if (optInt(e, argv[2], "eofPollMs")) |v| {
+            eof_poll_ms = if (v >= 0) @intCast(v) else 0;
+        }
+        guard.init(alloc);
+        guard.max = 0;
+        guard.window_ms = 0;
+        if (optInt(e, argv[2], "rateLimitMax")) |v| {
+            if (v > 0) guard.max = @intCast(v);
+        }
+        if (optInt(e, argv[2], "rateLimitWindowMs")) |v| {
+            if (v > 0) guard.window_ms = @intCast(v);
+        }
+        accepting = true;
+        max_connections = 0;
+        if (optInt(e, argv[2], "maxConnections")) |v| {
+            if (v > 0) max_connections = @intCast(v);
+        }
+        keep_alive = optBool(e, argv[2], "keepAlive");
+        keep_alive_delay = if (optInt(e, argv[2], "keepAliveDelaySecs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
+        idle_timeout_ms = if (optInt(e, argv[2], "idleTimeoutMs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
+        handshake_timeout_ms = if (optInt(e, argv[2], "handshakeTimeoutMs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
+
+        // a re-listen replaces the dispatcher; drop the prior strong ref so it doesn't pin
+        // the old handler closure (and its captured sockets map) in V8 for the process life.
+        // A failed create (V8 OOM) would leave events undeliverable, so throw rather than listen.
+        if (dispatch_ref) |r| _ = napi.napi_delete_reference(e, r);
+        dispatch_ref = null;
+        if (napi.napi_create_reference(e, argv[3], 1, &dispatch_ref) != napi.ok) {
+            _ = napi.napi_throw_error(e, null, "toki: failed to register the connection dispatcher");
+            return uintValue(e, 0);
+        }
+
+        tls_enabled = false;
+        start_tls = false;
+        if (!setupTls(e, argv[2])) return uintValue(e, 0); // bad cert/key → threw
     }
 
-    tls_enabled = false;
-    start_tls = false;
-    if (!setupTls(e, argv[2])) return uintValue(e, 0); // bad cert/key → threw
-
-    _ = uv.uv_tcp_init(loop.?, opaqueOf(&server));
+    const srv = opaqueOf(&servers[server_count]);
+    _ = uv.uv_tcp_init(loop.?, srv);
     // sockaddr_storage-sized: an IPv6 sockaddr is larger than SockaddrIn.
     var sa: [128]u8 align(8) = undefined;
     if (!addr.parse(&host, copied, port, &sa)) {
+        // the handle was init'd but never started; the next listen re-inits this same block.
         _ = napi.napi_throw_error(e, null, "tcp: invalid bind address");
         return uintValue(e, 0);
     }
-    const bind_rc = uv.uv_tcp_bind(opaqueOf(&server), opaqueOf(&sa), bind_flags);
+    const bind_rc = uv.uv_tcp_bind(srv, opaqueOf(&sa), bind_flags);
     if (bind_rc != 0) {
         _ = napi.napi_throw_error(e, null, uv.uv_strerror(bind_rc));
         return uintValue(e, 0);
     }
-    const rc = uv.uv_listen(opaqueOf(&server), backlog, &onConnection);
+    const rc = uv.uv_listen(srv, backlog, &onConnection);
     if (rc != 0) {
         _ = napi.napi_throw_error(e, null, uv.uv_strerror(rc));
         return uintValue(e, 0);
     }
-    listening = true;
+    server_count += 1;
     ensureEofTimer();
     ensureSweepTimer();
 
     var bound: [128]u8 align(8) = undefined;
     var blen: c_int = bound.len;
     var bound_port: u16 = 0;
-    if (uv.uv_tcp_getsockname(opaqueOf(&server), opaqueOf(&bound), &blen) == 0) {
+    if (uv.uv_tcp_getsockname(srv, opaqueOf(&bound), &blen) == 0) {
         bound_port = addr.portOf(&bound);
     }
     return uintValue(e, bound_port);
@@ -424,7 +440,7 @@ fn readBufferProp(e: napi.Env, obj: napi.Value, name: [*c]const u8) ?[]const u8 
 }
 
 fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
-    if (status != 0 or closing) return;
+    if (status != 0 or closing_count > 0) return;
     const conn = pool.create(alloc) catch return;
     conn.* = .{
         .handle = undefined,
@@ -525,7 +541,7 @@ pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     var argv: [4]napi.Value = undefined;
     _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
 
-    if (closing) {
+    if (closing_count > 0) {
         _ = napi.napi_throw_error(e, null, "toki: the TCP server is still closing");
         return uintValue(e, 0);
     }
@@ -972,6 +988,21 @@ pub fn resumeRead(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value 
         if (!conn.read_ended) armRead(conn);
     }
     return undefinedValue();
+}
+
+// tcpLocalPort(id) -> the local port this connection was accepted/connected on (for routing
+// across several listeners); 0 for an unknown id or a getsockname failure.
+pub fn localPort(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return uintValue(e, 0);
+    var storage: [128]u8 align(8) = undefined;
+    var namelen: c_int = storage.len;
+    if (uv.uv_tcp_getsockname(opaqueOf(&conn.handle), &storage, &namelen) != 0) return uintValue(e, 0);
+    return uintValue(e, addr.portOf(&storage));
 }
 
 // tcpBufferedAmount(id) -> queued (unflushed) write bytes; 0 for an unknown id.
@@ -1442,11 +1473,16 @@ fn releaseConn(conn: *Conn) void {
 pub fn closeServer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     _ = e;
     _ = info;
-    if (listening and !closing) {
-        closing = true; // stays set until onServerClose fires, blocking a racing re-listen
-        listening = false;
+    if (server_count > 0 and closing_count == 0) {
         guard.reset();
-        uv.uv_close(opaqueOf(&server), &onServerClose);
+        // close every listener; closing_count stays positive until the last onServerClose
+        // fires, blocking a racing re-listen from re-init'ing a still-draining handle block.
+        var i: usize = 0;
+        while (i < server_count) : (i += 1) {
+            closing_count += 1;
+            uv.uv_close(opaqueOf(&servers[i]), &onServerClose);
+        }
+        server_count = 0;
         if (eof_timer_active) {
             uv.uv_close(opaqueOf(&eof_timer), &onEofTimerClose);
             eof_timer_active = false;
@@ -1467,11 +1503,11 @@ pub fn closeServer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
     return undefinedValue();
 }
 
-// the server handle block is free to be re-initialized by a later listen() only once
-// libuv has finished closing it.
+// a server handle block is free to be re-initialized by a later listen() only once libuv has
+// finished closing it; the last of N listener closes clears the re-listen block.
 fn onServerClose(handle: *anyopaque) callconv(.c) void {
     _ = handle;
-    closing = false;
+    if (closing_count > 0) closing_count -= 1;
 }
 
 // the eof_timer block is freed for a later listen() once libuv finishes closing it.
