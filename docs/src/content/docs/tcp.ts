@@ -52,10 +52,20 @@ console.log("listening on", port);`,
         ],
         ["`socket.destroy()`", "Drop the connection now, discarding anything still queued."],
         [
+          "`socket.pause()` / `socket.resume()`",
+          "Stop and restart reading (backpressure toward the peer); queued writes still flush.",
+        ],
+        ["`socket.localPort`", "The local port this connection landed on — route by it across several listeners."],
+        ["`socket.bufferedAmount`", "Bytes queued for sending but not yet handed to the OS."],
+        [
           "`socket.on(event, fn)`",
-          "Subscribe to `data`, `drain`, or `close`. `off` removes a listener.",
+          "Subscribe to `data`, `drain`, `end`, `close`, or `secure`. `off` removes a listener.",
         ],
       ],
+    },
+    {
+      kind: "paragraph",
+      text: "On a TLS connection the socket also carries `socket.authorized` (the mutual-TLS verdict), `socket.alpnProtocol` and `socket.servername` (the negotiated ALPN and the requested SNI host), `socket.peerCertificate()` (the peer's leaf in DER), `socket.exportKeyingMaterial(length, label, context?)` (RFC 8446 channel binding), and `socket.upgradeTLS(options?)` (STARTTLS). Those are covered under [TLS](#tls) below.",
     },
     {
       kind: "table",
@@ -64,6 +74,7 @@ console.log("listening on", port);`,
         ["`data`", "`(chunk: Buffer)` — a copy of received bytes, safe to retain."],
         ["`drain`", "`()` — the send buffer emptied after a backpressured `write`."],
         ["`end`", "`()` — the peer half-closed (FIN); your write side is still open."],
+        ["`secure`", "`()` — a STARTTLS `upgradeTLS` handshake established (fires before any post-upgrade `data`)."],
         ["`close`", "`(reason: CloseReason)` — the connection ended; the reason says why."],
       ],
     },
@@ -191,6 +202,42 @@ createTcpServer((socket) => {
           "Per-connection unflushed-write ceiling; a peer that stops reading is reset past it instead of buffered without bound.",
         ],
         [
+          "`maxConnections`",
+          "`number`",
+          "`0`",
+          "Cap on concurrent connections (counting pre-handshake ones); a new accept past it is reset. `0` is unlimited.",
+        ],
+        [
+          "`keepAlive` / `keepAliveDelaySecs`",
+          "`boolean` / `number`",
+          "off",
+          "`SO_KEEPALIVE` on accepted sockets, with the idle seconds before the first probe.",
+        ],
+        [
+          "`idleTimeoutMs`",
+          "`number`",
+          "`0`",
+          "Close a connection idle (no read or write) for this long; a ~1s sweep enforces it. `0` is off.",
+        ],
+        [
+          "`handshakeTimeoutMs`",
+          "`number`",
+          "`0`",
+          "Close a TLS connection whose handshake hasn't established in time (reason `handshake-timeout`). `0` is off.",
+        ],
+        [
+          "`ipv6Only`",
+          "`boolean`",
+          "`false`",
+          "Bind IPv6-only on an IPv6 host — no dual-stack v4-mapped accepts.",
+        ],
+        [
+          "`allowHalfOpen`",
+          "`boolean`",
+          "`false`",
+          "Keep the write side open after the peer's FIN; default ends it once the backlog flushes.",
+        ],
+        [
           "`rateLimit`",
           "`{ max, windowMs }`",
           "off",
@@ -206,8 +253,8 @@ createTcpServer((socket) => {
     },
     {
       kind: "callout",
-      tone: "warning",
-      text: "One TCP server per process. The native engine is a singleton, so a second `listen()` throws. To use every core, run several processes with `reusePort: true` and let the kernel balance accepts across them.",
+      tone: "note",
+      text: "The engine is process-global: one `createTcpServer` owns it, so a *second* `createTcpServer` whose `listen()` runs throws. That one server can `listen()` on several ports, though — see [Several listeners](#listeners). To use every core, run a process per core with `reusePort: true` and let the kernel balance accepts.",
     },
     {
       kind: "callout",
@@ -455,6 +502,161 @@ socket.on("data", (chunk) => {
     // rejectUnauthorized omitted: let everyone in, then check socket.authorized
   },
 }).listen(8444, "127.0.0.1");`,
+      },
+    },
+    { kind: "heading", id: "sni", text: "Virtual hosts (SNI)" },
+    {
+      kind: "paragraph",
+      text: "Serve a different certificate per requested host with `tls.sni`: an array of `{ servername, cert, key }`. The `servername` is an exact host or a `*.` wildcard (one label); the top-level `cert`/`key` stays the default for any name that doesn't match, and an exact entry wins over an overlapping wildcard. The requested name is on `socket.servername`. All certificates — default and vhosts — must use the same key algorithm, since the signature scheme is chosen before the SNI name is read; a mismatched vhost cert is rejected at registration.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "sni.ts",
+        language: "ts",
+        code: `createTcpServer((socket) => {
+  console.log("requested host:", socket.servername); // e.g. "chat.example.com"
+}, {
+  tls: {
+    cert: defaultCert, key: defaultKey,         // default for any unmatched name
+    sni: [
+      { servername: "chat.example.com", cert: chatCert, key: chatKey },
+      { servername: "*.example.com", cert: wildCert, key: wildKey },
+    ],
+  },
+}).listen(5223, "0.0.0.0");`,
+      },
+    },
+    { kind: "heading", id: "alpn", text: "ALPN" },
+    {
+      kind: "paragraph",
+      text: "Offer application protocols with `tls.alpn`, in preference order; the negotiated one is on `socket.alpnProtocol`. The server's order wins. With no `alpn` configured a raw TLS server sends no ALPN extension at all (it does not invent `http/1.1`), and if the client and server share no protocol the handshake fails.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "alpn.ts",
+        language: "ts",
+        code: `createTcpServer((socket) => {
+  if (socket.alpnProtocol === "xmpp-client") { /* speak XMPP */ }
+}, {
+  tls: { cert, key, alpn: ["xmpp-client", "http/1.1"] },
+}).listen(5223);`,
+      },
+    },
+    { kind: "heading", id: "tls-identity", text: "Peer certificate & channel binding" },
+    {
+      kind: "paragraph",
+      text: "`socket.peerCertificate()` returns the peer's leaf certificate as DER (a `Buffer`) — the client's certificate on a mutual-TLS server, the server's on a `connectTcp` client — or `undefined` on a plaintext connection. Parse the X.509 in JS (`new X509Certificate(der)`). `socket.exportKeyingMaterial(length, label, context?)` derives keying material bound to the session (RFC 8446 §7.5; the RFC 9266 `tls-exporter` channel binding for SCRAM-SHA-256-PLUS): both ends of a connection derive identical bytes for the same label.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "identity.ts",
+        language: "ts",
+        code: `import { X509Certificate } from "node:crypto";
+
+createTcpServer((socket) => {
+  const der = socket.peerCertificate();
+  if (der) console.log("client CN:", new X509Certificate(der).subject);
+  // channel binding both ends agree on, for SCRAM-PLUS
+  const cb = socket.exportKeyingMaterial(32, "EXPORTER-Channel-Binding");
+}, { tls: { cert, key, requestCert: true, ca } }).listen(5222);`,
+      },
+    },
+    { kind: "heading", id: "starttls", text: "STARTTLS (upgrade in place)" },
+    {
+      kind: "paragraph",
+      text: "Some protocols (XMPP, SMTP, IMAP) start in cleartext and upgrade the same connection to TLS after a negotiation. Set `startTls: true` so the server keeps its certificate ready but does not terminate TLS at accept, then call `socket.upgradeTLS()` once the peer asks. On a `connectTcp` client, pass the client options (`servername`, `ca`, `cert`, `key`, `alpn`). It resolves when the handshake establishes — but a synchronous `secure` event fires first, before any post-upgrade `data`, so flip your \"encrypted now\" state in the `secure` handler. After the upgrade the socket is indistinguishable from a direct-TLS one: `authorized`, `peerCertificate()`, `exportKeyingMaterial()`, `alpnProtocol`, backpressure.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "starttls.ts",
+        language: "ts",
+        code: `const server = createTcpServer((socket) => {
+  let secure = false;
+  socket.on("secure", () => (secure = true)); // fires before any encrypted data
+  socket.on("data", (chunk) => {
+    if (!secure && chunk.toString() === "STARTTLS") {
+      socket.write("PROCEED");
+      void socket.upgradeTLS();      // uses the server's configured certificate
+      return;
+    }
+    if (secure) socket.write(chunk); // now over TLS
+  });
+}, { startTls: true, tls: { cert, key } });
+server.listen(5222);`,
+      },
+    },
+    {
+      kind: "callout",
+      tone: "warning",
+      text: "Byte-ordering contract: the engine reads fresh into the TLS buffer at the upgrade, so plaintext that arrived before `upgradeTLS()` is never replayed into the TLS session (immunity to the STARTTLS-injection class, CVE-2011-0411). Discarding any leftover cleartext in your line buffer after the trigger is still your job. Upgrading twice, or upgrading an already-TLS socket, throws synchronously.",
+    },
+    { kind: "heading", id: "connect", text: "Outbound connections" },
+    {
+      kind: "paragraph",
+      text: "`connectTcp(host, port, options)` dials out — plaintext, or TLS as the client. It resolves a `TcpSocket` once connected (and, with `tls`, once the handshake completes), and rejects with a `TcpConnectError` carrying a `reason` (`dns`, `refused`, `timeout`, `tls`, …) — it never leaves a half-open handle behind. The returned socket has the whole `TcpSocket` surface. Pass an already-resolved IP (do your `node:dns` SRV lookups yourself) or a hostname; with `tls`, the server certificate is verified against `servername` (defaults to `host`), and `cert`/`key` present a client certificate for mutual TLS.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "connect.ts",
+        language: "ts",
+        code: `import { connectTcp, TcpConnectError } from "@usetoki/toki";
+
+try {
+  const socket = await connectTcp("peer.example", 5269, {
+    tls: { servername: "peer.example", ca, cert, key, alpn: ["xmpp-server"] },
+    keepAlive: true,
+    timeoutMs: 10_000,
+  });
+  console.log("server authorized:", socket.authorized);
+  socket.write("dialback\\n");
+} catch (e) {
+  if (e instanceof TcpConnectError) console.error("connect failed:", e.reason);
+}`,
+      },
+    },
+    { kind: "heading", id: "listeners", text: "Several listeners" },
+    {
+      kind: "paragraph",
+      text: "One `createTcpServer` can bind several ports — call `listen()` more than once. Every listener shares the one handler, options set, and TLS configuration; route by `socket.localPort` to tell them apart. An XMPP server runs client-to-server on 5222 and server-to-server on 5269 this way, in a single process. (The `io_uring` engine supports a single listener.)",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "listeners.ts",
+        language: "ts",
+        code: `const server = createTcpServer((socket) => {
+  const role = socket.localPort === c2s.port ? "c2s" : "s2s";
+  socket.on("data", (chunk) => handle(role, socket, chunk));
+}, { startTls: true, tls: { cert, key } });
+
+const c2s = server.listen(5222);
+const s2s = server.listen(5269);`,
+      },
+    },
+    { kind: "heading", id: "operations", text: "Lifecycle & hot-reload" },
+    {
+      kind: "paragraph",
+      text: "`server.stopAccepting()` closes the listeners but leaves established connections running — end them yourself (a protocol may exchange a closing tag first), then `server.close()`. `server.setTls(tls)` swaps the entire TLS configuration (cert/key, mTLS, ALPN, SNI) between handshakes without dropping live sessions — for a Let's Encrypt rotation, established connections keep their certificate and new handshakes take the new one.",
+    },
+    {
+      kind: "code",
+      snippet: {
+        filename: "operations.ts",
+        language: "ts",
+        code: `// rotate the certificate with zero downtime
+server.setTls({ cert: newCert, key: newKey });
+
+// drain on shutdown: stop accepting, let live connections finish, then close
+process.on("SIGTERM", () => {
+  server.stopAccepting();
+  for (const s of liveSockets) s.end("<close/>");
+  setTimeout(() => server.close(), 5_000);
+});`,
       },
     },
     { kind: "heading", id: "tls-perf", text: "Performance" },
