@@ -34,6 +34,37 @@ pub fn setOfferH2(on: bool) void {
     g_offer_h2 = on;
 }
 
+// ALPN list, wire format shared with the TS layer: each protocol is a 1-byte length followed by
+// its bytes, concatenated. Parse `wire` into `slices` (pointing into `store`, a copy of the wire).
+const alpn_store_max = 128;
+const alpn_max = 4;
+fn parseAlpn(wire: []const u8, store: []u8, slices: [][]const u8) []const []const u8 {
+    const n = @min(wire.len, store.len);
+    @memcpy(store[0..n], wire[0..n]);
+    var i: usize = 0;
+    var count: usize = 0;
+    while (i < n and count < slices.len) {
+        const len = store[i];
+        i += 1;
+        if (i + len > n) break;
+        slices[count] = store[i .. i + len];
+        count += 1;
+        i += len;
+    }
+    return slices[0..count];
+}
+
+// custom server ALPN list, set per listen on the raw TCP server. Empty falls back to the HTTP
+// path's h2/http1.1 logic, so the HTTPS server is unaffected.
+var g_alpn_store: [alpn_store_max]u8 = undefined;
+var g_alpn_slices: [alpn_max][]const u8 = undefined;
+var g_alpn: []const []const u8 = &.{};
+
+/// Set the server's offered ALPN protocols (wire format) for the next handshakes. Empty clears it.
+pub fn setServerAlpn(wire: []const u8) void {
+    g_alpn = parseAlpn(wire, &g_alpn_store, &g_alpn_slices);
+}
+
 // Optional mutual-TLS: when a client-CA bundle is supplied, the server sends a
 // CertificateRequest and verifies the client cert against this bundle. Parsed once at
 // init and reused for every handshake. null = no client auth (today's behavior).
@@ -110,7 +141,7 @@ fn serverOptions(now_sec: i64) lib.config.Server {
         .auth = &g_auth,
         .client_auth = g_client_auth,
         .cipher_suites = lib.config.cipher_suites.secure,
-        .alpn_protocols = if (g_offer_h2) alpn_h2 else alpn_h1,
+        .alpn_protocols = if (g_alpn.len > 0) g_alpn else if (g_offer_h2) alpn_h2 else alpn_h1,
         // real wall-clock time: client_auth verifies the client cert's validity window
         // against this, so .zero (1970) would reject every in-date cert. The caller passes
         // the current time at accept. Harmless without client_auth (the server signs, not verifies).
@@ -155,6 +186,10 @@ pub const State = struct {
     // it must outlive the JS string it came from. Lives here, freed with the State.
     host_buf: [256]u8 = undefined,
     host_len: usize = 0,
+    // client only: stable storage for the offered ALPN list (the client keeps a slice of it for
+    // the ClientHello). The negotiated result lives in the handshake object, not here.
+    alpn_store: [alpn_store_max]u8 = undefined,
+    alpn_slices: [alpn_max][]const u8 = undefined,
     in: [in_size]u8 = undefined, // ciphertext from the socket, not yet consumed
     in_len: usize = 0,
 };
@@ -215,6 +250,13 @@ pub fn peerCertificate(st: *State) ?[]const u8 {
     return switch (st.handshake) {
         inline else => |*h| h.peerCertificate(),
     };
+}
+
+/// The ALPN protocol negotiated for this connection, or null if none was. Meaningful once
+/// established; the returned slice lives as long as the State.
+pub fn alpnProtocol(st: *State) ?[]const u8 {
+    if (!st.established) return null;
+    return hsAlpn(st);
 }
 
 var pool: std.heap.MemoryPool(State) = .empty;
@@ -288,7 +330,7 @@ pub const ClientConfig = struct {
     insecure: bool,
     cert_pem: ?[]const u8 = null,
     key_pem: ?[]const u8 = null,
-    alpn: []const []const u8 = &.{},
+    alpn_wire: []const u8 = &.{}, // ALPN list in the shared wire format (1-byte length + bytes)
 };
 
 /// Build the per-connection client TLS state. `now_sec` dates the server cert's validity check.
@@ -344,6 +386,7 @@ pub fn newClientState(gpa: std.mem.Allocator, now_sec: i64, cfg: ClientConfig) ?
         auth_ptr = &st.auth_kp.?;
     }
 
+    const client_alpn = parseAlpn(cfg.alpn_wire, &st.alpn_store, &st.alpn_slices);
     st.handshake = .{ .client = lib.nonblock.Client.init(.{
         .rng = rng,
         .now = .fromNanoseconds(@as(i96, now_sec) * std.time.ns_per_s),
@@ -351,7 +394,7 @@ pub fn newClientState(gpa: std.mem.Allocator, now_sec: i64, cfg: ClientConfig) ?
         .root_ca = root_ca,
         .insecure_skip_verify = cfg.insecure,
         .auth = auth_ptr,
-        .alpn_protocols = cfg.alpn,
+        .alpn_protocols = client_alpn,
     }) };
     return st;
 }

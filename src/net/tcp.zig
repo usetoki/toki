@@ -314,6 +314,8 @@ fn setupTls(e: napi.Env, options: napi.Value) bool {
         _ = napi.napi_throw_error(e, null, text.ptr);
         return false;
     };
+    // optional ALPN list the server offers (wire format); empty falls back to the HTTP defaults.
+    tlsmod.setServerAlpn(readBufferProp(e, options, "tlsAlpn") orelse &.{});
     tls_enabled = true;
     return true;
 }
@@ -494,6 +496,7 @@ pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
             .insecure = optBool(e, argv[2], "tlsInsecure"),
             .cert_pem = readBufferProp(e, argv[2], "tlsCert"), // optional client cert (mTLS)
             .key_pem = readBufferProp(e, argv[2], "tlsKey"),
+            .alpn_wire = readBufferProp(e, argv[2], "tlsAlpn") orelse &.{}, // optional ALPN offer
         }) orelse {
             closeConn(conn, reason_tls_error);
             return uintValue(e, conn.id);
@@ -799,6 +802,22 @@ pub fn peerCertificate(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.V
     const der = tlsmod.peerCertificate(st) orelse return undefinedValue();
     var result: napi.Value = undefined;
     _ = napi.napi_create_buffer_copy(e, der.len, der.ptr, null, &result);
+    return result;
+}
+
+// tcpAlpnProtocol(id) -> string | undefined. The negotiated ALPN protocol; undefined on a
+// plaintext / not-yet-established / unknown socket, or when no protocol was negotiated.
+pub fn alpnProtocol(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return undefinedValue();
+    const st = conn.tls orelse return undefinedValue();
+    const protocol = tlsmod.alpnProtocol(st) orelse return undefinedValue();
+    var result: napi.Value = undefined;
+    _ = napi.napi_create_string_utf8(e, protocol.ptr, protocol.len, &result);
     return result;
 }
 

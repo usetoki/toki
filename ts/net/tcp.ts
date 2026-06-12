@@ -23,6 +23,9 @@ export interface TcpSocket {
   /** Why the connection closed; `"normal"` until an abnormal close sets it. Read it inside a
    *  `close` listener (also passed as the listener's argument). */
   readonly closeReason: CloseReason;
+  /** TLS only: the ALPN protocol negotiated for this connection, or `undefined` on a plaintext
+   *  connection or when none was negotiated. */
+  readonly alpnProtocol: string | undefined;
   /** Send bytes. Returns `false` when the send buffer is backed up (resume on `drain`) or the
    *  socket is gone (closed or closing). A string is encoded as UTF-8. */
   write(data: Uint8Array | string): boolean;
@@ -86,6 +89,9 @@ export interface TcpServerOptions extends TcpOptions {
     rejectUnauthorized?: boolean;
     /** PEM CA bundle the client certificate is verified against */
     ca?: string | Uint8Array;
+    /** ALPN protocols to offer, in preference order (e.g. `["h2", "http/1.1"]`). The negotiated
+     *  one is on {@link TcpSocket.alpnProtocol}. */
+    alpn?: string[];
   };
 }
 
@@ -146,6 +152,9 @@ export interface TcpConnectOptions {
         key?: string | Uint8Array;
         /** verify the server certificate; default `true`. `false` accepts any cert (unsafe) */
         rejectUnauthorized?: boolean;
+        /** ALPN protocols to offer, in preference order; the negotiated one is on
+         *  {@link TcpSocket.alpnProtocol}. */
+        alpn?: string[];
       };
 }
 
@@ -173,6 +182,19 @@ let active = false;
 // TLS cert/key accepted as PEM text or raw bytes; native reads a Buffer.
 function toPem(value: string | Uint8Array): Buffer {
   return typeof value === "string" ? Buffer.from(value, "utf8") : Buffer.from(value);
+}
+
+// ALPN protocol list -> wire format native parses: each protocol is a 1-byte length + its bytes.
+function encodeAlpn(protocols: string[]): Buffer {
+  const parts: Buffer[] = [];
+  for (const p of protocols) {
+    const b = Buffer.from(p, "utf8");
+    if (b.length === 0 || b.length > 255) {
+      throw new Error(`toki: ALPN protocol "${p}" must be 1..255 bytes`);
+    }
+    parts.push(Buffer.from([b.length]), b);
+  }
+  return Buffer.concat(parts);
 }
 
 const EMPTY_PEER: RemoteInfo = { address: "", port: 0 };
@@ -241,6 +263,8 @@ class Socket implements TcpSocket {
   #readEnded = false; // peer half-closed
   #needDrain = false; // a write is backed up; a drain is pending
   #closeReason: CloseReason = "normal";
+  #alpnFetched = false;
+  #alpnProtocol: string | undefined = undefined;
   #data: Array<(chunk: Buffer) => void> = [];
   #drain: Array<() => void> = [];
   #end: Array<() => void> = [];
@@ -271,6 +295,14 @@ class Socket implements TcpSocket {
   }
   get closeReason(): CloseReason {
     return this.#closeReason;
+  }
+  // negotiated ALPN, fetched once from native (it doesn't change after the handshake).
+  get alpnProtocol(): string | undefined {
+    if (!this.#alpnFetched) {
+      this.#alpnProtocol = native.tcpAlpnProtocol(this.#id);
+      this.#alpnFetched = true;
+    }
+    return this.#alpnProtocol;
   }
 
   write(data: Uint8Array | string): boolean {
@@ -461,6 +493,7 @@ export function createTcpServer(
       tlsCert: toPem(options.tls.cert),
       tlsKey: toPem(options.tls.key),
     };
+    if (options.tls.alpn !== undefined) nativeOptions.tlsAlpn = encodeAlpn(options.tls.alpn);
     if (options.tls.requestCert) {
       if (options.tls.ca === undefined) {
         throw new Error(
@@ -506,6 +539,7 @@ function flattenConnect(options: TcpConnectOptions): TcpOptions {
     if (t.cert !== undefined) o.tlsCert = toPem(t.cert);
     if (t.key !== undefined) o.tlsKey = toPem(t.key);
     if (t.rejectUnauthorized === false) o.tlsInsecure = true;
+    if (t.alpn !== undefined) o.tlsAlpn = encodeAlpn(t.alpn);
   }
   return o;
 }

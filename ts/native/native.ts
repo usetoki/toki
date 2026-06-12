@@ -175,6 +175,9 @@ interface Native {
   /** the peer's leaf certificate in DER for a TLS connection; `undefined` on plaintext / not yet
    *  established / no peer certificate retained */
   tcpPeerCertificate(id: number): Buffer | undefined;
+  /** the negotiated ALPN protocol for a TLS connection; `undefined` on plaintext / not yet
+   *  established / none negotiated */
+  tcpAlpnProtocol(id: number): string | undefined;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */
@@ -260,6 +263,9 @@ export interface TcpOptions {
   tlsCa?: Uint8Array;
   /** @internal skip server-cert verification on a client connect (unsafe; test/self-signed) */
   tlsInsecure?: boolean;
+  /** @internal ALPN protocol list in wire format (each: 1-byte length + bytes) — offered by a
+   *  server (listen) or a client (connect) */
+  tlsAlpn?: Uint8Array;
 }
 
 /** {@link Native.udpBind} tuning */
