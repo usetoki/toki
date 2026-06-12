@@ -187,6 +187,9 @@ interface Native {
   tcpResume(id: number): void;
   /** stop accepting new connections; live ones keep running */
   tcpStopAccepting(): void;
+  /** hot-reload the server's TLS config (cert/key, mTLS CA, ALPN, SNI) from the flattened options;
+   *  new handshakes use it, established connections keep their session. Throws on a bad cert/key */
+  tcpSetTls(options: TcpOptions): boolean;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */
@@ -249,6 +252,10 @@ export interface TcpOptions {
   keepAlive?: boolean;
   /** idle seconds before the first keepalive probe (with `keepAlive`) */
   keepAliveDelaySecs?: number;
+  /** close a connection idle (no read or write) for this many ms. Default 0 (off) */
+  idleTimeoutMs?: number;
+  /** close a TLS connection whose handshake hasn't established within this many ms. Default 0 (off) */
+  handshakeTimeoutMs?: number;
   /** per-connection send-backlog ceiling in bytes; a connection that exceeds it (a
    *  non-reading peer plus a producer ignoring backpressure) is dropped. Default 16 MiB. */
   maxWriteQueue?: number;

@@ -97,6 +97,9 @@ const Conn = struct {
     // resolved address (a uv_tcp_t can't be reconnected). Guards against a double-close if the
     // timeout fires during that gap.
     recycling: bool,
+    // loop time (ms) at accept and on the last read — used by the idle / handshake-timeout sweep.
+    created_at: u64,
+    last_active: u64,
     next: ?*Conn,
     prev: ?*Conn,
 };
@@ -149,6 +152,12 @@ var accepting = true;
 // SO_KEEPALIVE on accepted sockets, with the idle delay (seconds) before the first probe.
 var keep_alive = false;
 var keep_alive_delay: c_uint = 0;
+// 0 = off. A connection idle (no read/write) past idle_timeout_ms, or a TLS handshake that hasn't
+// established within handshake_timeout_ms, is closed by a 1s sweep.
+var idle_timeout_ms: u64 = 0;
+var handshake_timeout_ms: u64 = 0;
+var sweep_timer: [uv.timer_size]u8 align(16) = undefined;
+var sweep_active = false;
 // set at listen() when a cert/key pair is supplied; the TLS config is process-global
 // (one server per process), same as the HTTPS path.
 var tls_enabled = false;
@@ -192,6 +201,34 @@ fn ensureEofTimer() void {
     _ = uv.uv_timer_start(opaqueOf(&eof_timer), &eofPoll, eof_poll_ms, eof_poll_ms);
     uv.uv_unref(opaqueOf(&eof_timer)); // never keep the loop alive on its own
     eof_timer_active = true;
+}
+
+// start the 1s idle / handshake-timeout sweep if either is configured.
+fn ensureSweepTimer() void {
+    if ((idle_timeout_ms == 0 and handshake_timeout_ms == 0) or sweep_active or loop == null) return;
+    _ = uv.uv_timer_init(loop.?, opaqueOf(&sweep_timer));
+    _ = uv.uv_timer_start(opaqueOf(&sweep_timer), &sweepConns, 1000, 1000);
+    uv.uv_unref(opaqueOf(&sweep_timer));
+    sweep_active = true;
+}
+
+// close server connections that idled out, or whose TLS handshake never established in time.
+fn sweepConns(_: *anyopaque) callconv(.c) void {
+    if (loop == null) return;
+    const now = uv.uv_now(loop.?);
+    var node = conn_list;
+    while (node) |conn| {
+        const nxt = conn.next; // grab before closeConn unlinks
+        if (!conn.is_client and !conn.closing) {
+            const handshaking = if (conn.tls) |st| !st.established else false;
+            if (handshake_timeout_ms > 0 and handshaking and now -| conn.created_at > handshake_timeout_ms) {
+                closeConn(conn, reason_handshake_timeout);
+            } else if (idle_timeout_ms > 0 and !handshaking and now -| conn.last_active > idle_timeout_ms) {
+                closeConn(conn, reason_normal);
+            }
+        }
+        node = nxt;
+    }
 }
 
 fn opaqueOf(p: anytype) *anyopaque {
@@ -264,6 +301,8 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     }
     keep_alive = optBool(e, argv[2], "keepAlive");
     keep_alive_delay = if (optInt(e, argv[2], "keepAliveDelaySecs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
+    idle_timeout_ms = if (optInt(e, argv[2], "idleTimeoutMs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
+    handshake_timeout_ms = if (optInt(e, argv[2], "handshakeTimeoutMs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
 
     // a re-listen replaces the dispatcher; drop the prior strong ref so it doesn't pin
     // the old handler closure (and its captured sockets map) in V8 for the process life.
@@ -297,6 +336,7 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     }
     listening = true;
     ensureEofTimer();
+    ensureSweepTimer();
 
     var bound: [128]u8 align(8) = undefined;
     var blen: c_int = bound.len;
@@ -394,6 +434,8 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .connect = null,
         .is_client = false,
         .recycling = false,
+        .created_at = uv.uv_now(loop.?),
+        .last_active = uv.uv_now(loop.?),
         .next = null,
         .prev = null,
     };
@@ -518,6 +560,8 @@ pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         .connect = null,
         .is_client = true,
         .recycling = false,
+        .created_at = 0, // clients aren't swept by the server idle / handshake timeout
+        .last_active = 0,
         .next = null,
         .prev = null,
     };
@@ -925,6 +969,19 @@ pub fn stopAccepting(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Val
     return undefinedValue();
 }
 
+// tcpSetTls(options) — hot-reload the whole server TLS config (cert/key, mTLS CA, ALPN, SNI) from
+// the flattened options. New handshakes use it; already-established connections keep their session.
+// Throws on a bad cert/key. Returns true on success.
+pub fn setTls(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    env = e;
+    var out: napi.Value = undefined;
+    _ = napi.napi_get_boolean(e, setupTls(e, argv[0]), &out);
+    return out;
+}
+
 fn armRead(conn: *Conn) void {
     if (conn.reading or conn.closing or conn.paused) return;
     _ = uv.uv_read_start(opaqueOf(&conn.handle), &allocBuf, &onRead);
@@ -975,6 +1032,7 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
         dispatch(conn.id, ev_end, undefinedValue());
         return;
     }
+    conn.last_active = uv.uv_now(loop.?); // activity: defer the idle sweep
     // TLS: libuv filled tls_in_scratch (carry + new bytes) with ciphertext. Drive the
     // handshake/record machine, which dispatches ev_data with decrypted plaintext.
     if (conn.tls) |st| {
@@ -1177,6 +1235,7 @@ pub fn send(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     // send_gone so the write isn't silently dropped while looking flushed.
     const conn = conns.get(id) orelse return uintValue(e, send_gone);
     if (conn.closing or conn.shutting) return uintValue(e, send_gone);
+    conn.last_active = uv.uv_now(loop.?); // activity: defer the idle sweep
     if (data) |d| if (len != 0) writeAll(conn, @as([*]const u8, @ptrCast(d))[0..len]);
     return uintValue(e, @intCast(@min(conn.queued_bytes, send_gone - 1)));
 }
@@ -1303,6 +1362,10 @@ pub fn closeServer(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value
         if (eof_timer_active) {
             uv.uv_close(opaqueOf(&eof_timer), &onEofTimerClose);
             eof_timer_active = false;
+        }
+        if (sweep_active) {
+            uv.uv_close(opaqueOf(&sweep_timer), &onEofTimerClose);
+            sweep_active = false;
         }
     }
     var node = conn_list;

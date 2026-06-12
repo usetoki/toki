@@ -115,6 +115,9 @@ export interface TcpServer {
   close(): void;
   /** Stop accepting new connections; existing connections keep running. */
   stopAccepting(): void;
+  /** Hot-reload the entire TLS configuration (cert/key, mTLS, ALPN, SNI). New handshakes use it;
+   *  already-established connections keep their session. Throws on a bad certificate/key. */
+  setTls(tls: NonNullable<TcpServerOptions["tls"]>): void;
 }
 
 /** Why an outbound {@link connectTcp} failed, carried on {@link TcpConnectError.reason}. */
@@ -209,6 +212,31 @@ function encodeAlpn(protocols: string[]): Buffer {
     parts.push(Buffer.from([b.length]), b);
   }
   return Buffer.concat(parts);
+}
+
+type ServerTls = NonNullable<TcpServerOptions["tls"]>;
+
+// flatten the server `tls` option into the buffers/fields native reads (used by listen and setTls).
+function flattenServerTls(tls: ServerTls): TcpOptions {
+  const o: TcpOptions = { tlsCert: toPem(tls.cert), tlsKey: toPem(tls.key) };
+  if (tls.alpn !== undefined) o.tlsAlpn = encodeAlpn(tls.alpn);
+  if (tls.sni !== undefined) {
+    o.tlsSni = tls.sni.map((s) => ({
+      servername: s.servername,
+      cert: toPem(s.cert),
+      key: toPem(s.key),
+    }));
+  }
+  // mTLS: a `ca` bundle + `requestCert` turns on client-cert auth; `rejectUnauthorized` makes it
+  // mandatory (.require) rather than just requested (.request).
+  if (tls.requestCert) {
+    if (tls.ca === undefined) {
+      throw new Error("toki: tls.requestCert needs tls.ca (the CA bundle that signs client certs)");
+    }
+    o.tlsClientCa = toPem(tls.ca);
+    o.tlsRequireClient = tls.rejectUnauthorized === true;
+  }
+  return o;
 }
 
 const EMPTY_PEER: RemoteInfo = { address: "", port: 0 };
@@ -509,9 +537,7 @@ export function createTcpServer(
   const allowHalfOpen = options.allowHalfOpen ?? false;
   const backend = selectBackend(options);
 
-  // flatten the tls option into the cert/key buffers native reads (mirrors app.listen).
-  // mTLS: a `ca` bundle + `requestCert` turns on client-cert auth; `rejectUnauthorized`
-  // makes it mandatory (.require) rather than just requested (.request).
+  // flatten the rate-limit + tls options into the fields native reads (mirrors app.listen).
   let nativeOptions: TcpServerOptions = options;
   if (options.rateLimit) {
     nativeOptions = {
@@ -521,28 +547,7 @@ export function createTcpServer(
     };
   }
   if (options.tls) {
-    nativeOptions = {
-      ...nativeOptions,
-      tlsCert: toPem(options.tls.cert),
-      tlsKey: toPem(options.tls.key),
-    };
-    if (options.tls.alpn !== undefined) nativeOptions.tlsAlpn = encodeAlpn(options.tls.alpn);
-    if (options.tls.sni !== undefined) {
-      nativeOptions.tlsSni = options.tls.sni.map((s) => ({
-        servername: s.servername,
-        cert: toPem(s.cert),
-        key: toPem(s.key),
-      }));
-    }
-    if (options.tls.requestCert) {
-      if (options.tls.ca === undefined) {
-        throw new Error(
-          "toki: tls.requestCert needs tls.ca (the CA bundle that signs client certs)",
-        );
-      }
-      nativeOptions.tlsClientCa = toPem(options.tls.ca);
-      nativeOptions.tlsRequireClient = options.tls.rejectUnauthorized === true;
-    }
+    nativeOptions = { ...nativeOptions, ...flattenServerTls(options.tls) };
   }
 
   return {
@@ -565,6 +570,10 @@ export function createTcpServer(
     },
     stopAccepting(): void {
       if (active) native.tcpStopAccepting();
+    },
+    setTls(tls: ServerTls): void {
+      if (!active) throw new Error("toki: setTls requires a listening server");
+      native.tcpSetTls(flattenServerTls(tls));
     },
   };
 }
