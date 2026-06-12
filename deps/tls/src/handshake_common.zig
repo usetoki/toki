@@ -298,6 +298,66 @@ fn SchemeEcdsa(comptime scheme: proto.SignatureScheme) type {
     };
 }
 
+// A minimal DER TLV view: tag, value range [start,end), and the offset of the next element.
+const Tlv = struct { tag: u8, start: usize, end: usize, next: usize };
+
+fn derTlv(b: []const u8, off: usize) ?Tlv {
+    if (off + 2 > b.len) return null;
+    const tag = b[off];
+    var i = off + 1;
+    var len: usize = b[i];
+    i += 1;
+    if (len & 0x80 != 0) { // long-form length
+        const n = len & 0x7f;
+        if (n == 0 or n > 4 or i + n > b.len) return null;
+        len = 0;
+        var k: usize = 0;
+        while (k < n) : (k += 1) {
+            len = (len << 8) | b[i];
+            i += 1;
+        }
+    }
+    if (i + len > b.len) return null;
+    return .{ .tag = tag, .start = i, .end = i + len, .next = i + len };
+}
+
+// Whether a certificate asserts basicConstraints cA=TRUE (RFC 5280 §4.2.1.9). A cert presented
+// as the issuer of another in the chain MUST be a CA — otherwise any holder of a CA-signed leaf
+// could mint a leaf "issued" by their own cert and impersonate a peer (RFC 5280 §6.1.4(k)).
+// basicConstraints absent (or cA omitted / FALSE) means not a CA.
+fn certIsCa(der: []const u8) bool {
+    const outer = derTlv(der, 0) orelse return false; // Certificate SEQUENCE
+    if (outer.tag != 0x30) return false;
+    const tbs = derTlv(der, outer.start) orelse return false; // tbsCertificate SEQUENCE
+    if (tbs.tag != 0x30) return false;
+    // find the [3] EXPLICIT extensions wrapper (context-constructed tag 0xA3) inside the TBS
+    var i = tbs.start;
+    const exts = while (i < tbs.end) {
+        const el = derTlv(der, i) orelse return false;
+        if (el.tag == 0xA3) break el;
+        i = el.next;
+    } else return false; // no extensions → not a CA
+    const seq = derTlv(der, exts.start) orelse return false; // SEQUENCE OF Extension
+    if (seq.tag != 0x30) return false;
+    var j = seq.start;
+    while (j < seq.end) {
+        const ext = derTlv(der, j) orelse return false;
+        j = ext.next;
+        if (ext.tag != 0x30) continue;
+        const oid = derTlv(der, ext.start) orelse continue;
+        if (oid.tag != 0x06 or !mem.eql(u8, der[oid.start..oid.end], &.{ 0x55, 0x1D, 0x13 })) continue;
+        var val = derTlv(der, oid.next) orelse return false;
+        if (val.tag == 0x01) val = derTlv(der, val.next) orelse return false; // skip critical BOOLEAN
+        if (val.tag != 0x04) return false; // extnValue OCTET STRING
+        const bc = derTlv(der, val.start) orelse return false; // BasicConstraints SEQUENCE
+        if (bc.tag != 0x30 or bc.start >= bc.end) return false; // empty → cA defaults FALSE
+        const ca = derTlv(der, bc.start) orelse return false;
+        if (ca.tag != 0x01 or ca.end <= ca.start) return false; // first field not the cA BOOLEAN
+        return der[ca.start] != 0x00; // DER BOOLEAN TRUE is 0xFF (any nonzero)
+    }
+    return false; // basicConstraints not present
+}
+
 pub const CertificateParser = struct {
     pub_key_algo: Certificate.Parsed.PubKeyAlgo = undefined,
     pub_key_buf: [1038]u8 = undefined,
@@ -339,6 +399,9 @@ pub const CertificateParser = struct {
             const subject = try (Certificate{ .buffer = crt, .index = 0 }).parse();
             if (last_cert) |pc| {
                 if (pc.verify(subject, h.now_sec)) {
+                    // `subject` signed the previous cert, so it acts as a CA here — it must
+                    // actually be one, or a plain leaf could forge an issuer link (RFC 5280 §6.1.4).
+                    if (!certIsCa(crt)) return error.CertificateAuthorityInvalid;
                     last_cert = subject;
                 } else |err| switch (err) {
                     error.CertificateIssuerMismatch => {
