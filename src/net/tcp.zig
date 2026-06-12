@@ -61,6 +61,9 @@ const Conn = struct {
     queued_bytes: usize,
     closing: bool,
     reading: bool,
+    // pause() set this so reading stays stopped even across an armRead — needed because a plaintext
+    // conn announces ev_connection (where the handler may pause) before its first armRead.
+    paused: bool,
     // a graceful uv_shutdown (tcpEnd) is in flight: close gracefully, never reset.
     // libuv forbids mixing uv_shutdown with uv_tcp_close_reset.
     shutting: bool,
@@ -139,6 +142,13 @@ var listening = false;
 var closing = false;
 var no_delay = true;
 var eof_poll_ms: u64 = default_eof_poll_ms;
+// 0 = unlimited. A new accept past the cap is reset before it reaches JS.
+var max_connections: usize = 0;
+// stopAccepting() flips this off: live connections stay, new ones are reset at accept.
+var accepting = true;
+// SO_KEEPALIVE on accepted sockets, with the idle delay (seconds) before the first probe.
+var keep_alive = false;
+var keep_alive_delay: c_uint = 0;
 // set at listen() when a cert/key pair is supplied; the TLS config is process-global
 // (one server per process), same as the HTTPS path.
 var tls_enabled = false;
@@ -247,6 +257,13 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     if (optInt(e, argv[2], "rateLimitWindowMs")) |v| {
         if (v > 0) guard.window_ms = @intCast(v);
     }
+    accepting = true;
+    max_connections = 0;
+    if (optInt(e, argv[2], "maxConnections")) |v| {
+        if (v > 0) max_connections = @intCast(v);
+    }
+    keep_alive = optBool(e, argv[2], "keepAlive");
+    keep_alive_delay = if (optInt(e, argv[2], "keepAliveDelaySecs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
 
     // a re-listen replaces the dispatcher; drop the prior strong ref so it doesn't pin
     // the old handler closure (and its captured sockets map) in V8 for the process life.
@@ -364,6 +381,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .queued_bytes = 0,
         .closing = false,
         .reading = false,
+        .paused = false,
         .shutting = false,
         .read_ended = false,
         .remote_port = 0,
@@ -382,6 +400,12 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
     _ = uv.uv_tcp_init(loop.?, opaqueOf(&conn.handle));
     addConn(conn);
     if (uv.uv_accept(srv, opaqueOf(&conn.handle)) != 0) {
+        closeConn(conn, reason_normal);
+        return;
+    }
+    // stopAccepting() / maxConnections: reset a new peer before any TLS state or JS dispatch.
+    if (!accepting or (max_connections > 0 and conns.count() >= max_connections)) {
+        conn.rejected = true;
         closeConn(conn, reason_normal);
         return;
     }
@@ -408,6 +432,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         }
     }
     if (no_delay) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
+    if (keep_alive) _ = uv.uv_tcp_keepalive(opaqueOf(&conn.handle), 1, keep_alive_delay);
     conns.put(alloc, conn.id, conn) catch {
         closeConn(conn, reason_normal);
         return;
@@ -480,6 +505,7 @@ pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         .queued_bytes = 0,
         .closing = false,
         .reading = false,
+        .paused = false,
         .shutting = false,
         .read_ended = false,
         .remote_port = 0,
@@ -860,8 +886,47 @@ pub fn serverName(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value 
     return result;
 }
 
+// tcpPause(id) — stop reading from the socket (backpressure). Queued writes still flush.
+pub fn pause(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    if (conns.get(id)) |conn| {
+        conn.paused = true;
+        if (conn.reading) {
+            _ = uv.uv_read_stop(opaqueOf(&conn.handle));
+            conn.reading = false;
+        }
+    }
+    return undefinedValue();
+}
+
+// tcpResume(id) — resume reading after a pause.
+pub fn resumeRead(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    if (conns.get(id)) |conn| {
+        conn.paused = false;
+        if (!conn.read_ended) armRead(conn);
+    }
+    return undefinedValue();
+}
+
+// tcpStopAccepting() — stop accepting new connections; live ones keep running.
+pub fn stopAccepting(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    _ = e;
+    _ = info;
+    accepting = false;
+    return undefinedValue();
+}
+
 fn armRead(conn: *Conn) void {
-    if (conn.reading or conn.closing) return;
+    if (conn.reading or conn.closing or conn.paused) return;
     _ = uv.uv_read_start(opaqueOf(&conn.handle), &allocBuf, &onRead);
     conn.reading = true;
 }

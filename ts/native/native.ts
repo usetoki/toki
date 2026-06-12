@@ -181,6 +181,12 @@ interface Native {
   /** the SNI host name a server connection's client requested; `undefined` on plaintext / not yet
    *  established / no SNI / a client connection */
   tcpServerName(id: number): string | undefined;
+  /** stop reading from a TCP connection (backpressure); queued writes still flush */
+  tcpPause(id: number): void;
+  /** resume reading after a pause */
+  tcpResume(id: number): void;
+  /** stop accepting new connections; live ones keep running */
+  tcpStopAccepting(): void;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */
@@ -237,6 +243,12 @@ export interface TcpOptions {
   noDelay?: boolean;
   /** pending-connection queue. Default 512 */
   backlog?: number;
+  /** maximum concurrent connections; a new accept past it is reset. Default 0 (unlimited) */
+  maxConnections?: number;
+  /** enable SO_KEEPALIVE on accepted sockets */
+  keepAlive?: boolean;
+  /** idle seconds before the first keepalive probe (with `keepAlive`) */
+  keepAliveDelaySecs?: number;
   /** per-connection send-backlog ceiling in bytes; a connection that exceeds it (a
    *  non-reading peer plus a producer ignoring backpressure) is dropped. Default 16 MiB. */
   maxWriteQueue?: number;

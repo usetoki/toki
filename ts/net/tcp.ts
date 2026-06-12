@@ -37,6 +37,10 @@ export interface TcpSocket {
   end(data?: Uint8Array | string): void;
   /** Drop the connection now, without waiting for queued writes (RST). */
   destroy(): void;
+  /** Stop reading (backpressure) until {@link resume}; queued writes still flush. */
+  pause(): this;
+  /** Resume reading after {@link pause}. */
+  resume(): this;
   /** TLS only: derive `length` bytes of keying material bound to this session (RFC 8446 §7.5;
    *  RFC 9266 `tls-exporter` channel binding) from `label` and an optional `context`. Both peers
    *  derive identical bytes. `undefined` on a plaintext connection. */
@@ -109,6 +113,8 @@ export interface TcpServer {
   listen(port: number, host?: string): { port: number };
   /** Stop accepting and close every live connection. */
   close(): void;
+  /** Stop accepting new connections; existing connections keep running. */
+  stopAccepting(): void;
 }
 
 /** Why an outbound {@link connectTcp} failed, carried on {@link TcpConnectError.reason}. */
@@ -351,6 +357,15 @@ class Socket implements TcpSocket {
     this.#backend.close(this.#id);
   }
 
+  pause(): this {
+    native.tcpPause(this.#id);
+    return this;
+  }
+  resume(): this {
+    native.tcpResume(this.#id);
+    return this;
+  }
+
   // TLS sockets always run on the libuv engine, so the exporter is read straight from native
   // (a plaintext / io_uring id isn't in that connection table and simply yields undefined).
   exportKeyingMaterial(length: number, label: string, context?: Uint8Array): Buffer | undefined {
@@ -547,6 +562,9 @@ export function createTcpServer(
       active = false;
       serverHandler = undefined;
       serverIsUring = false;
+    },
+    stopAccepting(): void {
+      if (active) native.tcpStopAccepting();
     },
   };
 }

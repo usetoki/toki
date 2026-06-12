@@ -128,6 +128,8 @@ pub extern fn uv_write(req: *anyopaque, stream: *anyopaque, bufs: [*]const Buf, 
 // non-blocking, no req/alloc/cb: returns bytes written or negative err (UV_EAGAIN).
 pub extern fn uv_try_write(stream: *anyopaque, bufs: [*]const Buf, nbufs: c_uint) c_int;
 pub extern fn uv_tcp_nodelay(handle: *anyopaque, enable: c_int) c_int;
+// SO_KEEPALIVE + the idle delay (seconds) before the first probe.
+pub extern fn uv_tcp_keepalive(handle: *anyopaque, enable: c_int, delay: c_uint) c_int;
 // half-close: flush queued writes, then shutdown(SHUT_WR) so the peer sees EOF.
 pub extern fn uv_shutdown(req: *anyopaque, handle: *anyopaque, cb: ShutdownCb) c_int;
 pub extern fn uv_close(handle: *anyopaque, cb: ?CloseCb) void;
