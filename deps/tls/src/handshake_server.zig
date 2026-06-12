@@ -43,6 +43,12 @@ pub const Options = struct {
     /// If empty, no ALPN extension is sent in the response.
     alpn_protocols: []const []const u8 = &.{},
 
+    /// Optional certificate selector for SNI (virtual hosts): given the client's requested host
+    /// name, return the certificate to present, or null to fall back to `auth`. All selectable
+    /// certificates must use the same key algorithm as `auth` (the signature scheme is fixed from
+    /// `auth` before the host name is known).
+    cert_selector: ?*const fn (server_name: []const u8) ?*CertKeyPair = null,
+
     now: Io.Timestamp,
 };
 
@@ -96,6 +102,11 @@ pub const Handshake = struct {
     /// from the transient cert parser during the mTLS handshake; 0 when no client cert was seen.
     peer_cert_buf: [common.max_peer_certificate_len]u8 = undefined,
     peer_cert_len: usize = 0,
+
+    /// The host name from the client's SNI extension (RFC 6066), empty if none was sent. Used to
+    /// pick a certificate (cert_selector) and exposed to the app for virtual-host routing.
+    server_name: []const u8 = &.{},
+    server_name_buf: [256]u8 = undefined,
 
     const Self = @This();
 
@@ -207,7 +218,12 @@ pub const Handshake = struct {
             h.transcript.update(hw.buffered());
             try h.writeEncrypted(&w, hw.buffered());
         }
-        if (opt.auth) |auth| {
+        // SNI: pick the certificate for the requested host name, else the default `auth`.
+        const selected_auth: ?*CertKeyPair = if (opt.cert_selector) |sel|
+            (sel(h.server_name) orelse opt.auth)
+        else
+            opt.auth;
+        if (selected_auth) |auth| {
             const cb = CertificateBuilder{
                 .rng = opt.rng,
                 .cert_key_pair = auth,
@@ -523,6 +539,22 @@ pub const Handshake = struct {
                         try d.skip(extension_len);
                     }
                 },
+                .server_name => {
+                    // RFC 6066 ServerNameList: u16 list_len, then { u8 name_type(0=host), u16 len, name }.
+                    const ext_end = d.idx + extension_len;
+                    if (extension_len >= 5) {
+                        _ = try d.decode(u16);
+                        const name_type = try d.decode(u8);
+                        const name_len = try d.decode(u16);
+                        if (name_type == 0 and d.idx + name_len <= ext_end) {
+                            const name = try d.slice(name_len);
+                            const n = @min(name.len, h.server_name_buf.len);
+                            @memcpy(h.server_name_buf[0..n], name[0..n]);
+                            h.server_name = h.server_name_buf[0..n];
+                        }
+                    }
+                    d.idx = ext_end;
+                },
                 else => {
                     try d.skip(extension_len);
                 },
@@ -743,5 +775,12 @@ pub const NonBlock = struct {
     pub fn peerCertificate(self: *Self) ?[]const u8 {
         if (self.inner.peer_cert_len == 0) return null;
         return self.inner.peer_cert_buf[0..self.inner.peer_cert_len];
+    }
+
+    /// The host name the client requested via SNI, or null if none was sent. Valid for the life of
+    /// this handshake object.
+    pub fn serverName(self: *Self) ?[]const u8 {
+        if (self.inner.server_name.len == 0) return null;
+        return self.inner.server_name;
     }
 };

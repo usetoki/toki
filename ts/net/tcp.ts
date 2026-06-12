@@ -26,6 +26,9 @@ export interface TcpSocket {
   /** TLS only: the ALPN protocol negotiated for this connection, or `undefined` on a plaintext
    *  connection or when none was negotiated. */
   readonly alpnProtocol: string | undefined;
+  /** TLS server connections only: the SNI host name the client requested (for virtual-host
+   *  routing), or `undefined` on a plaintext or client connection, or when no SNI was sent. */
+  readonly servername: string | undefined;
   /** Send bytes. Returns `false` when the send buffer is backed up (resume on `drain`) or the
    *  socket is gone (closed or closing). A string is encoded as UTF-8. */
   write(data: Uint8Array | string): boolean;
@@ -92,6 +95,11 @@ export interface TcpServerOptions extends TcpOptions {
     /** ALPN protocols to offer, in preference order (e.g. `["h2", "http/1.1"]`). The negotiated
      *  one is on {@link TcpSocket.alpnProtocol}. */
     alpn?: string[];
+    /** SNI virtual hosts: present a different certificate per requested host name. Each entry's
+     *  `servername` is an exact host or a `*.` wildcard; the top-level `cert`/`key` stays the
+     *  default for any unmatched name. All certificates must use the same key algorithm. The
+     *  requested name is on {@link TcpSocket.servername}. */
+    sni?: Array<{ servername: string; cert: string | Uint8Array; key: string | Uint8Array }>;
   };
 }
 
@@ -265,6 +273,8 @@ class Socket implements TcpSocket {
   #closeReason: CloseReason = "normal";
   #alpnFetched = false;
   #alpnProtocol: string | undefined = undefined;
+  #servernameFetched = false;
+  #servername: string | undefined = undefined;
   #data: Array<(chunk: Buffer) => void> = [];
   #drain: Array<() => void> = [];
   #end: Array<() => void> = [];
@@ -303,6 +313,14 @@ class Socket implements TcpSocket {
       this.#alpnFetched = true;
     }
     return this.#alpnProtocol;
+  }
+  // SNI host the client requested, fetched once (server connections only).
+  get servername(): string | undefined {
+    if (!this.#servernameFetched) {
+      this.#servername = native.tcpServerName(this.#id);
+      this.#servernameFetched = true;
+    }
+    return this.#servername;
   }
 
   write(data: Uint8Array | string): boolean {
@@ -494,6 +512,13 @@ export function createTcpServer(
       tlsKey: toPem(options.tls.key),
     };
     if (options.tls.alpn !== undefined) nativeOptions.tlsAlpn = encodeAlpn(options.tls.alpn);
+    if (options.tls.sni !== undefined) {
+      nativeOptions.tlsSni = options.tls.sni.map((s) => ({
+        servername: s.servername,
+        cert: toPem(s.cert),
+        key: toPem(s.key),
+      }));
+    }
     if (options.tls.requestCert) {
       if (options.tls.ca === undefined) {
         throw new Error(

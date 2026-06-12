@@ -178,6 +178,9 @@ interface Native {
   /** the negotiated ALPN protocol for a TLS connection; `undefined` on plaintext / not yet
    *  established / none negotiated */
   tcpAlpnProtocol(id: number): string | undefined;
+  /** the SNI host name a server connection's client requested; `undefined` on plaintext / not yet
+   *  established / no SNI / a client connection */
+  tcpServerName(id: number): string | undefined;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */
@@ -266,6 +269,9 @@ export interface TcpOptions {
   /** @internal ALPN protocol list in wire format (each: 1-byte length + bytes) — offered by a
    *  server (listen) or a client (connect) */
   tlsAlpn?: Uint8Array;
+  /** @internal SNI virtual-host certificates: a cert/key the server presents when the client's
+   *  requested host name matches `servername` (an exact host or a `*.` wildcard) */
+  tlsSni?: Array<{ servername: string; cert: Uint8Array; key: Uint8Array }>;
 }
 
 /** {@link Native.udpBind} tuning */

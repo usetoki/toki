@@ -57,6 +57,7 @@ pub extern fn napi_get_boolean(env: Env, value: bool, result: *Value) c_int;
 pub extern fn napi_get_value_double(env: Env, value: Value, result: *f64) c_int;
 pub extern fn napi_typeof(env: Env, value: Value, result: *c_int) c_int;
 pub extern fn napi_get_null(env: Env, result: *Value) c_int;
+pub extern fn napi_is_array(env: Env, value: Value, result: *bool) c_int;
 pub extern fn napi_get_array_length(env: Env, value: Value, result: *u32) c_int;
 pub extern fn napi_get_element(env: Env, object: Value, index: u32, result: *Value) c_int;
 pub extern fn napi_create_external_buffer(env: Env, length: usize, data: ?*anyopaque, finalize_cb: Finalize, finalize_hint: ?*anyopaque, result: *Value) c_int;

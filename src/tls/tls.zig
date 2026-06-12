@@ -73,6 +73,49 @@ pub fn setServerAlpn(wire: []const u8) void {
 const ClientAuth = @typeInfo(@FieldType(lib.config.Server, "client_auth")).optional.child;
 var g_client_auth: ?ClientAuth = null;
 
+// SNI virtual-host certificates: a host name -> cert/key, picked by the client's requested name.
+// All must use the same key algorithm as the default g_auth (the signature scheme is fixed before
+// the name is known). Matched case-insensitively: exact first, then a leading "*." wildcard.
+const max_sni_certs = 8;
+const SniCert = struct {
+    name: [128]u8 = undefined,
+    name_len: usize = 0,
+    auth: lib.config.CertKeyPair,
+};
+var g_sni: [max_sni_certs]SniCert = undefined;
+var g_sni_count: usize = 0;
+
+fn sniHostMatch(pattern: []const u8, host: []const u8) bool {
+    if (std.ascii.eqlIgnoreCase(pattern, host)) return true;
+    if (pattern.len > 2 and pattern[0] == '*' and pattern[1] == '.') {
+        const suffix = pattern[1..]; // ".domain.tld"
+        const dot = std.mem.indexOfScalar(u8, host, '.') orelse return false;
+        return std.ascii.eqlIgnoreCase(host[dot..], suffix);
+    }
+    return false;
+}
+
+fn sniSelect(server_name: []const u8) ?*lib.config.CertKeyPair {
+    if (server_name.len == 0) return null;
+    for (g_sni[0..g_sni_count]) |*c| {
+        if (sniHostMatch(c.name[0..c.name_len], server_name)) return &c.auth;
+    }
+    return null;
+}
+
+/// Add a virtual-host certificate selected by `servername` (an exact host or a "*." wildcard).
+/// Call after init(); freed by deinit(). False on a parse failure, a bad name, or when full.
+pub fn addSniCert(gpa: std.mem.Allocator, servername: []const u8, cert_pem: []const u8, key_pem: []const u8) bool {
+    if (g_sni_count >= g_sni.len or servername.len == 0 or servername.len > 128) return false;
+    const kp = parseCertKey(gpa, cert_pem, key_pem) orelse return false;
+    const c = &g_sni[g_sni_count];
+    @memcpy(c.name[0..servername.len], servername);
+    c.name_len = servername.len;
+    c.auth = kp;
+    g_sni_count += 1;
+    return true;
+}
+
 pub fn enabled() bool {
     return g_enabled;
 }
@@ -83,6 +126,8 @@ pub fn enabled() bool {
 pub fn deinit(gpa: std.mem.Allocator) void {
     if (!g_enabled) return;
     g_auth.deinit(gpa);
+    for (g_sni[0..g_sni_count]) |*c| c.auth.deinit(gpa);
+    g_sni_count = 0;
     if (g_client_auth) |*c| c.root_ca.deinit(gpa);
     g_client_auth = null;
     g_enabled = false;
@@ -142,6 +187,7 @@ fn serverOptions(now_sec: i64) lib.config.Server {
         .client_auth = g_client_auth,
         .cipher_suites = lib.config.cipher_suites.secure,
         .alpn_protocols = if (g_alpn.len > 0) g_alpn else if (g_offer_h2) alpn_h2 else alpn_h1,
+        .cert_selector = if (g_sni_count > 0) &sniSelect else null,
         // real wall-clock time: client_auth verifies the client cert's validity window
         // against this, so .zero (1970) would reject every in-date cert. The caller passes
         // the current time at accept. Harmless without client_auth (the server signs, not verifies).
@@ -257,6 +303,15 @@ pub fn peerCertificate(st: *State) ?[]const u8 {
 pub fn alpnProtocol(st: *State) ?[]const u8 {
     if (!st.established) return null;
     return hsAlpn(st);
+}
+
+/// The host name the peer requested via SNI on a server connection (for virtual-host routing), or
+/// null. Always null on a client connection. The slice lives as long as the State.
+pub fn serverName(st: *State) ?[]const u8 {
+    return switch (st.handshake) {
+        .server => |*s| s.serverName(),
+        .client => null,
+    };
 }
 
 var pool: std.heap.MemoryPool(State) = .empty;

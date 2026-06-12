@@ -316,8 +316,31 @@ fn setupTls(e: napi.Env, options: napi.Value) bool {
     };
     // optional ALPN list the server offers (wire format); empty falls back to the HTTP defaults.
     tlsmod.setServerAlpn(readBufferProp(e, options, "tlsAlpn") orelse &.{});
+    setupSniCerts(e, options); // optional SNI virtual-host certificates
     tls_enabled = true;
     return true;
+}
+
+// read the optional `tlsSni` array of { servername, cert, key } and register each as a virtual-host
+// certificate. Skips malformed entries; the default cert still covers any unmatched host name.
+fn setupSniCerts(e: napi.Env, options: napi.Value) void {
+    var sni: napi.Value = undefined;
+    _ = napi.napi_get_named_property(e, options, "tlsSni", &sni);
+    var is_array: bool = false;
+    _ = napi.napi_is_array(e, sni, &is_array);
+    if (!is_array) return;
+    var len: u32 = 0;
+    _ = napi.napi_get_array_length(e, sni, &len);
+    var i: u32 = 0;
+    while (i < len) : (i += 1) {
+        var entry: napi.Value = undefined;
+        if (napi.napi_get_element(e, sni, i, &entry) != napi.ok) continue;
+        var name_buf: [128]u8 = undefined;
+        const name_len = optString(e, entry, "servername", &name_buf) orelse continue;
+        const cert_pem = readBufferProp(e, entry, "cert") orelse continue;
+        const key_pem = readBufferProp(e, entry, "key") orelse continue;
+        _ = tlsmod.addSniCert(alloc, name_buf[0..name_len], cert_pem, key_pem);
+    }
 }
 
 // null when absent or empty — an empty buffer is treated as not-present.
@@ -818,6 +841,22 @@ pub fn alpnProtocol(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Valu
     const protocol = tlsmod.alpnProtocol(st) orelse return undefinedValue();
     var result: napi.Value = undefined;
     _ = napi.napi_create_string_utf8(e, protocol.ptr, protocol.len, &result);
+    return result;
+}
+
+// tcpServerName(id) -> string | undefined. The host name a server connection's client requested via
+// SNI (for virtual-host routing); undefined on plaintext / not established / no SNI / a client conn.
+pub fn serverName(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 1;
+    var argv: [1]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return undefinedValue();
+    const st = conn.tls orelse return undefinedValue();
+    const name = tlsmod.serverName(st) orelse return undefinedValue();
+    var result: napi.Value = undefined;
+    _ = napi.napi_create_string_utf8(e, name.ptr, name.len, &result);
     return result;
 }
 
