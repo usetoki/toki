@@ -37,6 +37,22 @@ already encrypted.
 | SNI `SNICallback`                         | `tls: { sni: [{ servername, cert, key }] }` (declarative; `*.` wildcards)        |
 | `server.setSecureContext()`               | `server.setTls({ cert, key, … })` (hot-reload; live sessions keep their context) |
 
+### Server lifecycle & limits
+
+These have no direct `node:net` analogue — they're configured on `createTcpServer`'s
+options or called on the server:
+
+| API | What it does |
+| --- | --- |
+| `server.stopAccepting()` | Stop accepting new connections; existing ones keep running (then `end` them and `close()`). |
+| `maxConnections` | Reset a new accept past the cap (counts pre-handshake connections). |
+| `keepAlive` / `keepAliveDelaySecs` | `SO_KEEPALIVE` on accepted sockets. |
+| `idleTimeoutMs` | Close a connection with no read/write activity (a ~1s sweep). |
+| `handshakeTimeoutMs` | Close a TLS connection whose handshake never establishes (reason `handshake-timeout`). |
+| `maxWriteQueue` | Per-connection unflushed-write ceiling; a peer past it is dropped (reason `write-queue-overflow`). |
+| `rateLimit: { max, windowMs }` | Native per-IP accept guard, enforced before the handshake. |
+| `ipv6Only` | Bind IPv6-only (no dual-stack v4-mapped accepts). |
+
 ## Connection: `net.Socket` / `tls.TLSSocket` → `TcpSocket`
 
 | `node:net` socket                                 | toki `TcpSocket`                                                          |
