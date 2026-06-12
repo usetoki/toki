@@ -448,28 +448,28 @@ class Socket implements TcpSocket {
   // server's configured certificate is used; on a connectTcp client socket, `options` provide the
   // servername/ca/cert/key/alpn. Resolves once the handshake establishes; rejects if it fails.
   upgradeTLS(options?: TlsUpgradeOptions): Promise<void> {
+    // a misuse — upgrading twice, or upgrading a socket that is already TLS / gone — is a
+    // programming error, so it throws synchronously rather than producing a rejected promise.
+    if (this.#upgradeResolve) {
+      throw new Error("toki: an upgradeTLS is already in progress on this socket");
+    }
+    const o: TcpOptions = {};
+    if (options) {
+      if (options.servername !== undefined) o.tlsServerName = options.servername;
+      if (options.ca !== undefined) o.tlsCa = toPem(options.ca);
+      if (options.cert !== undefined) o.tlsCert = toPem(options.cert);
+      if (options.key !== undefined) o.tlsKey = toPem(options.key);
+      if (options.alpn !== undefined) o.tlsAlpn = encodeAlpn(options.alpn);
+      if (options.rejectUnauthorized === false) o.tlsInsecure = true;
+    }
+    // native starts the handshake here and returns false for an already-TLS, gone, or
+    // certificate-less socket — that's a synchronous misuse too, so it throws.
+    if (!native.tcpUpgradeTls(this.#id, o)) {
+      throw new Error(
+        "toki: upgradeTLS could not start (connection gone, already TLS, or no server certificate)",
+      );
+    }
     return new Promise((resolve, reject) => {
-      if (this.#upgradeResolve) {
-        reject(new Error("toki: an upgradeTLS is already in progress on this socket"));
-        return;
-      }
-      const o: TcpOptions = {};
-      if (options) {
-        if (options.servername !== undefined) o.tlsServerName = options.servername;
-        if (options.ca !== undefined) o.tlsCa = toPem(options.ca);
-        if (options.cert !== undefined) o.tlsCert = toPem(options.cert);
-        if (options.key !== undefined) o.tlsKey = toPem(options.key);
-        if (options.alpn !== undefined) o.tlsAlpn = encodeAlpn(options.alpn);
-        if (options.rejectUnauthorized === false) o.tlsInsecure = true;
-      }
-      if (!native.tcpUpgradeTls(this.#id, o)) {
-        reject(
-          new Error(
-            "toki: upgradeTLS could not start (connection gone, already TLS, or no server certificate)",
-          ),
-        );
-        return;
-      }
       this.#upgradeResolve = resolve;
       this.#upgradeReject = reject;
     });

@@ -336,8 +336,10 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         }
 
         tls_enabled = false;
-        start_tls = false;
         if (!setupTls(e, argv[2])) return uintValue(e, 0); // bad cert/key → threw
+        // STARTTLS is a server mode, not part of the TLS config — set it at listen so a later
+        // setTls() (a cert hot-reload) preserves it rather than reverting to terminate-at-accept.
+        start_tls = optBool(e, argv[2], "startTls");
     }
 
     const srv = opaqueOf(&servers[server_count]);
@@ -399,8 +401,6 @@ fn setupTls(e: napi.Env, options: napi.Value) bool {
     // optional ALPN list the server offers (wire format); empty falls back to the HTTP defaults.
     tlsmod.setServerAlpn(readBufferProp(e, options, "tlsAlpn") orelse &.{});
     setupSniCerts(e, options); // optional SNI virtual-host certificates
-    // STARTTLS: keep the config ready but don't terminate TLS at accept — the handler upgrades.
-    start_tls = optBool(e, options, "startTls");
     tls_enabled = true;
     return true;
 }
