@@ -41,6 +41,10 @@ export interface TcpSocket {
   pause(): this;
   /** Resume reading after {@link pause}. */
   resume(): this;
+  /** STARTTLS: upgrade this plaintext connection to TLS in place. Resolves once the handshake
+   *  establishes — then {@link alpnProtocol}, {@link peerCertificate}, {@link authorized}, and
+   *  {@link servername} apply — and rejects if it fails. */
+  upgradeTLS(options?: TlsUpgradeOptions): Promise<void>;
   /** TLS only: derive `length` bytes of keying material bound to this session (RFC 8446 §7.5;
    *  RFC 9266 `tls-exporter` channel binding) from `label` and an optional `context`. Both peers
    *  derive identical bytes. `undefined` on a plaintext connection. */
@@ -51,8 +55,13 @@ export interface TcpSocket {
   peerCertificate(): Buffer | undefined;
   on(event: "data", listener: (chunk: Buffer) => void): this;
   on(event: "close", listener: (reason: CloseReason) => void): this;
-  on(event: "drain" | "end", listener: () => void): this;
-  off(event: "data" | "drain" | "end" | "close", listener: (...args: never[]) => void): this;
+  /** `secure` fires synchronously when a STARTTLS {@link upgradeTLS} handshake establishes — before
+   *  any post-upgrade `data` — so a handler can flip its state in time. `drain`/`end` as usual. */
+  on(event: "drain" | "end" | "secure", listener: () => void): this;
+  off(
+    event: "data" | "drain" | "end" | "close" | "secure",
+    listener: (...args: never[]) => void,
+  ): this;
 }
 
 /** Options for {@link createTcpServer}. */
@@ -141,6 +150,24 @@ export class TcpConnectError extends Error {
   }
 }
 
+/** TLS options for {@link TcpSocket.upgradeTLS} (STARTTLS). On a server socket the server's
+ *  configured certificate is used and these are ignored; on a client socket they configure the
+ *  handshake, like {@link connectTcp}'s `tls`. */
+export interface TlsUpgradeOptions {
+  /** SNI sent and the name the server certificate is verified against (client side) */
+  servername?: string;
+  /** PEM CA bundle to trust instead of the system roots (client side) */
+  ca?: string | Uint8Array;
+  /** PEM client-certificate chain for mutual TLS (client side, with `key`) */
+  cert?: string | Uint8Array;
+  /** PEM private key for the client `cert` */
+  key?: string | Uint8Array;
+  /** verify the server certificate; `false` accepts any cert (unsafe; client side) */
+  rejectUnauthorized?: boolean;
+  /** ALPN protocols to offer */
+  alpn?: string[];
+}
+
 /** Options for {@link connectTcp}. */
 export interface TcpConnectOptions {
   /** Nagle's algorithm; default off (low latency), like the server. */
@@ -176,7 +203,7 @@ export interface TcpConnectOptions {
 }
 
 // event tags from the native dispatcher, matched in src/net/tcp.zig
-const Ev = { Connection: 0, Data: 1, Drain: 2, Close: 3, End: 4 } as const;
+const Ev = { Connection: 0, Data: 1, Drain: 2, Close: 3, End: 4, Secure: 5 } as const;
 type Ev = (typeof Ev)[keyof typeof Ev];
 
 // close-reason codes from the native dispatcher (ev_close arg), indexed by the code.
@@ -300,7 +327,7 @@ class Socket implements TcpSocket {
   readonly #id: number;
   readonly #allowHalfOpen: boolean;
   readonly #backend: TcpBackend;
-  #peer?: RemoteInfo; // peer address, fetched from native on first access then cached
+  #peer: RemoteInfo | undefined = undefined; // peer address, fetched from native on first access then cached
   #ended = false; // we've ended our write side
   #readEnded = false; // peer half-closed
   #needDrain = false; // a write is backed up; a drain is pending
@@ -309,10 +336,14 @@ class Socket implements TcpSocket {
   #alpnProtocol: string | undefined = undefined;
   #servernameFetched = false;
   #servername: string | undefined = undefined;
+  // a pending STARTTLS upgrade, settled by ev_secure / ev_close
+  #upgradeResolve: (() => void) | undefined = undefined;
+  #upgradeReject: ((err: Error) => void) | undefined = undefined;
   #data: Array<(chunk: Buffer) => void> = [];
   #drain: Array<() => void> = [];
   #end: Array<() => void> = [];
   #close: Array<() => void> = [];
+  #secure: Array<() => void> = [];
 
   constructor(id: number, allowHalfOpen: boolean, backend: TcpBackend) {
     this.#id = id;
@@ -394,6 +425,37 @@ class Socket implements TcpSocket {
     return this;
   }
 
+  // STARTTLS: begin a TLS handshake over this (plaintext) connection. On a server socket the
+  // server's configured certificate is used; on a connectTcp client socket, `options` provide the
+  // servername/ca/cert/key/alpn. Resolves once the handshake establishes; rejects if it fails.
+  upgradeTLS(options?: TlsUpgradeOptions): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.#upgradeResolve) {
+        reject(new Error("toki: an upgradeTLS is already in progress on this socket"));
+        return;
+      }
+      const o: TcpOptions = {};
+      if (options) {
+        if (options.servername !== undefined) o.tlsServerName = options.servername;
+        if (options.ca !== undefined) o.tlsCa = toPem(options.ca);
+        if (options.cert !== undefined) o.tlsCert = toPem(options.cert);
+        if (options.key !== undefined) o.tlsKey = toPem(options.key);
+        if (options.alpn !== undefined) o.tlsAlpn = encodeAlpn(options.alpn);
+        if (options.rejectUnauthorized === false) o.tlsInsecure = true;
+      }
+      if (!native.tcpUpgradeTls(this.#id, o)) {
+        reject(
+          new Error(
+            "toki: upgradeTLS could not start (connection gone, already TLS, or no server certificate)",
+          ),
+        );
+        return;
+      }
+      this.#upgradeResolve = resolve;
+      this.#upgradeReject = reject;
+    });
+  }
+
   // TLS sockets always run on the libuv engine, so the exporter is read straight from native
   // (a plaintext / io_uring id isn't in that connection table and simply yields undefined).
   exportKeyingMaterial(length: number, label: string, context?: Uint8Array): Buffer | undefined {
@@ -406,13 +468,16 @@ class Socket implements TcpSocket {
 
   on(event: "data", listener: (chunk: Buffer) => void): this;
   on(event: "close", listener: (reason: CloseReason) => void): this;
-  on(event: "drain" | "end", listener: () => void): this;
+  on(event: "drain" | "end" | "secure", listener: () => void): this;
   on(event: string, listener: (...args: never[]) => void): this {
     this.#bucket(event).push(listener as never);
     return this;
   }
 
-  off(event: "data" | "drain" | "end" | "close", listener: (...args: never[]) => void): this {
+  off(
+    event: "data" | "drain" | "end" | "close" | "secure",
+    listener: (...args: never[]) => void,
+  ): this {
     const bucket = this.#bucket(event);
     const i = bucket.indexOf(listener as never);
     if (i !== -1) bucket.splice(i, 1);
@@ -424,6 +489,7 @@ class Socket implements TcpSocket {
     if (event === "drain") return this.#drain as Array<(...args: never[]) => void>;
     if (event === "end") return this.#end as Array<(...args: never[]) => void>;
     if (event === "close") return this.#close as Array<(...args: never[]) => void>;
+    if (event === "secure") return this.#secure as Array<(...args: never[]) => void>;
     return [];
   }
 
@@ -447,8 +513,28 @@ class Socket implements TcpSocket {
     for (const fn of this.#end) fn();
     this.#maybeAutoEnd();
   }
+  // STARTTLS upgrade established: the connection is now TLS, so the cached peer/ALPN/servername
+  // (read as plaintext) are stale — drop them — and settle the pending upgrade.
+  /** @internal */ emitSecure(): void {
+    this.#peer = undefined;
+    this.#alpnFetched = false;
+    this.#servernameFetched = false;
+    // fire the 'secure' listeners SYNCHRONOUSLY (before any post-handshake 'data'), so a handler
+    // can flip its own state in time. The promise resolves on a microtask, which can land after a
+    // coalesced first data chunk — the event does not.
+    for (const fn of this.#secure) fn();
+    const resolve = this.#upgradeResolve;
+    this.#upgradeResolve = undefined;
+    this.#upgradeReject = undefined;
+    resolve?.();
+  }
   /** @internal */ emitClose(reason: CloseReason): void {
     this.#closeReason = reason;
+    // a connection that closed mid-upgrade fails the upgrade promise.
+    const reject = this.#upgradeReject;
+    this.#upgradeResolve = undefined;
+    this.#upgradeReject = undefined;
+    reject?.(new Error(`toki: upgradeTLS failed — the connection closed (${reason})`));
     for (const fn of this.#close as Array<(r: CloseReason) => void>) fn(reason);
   }
 }
@@ -507,6 +593,9 @@ const dispatch = (id: number, event: Ev, arg: Uint8Array | undefined): void => {
       return;
     case Ev.End:
       sockets.get(id)?.emitEnd();
+      return;
+    case Ev.Secure:
+      sockets.get(id)?.emitSecure();
       return;
     case Ev.Close: {
       const code = (arg as unknown as number) ?? 0;

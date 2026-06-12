@@ -21,6 +21,7 @@ const ev_data: u32 = 1;
 const ev_drain: u32 = 2;
 const ev_close: u32 = 3;
 const ev_end: u32 = 4; // peer half-closed (FIN): our read side ended, write side still open
+const ev_secure: u32 = 5; // a STARTTLS upgrade's handshake established on an existing connection
 
 // reason carried on ev_close (the arg slot), so JS can tell apart a clean close from an
 // abnormal one. Matched in ts/net/tcp.ts.
@@ -83,6 +84,9 @@ const Conn = struct {
     // on a TLS conn, ev_connection is held back until the handshake completes, so the JS
     // handler's first write is already over an established session (Node's 'secureConnection').
     tls_announced: bool,
+    // a STARTTLS upgrade is in flight on this (formerly plaintext) connection: its handshake
+    // completion fires ev_secure on the existing socket, not a fresh ev_connection.
+    upgrading: bool,
     // why the connection closed, reported to JS on ev_close. Set once at the first close
     // request; defaults to a clean close.
     close_reason: u32,
@@ -161,6 +165,9 @@ var sweep_active = false;
 // set at listen() when a cert/key pair is supplied; the TLS config is process-global
 // (one server per process), same as the HTTPS path.
 var tls_enabled = false;
+// STARTTLS: TLS is configured but connections start plaintext; the handler upgrades on demand
+// via upgradeTLS() rather than the engine terminating TLS automatically at accept.
+var start_tls = false;
 
 // per-IP accept guard, checked before any TLS state exists — a flood gets reset without
 // ever costing a handshake or a JS dispatch. Off (max == 0) unless listen options say so.
@@ -315,6 +322,7 @@ pub fn listen(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     }
 
     tls_enabled = false;
+    start_tls = false;
     if (!setupTls(e, argv[2])) return uintValue(e, 0); // bad cert/key → threw
 
     _ = uv.uv_tcp_init(loop.?, opaqueOf(&server));
@@ -374,6 +382,8 @@ fn setupTls(e: napi.Env, options: napi.Value) bool {
     // optional ALPN list the server offers (wire format); empty falls back to the HTTP defaults.
     tlsmod.setServerAlpn(readBufferProp(e, options, "tlsAlpn") orelse &.{});
     setupSniCerts(e, options); // optional SNI virtual-host certificates
+    // STARTTLS: keep the config ready but don't terminate TLS at accept — the handler upgrades.
+    start_tls = optBool(e, options, "startTls");
     tls_enabled = true;
     return true;
 }
@@ -430,6 +440,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         .rejected = false,
         .tls = null,
         .tls_announced = false,
+        .upgrading = false,
         .close_reason = reason_normal,
         .connect = null,
         .is_client = false,
@@ -479,7 +490,7 @@ fn onConnection(srv: *anyopaque, status: c_int) callconv(.c) void {
         closeConn(conn, reason_normal);
         return;
     };
-    if (tls_enabled) {
+    if (tls_enabled and !start_tls) {
         conn.tls = tlsmod.newState(alloc, wallClockSeconds()) orelse {
             closeConn(conn, reason_normal);
             return;
@@ -556,6 +567,7 @@ pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
         .rejected = false,
         .tls = null,
         .tls_announced = false,
+        .upgrading = false,
         .close_reason = reason_normal,
         .connect = null,
         .is_client = true,
@@ -982,6 +994,63 @@ pub fn setTls(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     return out;
 }
 
+fn boolValue(e: napi.Env, v: bool) napi.Value {
+    var out: napi.Value = undefined;
+    _ = napi.napi_get_boolean(e, v, &out);
+    return out;
+}
+
+// tcpUpgradeTls(id, options) -> bool. STARTTLS: start a TLS handshake over an existing plaintext
+// connection. A server connection uses the server's configured certificate; a client connection
+// uses the options (tlsServerName/tlsCa/tlsCert/tlsKey/tlsAlpn/tlsInsecure) and sends the ClientHello.
+// ev_secure fires when the handshake establishes; a failure closes the connection (ev_close).
+pub fn upgradeTls(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
+    var argc: usize = 2;
+    var argv: [2]napi.Value = undefined;
+    _ = napi.napi_get_cb_info(e, info, &argc, &argv, null, null);
+    var id: u32 = 0;
+    _ = napi.napi_get_value_uint32(e, argv[0], &id);
+    const conn = conns.get(id) orelse return boolValue(e, false);
+    if (conn.tls != null or conn.closing or conn.shutting) return boolValue(e, false);
+
+    if (conn.is_client) {
+        var sni: [256]u8 = .{0} ** 256;
+        var sni_len: usize = 0;
+        if (optString(e, argv[1], "tlsServerName", &sni)) |n| sni_len = n;
+        conn.tls = tlsmod.newClientState(alloc, wallClockSeconds(), .{
+            .host = sni[0..sni_len],
+            .ca_pem = readBufferProp(e, argv[1], "tlsCa"),
+            .insecure = optBool(e, argv[1], "tlsInsecure"),
+            .cert_pem = readBufferProp(e, argv[1], "tlsCert"),
+            .key_pem = readBufferProp(e, argv[1], "tlsKey"),
+            .alpn_wire = readBufferProp(e, argv[1], "tlsAlpn") orelse &.{},
+        }) orelse return boolValue(e, false);
+    } else {
+        if (!tlsmod.enabled()) return boolValue(e, false);
+        conn.tls = tlsmod.newState(alloc, wallClockSeconds()) orelse return boolValue(e, false);
+    }
+    conn.upgrading = true;
+    conn.created_at = uv.uv_now(loop.?); // the handshake-timeout clock restarts at the upgrade
+
+    // conn.tls is now set, so the next allocBuf already routes reads into the TLS scratch — no need
+    // to restart the read (and doing uv_read_stop/uv_read_start from inside onRead, where upgradeTLS
+    // is typically called, races the in-flight read). Just ensure a read is armed.
+    armRead(conn);
+
+    // a client drives the handshake — emit the ClientHello now.
+    if (conn.is_client) {
+        if (conn.tls) |st| {
+            const h = tlsmod.handshakeBuf(st, &.{}, &tls_out_scratch);
+            if (h.failed) {
+                closeConn(conn, reason_tls_error);
+                return boolValue(e, false);
+            }
+            if (h.send.len > 0) rawWriteAll(conn, h.send);
+        }
+    }
+    return boolValue(e, true);
+}
+
 fn armRead(conn: *Conn) void {
     if (conn.reading or conn.closing or conn.paused) return;
     _ = uv.uv_read_start(opaqueOf(&conn.handle), &allocBuf, &onRead);
@@ -1080,10 +1149,17 @@ fn tlsDrive(conn: *Conn, st: *tlsmod.State, cipher_in: []const u8) void {
         }
         if (!conn.tls_announced) {
             conn.tls_announced = true;
-            // an outbound client connect resolves here (handshake established), cancelling the
-            // connect deadline; a no-op on an accepted server connection.
-            resolveConnect(conn);
-            dispatch(conn.id, ev_connection, undefinedValue());
+            if (conn.upgrading) {
+                // a STARTTLS upgrade: the socket already exists — fire ev_secure on it, not a
+                // fresh ev_connection (which the TS side reads as a new socket).
+                conn.upgrading = false;
+                dispatch(conn.id, ev_secure, undefinedValue());
+            } else {
+                // an outbound client connect resolves here (handshake established), cancelling the
+                // connect deadline; a no-op on an accepted server connection.
+                resolveConnect(conn);
+                dispatch(conn.id, ev_connection, undefinedValue());
+            }
             if (conn.closing) return; // handler may have destroyed it on connect
         }
         // fall through to drain any app records that rode in with the final handshake flight

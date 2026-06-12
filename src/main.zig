@@ -37,6 +37,7 @@ export fn napi_register_module_v1(env: napi.Env, exports: napi.Value) callconv(.
     defineFn(env, exports, "tcpResume", &tcp.resumeRead);
     defineFn(env, exports, "tcpStopAccepting", &tcp.stopAccepting);
     defineFn(env, exports, "tcpSetTls", &tcp.setTls);
+    defineFn(env, exports, "tcpUpgradeTls", &tcp.upgradeTls);
     defineFn(env, exports, "tcpEnd", &tcp.end);
     defineFn(env, exports, "tcpClose", &tcp.closeSocket);
     defineFn(env, exports, "tcpCloseServer", &tcp.closeServer);

@@ -190,6 +190,9 @@ interface Native {
   /** hot-reload the server's TLS config (cert/key, mTLS CA, ALPN, SNI) from the flattened options;
    *  new handshakes use it, established connections keep their session. Throws on a bad cert/key */
   tcpSetTls(options: TcpOptions): boolean;
+  /** STARTTLS: begin a TLS handshake over an existing plaintext connection. Returns false if the
+   *  connection is gone / already TLS / has no usable config. ev_secure fires when it establishes. */
+  tcpUpgradeTls(id: number, options: TcpOptions): boolean;
   /** half-close a TCP connection: flush queued writes, then send FIN */
   tcpEnd(id: number): void;
   /** drop a TCP connection now */
@@ -218,7 +221,7 @@ interface Native {
 }
 
 /** native TCP event tags (match src/net/tcp.zig) */
-export type TcpEvent = 0 | 1 | 2 | 3 | 4; // connection | data | drain | close | end
+export type TcpEvent = 0 | 1 | 2 | 3 | 4 | 5; // connection | data | drain | close | end | secure
 /** TCP lifecycle callback. `arg` is a buffer on data, a close-reason code (number) on close,
  *  else undefined (peer info is fetched lazily via {@link Native.tcpPeer}). */
 export type TcpDispatch = (
@@ -256,6 +259,9 @@ export interface TcpOptions {
   idleTimeoutMs?: number;
   /** close a TLS connection whose handshake hasn't established within this many ms. Default 0 (off) */
   handshakeTimeoutMs?: number;
+  /** STARTTLS: keep the `tls` config ready but start connections plaintext; the handler upgrades
+   *  on demand with `socket.upgradeTLS()` */
+  startTls?: boolean;
   /** per-connection send-backlog ceiling in bytes; a connection that exceeds it (a
    *  non-reading peer plus a producer ignoring backpressure) is dropped. Default 16 MiB. */
   maxWriteQueue?: number;
