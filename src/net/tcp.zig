@@ -596,6 +596,10 @@ pub fn connect(e: napi.Env, info: napi.CallbackInfo) callconv(.c) napi.Value {
     };
     _ = uv.uv_tcp_init(loop.?, opaqueOf(&conn.handle));
     if (optBoolDefault(e, argv[2], "noDelay", true)) _ = uv.uv_tcp_nodelay(opaqueOf(&conn.handle), 1);
+    if (optBool(e, argv[2], "keepAlive")) {
+        const delay: c_uint = if (optInt(e, argv[2], "keepAliveDelaySecs")) |v| (if (v > 0) @intCast(v) else 0) else 0;
+        _ = uv.uv_tcp_keepalive(opaqueOf(&conn.handle), 1, delay);
+    }
     addConn(conn);
     conns.put(alloc, conn.id, conn) catch {
         closeConn(conn, reason_connect_refused);
@@ -1135,6 +1139,9 @@ fn onRead(stream: *anyopaque, nread: isize, buf: *const uv.Buf) callconv(.c) voi
         // peer half-closed (FIN/RST): the read side is done, but the write side stays open
         // so any in-flight or about-to-be-written response still flushes. Tell JS the read
         // ended; the TS layer ends the write side (default) or the app does it explicitly.
+        // (A bare-TCP reset is indistinguishable from a clean FIN on some platforms — a
+        // simultaneous close reports ECONNRESET even for a graceful end — so a plaintext close
+        // reads as a normal half-close; only a TLS truncation surfaces as peer-reset above.)
         if (conn.read_ended) return;
         conn.read_ended = true;
         if (conn.reading) {

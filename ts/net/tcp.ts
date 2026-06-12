@@ -180,6 +180,10 @@ export interface TlsUpgradeOptions {
 export interface TcpConnectOptions {
   /** Nagle's algorithm; default off (low latency), like the server. */
   noDelay?: boolean;
+  /** `SO_KEEPALIVE` on the socket — useful for a long-lived outbound link (e.g. s2s). */
+  keepAlive?: boolean;
+  /** With `keepAlive`, the idle delay in seconds before the first probe. */
+  keepAliveDelaySecs?: number;
   /** Fail the connect (and TLS handshake) if it hasn't completed within this many ms. */
   timeoutMs?: number;
   /** Keep the read side open after we half-close. Default `false` (Node `net` behaviour). */
@@ -700,6 +704,8 @@ export function createTcpServer(
 function flattenConnect(options: TcpConnectOptions): TcpOptions {
   const o: TcpOptions = {};
   if (options.noDelay !== undefined) o.noDelay = options.noDelay;
+  if (options.keepAlive !== undefined) o.keepAlive = options.keepAlive;
+  if (options.keepAliveDelaySecs !== undefined) o.keepAliveDelaySecs = options.keepAliveDelaySecs;
   if (options.timeoutMs !== undefined) o.timeoutMs = options.timeoutMs;
   if (options.tls) {
     o.tlsClient = true;
