@@ -2,6 +2,39 @@
 
 Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://semver.org/).
 
+## [0.9.1] - 2026-06-12
+
+### Security
+
+- Mutual-TLS chain validation now requires a certificate presented as a chain issuer to be a CA
+  (`basicConstraints cA=TRUE`, RFC 5280 §6.1.4). Previously a holder of any CA-signed leaf could
+  present `[forged-leaf, their-own-leaf]` and have their own non-CA leaf accepted as the issuer of
+  a forged identity — a client-identity spoof under mTLS.
+- `socket.exportKeyingMaterial` rejects an empty or over-249-byte label (it would overflow the
+  single-byte HkdfLabel length prefix — a reachable abort in a safety build, a wrong/non-interoperable
+  export in release).
+- A v4-mapped IPv6 peer (`::ffff:a.b.c.d`) shares one per-IP rate-limit bucket with its native IPv4
+  form, so a dual-stack listener can't be evaded by switching address form.
+
+### Fixed
+
+- A raw TLS server with no `tls.alpn` now sends no ALPN extension, instead of defaulting to
+  `http/1.1` (RFC 7301) — correct for a non-HTTP port.
+- An SNI virtual-host certificate whose key algorithm differs from the default is rejected at
+  registration rather than failing every handshake (the signature scheme is fixed before SNI).
+- `socket.upgradeTLS()` throws synchronously when misused (called twice, or on an already-TLS
+  socket) instead of returning a rejected promise.
+- `server.setTls()` (certificate hot-reload) no longer reverts a STARTTLS server to
+  terminate-at-accept — `startTls` is preserved across the swap.
+
+### Added
+
+- `keepAlive` / `keepAliveDelaySecs` on `connectTcp` (previously server-only), for long-lived
+  outbound links.
+- The TCP reference documentation now covers the full TLS peer surface (connectTcp, STARTTLS, SNI,
+  ALPN, peer certificate, channel binding, several listeners, lifecycle), and the peer example adds
+  SNI, backpressure, certificate hot-reload, and graceful-shutdown demonstrations.
+
 ## [0.9.0] - 2026-06-12
 
 The raw TCP/TLS layer becomes a full TLS **peer** engine, not just a server-accept
