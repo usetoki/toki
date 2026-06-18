@@ -1,7 +1,7 @@
 {
   "name": "@usetoki/toki",
   "version": "0.9.1",
-  "description": "A blazing-fast HTTP framework for Node.js with a native engine written in Zig.",
+  "description": "A blazing-fast network framework for Node.js — HTTP/1.1 & HTTP/2, WebSockets, raw TCP/UDP, and TLS — with a native engine written in Zig.",
   "license": "MIT",
   "author": "Mohammad Almoghrabi <deounix@gmail.com>",
   "repository": {
@@ -20,7 +20,13 @@
     "zig",
     "napi",
     "native",
-    "fast"
+    "fast",
+    "tcp",
+    "udp",
+    "tls",
+    "websocket",
+    "network",
+    "socket"
   ],
   "type": "module",
   "main": "dist/index.js",
@@ -57,15 +63,15 @@
   "optionalDependencies": {
     "@usetoki/toki-darwin-arm64": "0.3.0",
     "@usetoki/toki-darwin-x64": "0.3.0",
-    "@usetoki/toki-linux-x64-gnu": "0.3.0",
-    "@usetoki/toki-linux-arm64-gnu": "0.3.0",
-    "@usetoki/toki-linux-x64-musl": "0.3.0",
-    "@usetoki/toki-linux-arm64-musl": "0.3.0",
+    "@usetoki/toki-freebsd-x64": "0.3.0",
     "@usetoki/toki-linux-arm-gnueabihf": "0.3.0",
-    "@usetoki/toki-win32-x64-msvc": "0.3.0",
+    "@usetoki/toki-linux-arm64-gnu": "0.3.0",
+    "@usetoki/toki-linux-arm64-musl": "0.3.0",
+    "@usetoki/toki-linux-x64-gnu": "0.3.0",
+    "@usetoki/toki-linux-x64-musl": "0.3.0",
     "@usetoki/toki-win32-arm64-msvc": "0.3.0",
     "@usetoki/toki-win32-ia32-msvc": "0.3.0",
-    "@usetoki/toki-freebsd-x64": "0.3.0"
+    "@usetoki/toki-win32-x64-msvc": "0.3.0"
   },
   "devDependencies": {
     "@types/node": "^24",

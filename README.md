@@ -3,7 +3,11 @@
 </p>
 
 <p align="center">
-  <strong>A blazing-fast HTTP framework for Node.js.</strong> ⚡
+  <strong>A blazing-fast network framework for Node.js.</strong> ⚡
+</p>
+
+<p align="center">
+  HTTP/1.1 &amp; HTTP/2 · WebSockets · raw TCP &amp; UDP · TLS 1.3
 </p>
 
 <p align="center">
@@ -11,8 +15,8 @@
 </p>
 
 <p align="center">
-  A clean, fully-typed TypeScript API on top of a native HTTP engine written in
-  <strong>Zig</strong>. Parsing, routing, static files, and compression run in native
+  A clean, fully-typed TypeScript API on top of a native engine written in
+  <strong>Zig</strong>. HTTP, WebSockets, raw TCP/UDP, and the TLS handshake run in native
   code; your handlers stay in JavaScript.
 </p>
 
@@ -34,7 +38,7 @@ console.log("listening on http://127.0.0.1:3000");
 
 ## ✨ Why Toki
 
-- ⚡ **Native engine** — HTTP/1.1 parsing, routing, and I/O run in Zig, on Node's own loop.
+- ⚡ **Native engine** — the whole network stack runs in Zig on Node's own loop: HTTP parsing &amp; routing, WebSocket framing, raw socket I/O, and the TLS handshake.
 - 🪶 **Tiny footprint** — a single-thread server in ~49 MB, ~2× leaner than `node:http`.
 - 🧩 **Fully typed** — strict TypeScript, no `any`, real editor autocompletion.
 - 🔌 **Batteries included** — routing, hooks, middleware, route groups, plugins, cookies, CORS, security headers, logging, `req.id` / `req.ip`.
@@ -45,6 +49,8 @@ console.log("listening on http://127.0.0.1:3000");
 - 🔭 **WebSockets** — full RFC 6455 in native code: framing, masking, fragmentation, ping/pong, close codes, subprotocols, and a per-IP message-size guard.
 - 🔀 **HTTP/2** — optional native h2 (ALPN over TLS, or h2c) with stream multiplexing, flow control, and HPACK; same handlers as HTTP/1.1.
 - 🔒 **Direct HTTPS** — terminate TLS 1.2/1.3 in the native engine (AEAD ciphers, ALPN, SNI; RSA + EC keys), no reverse proxy required.
+- 🔌 **Raw TCP & UDP** — native socket servers (plus an outbound `connectTcp` client) on the same loop: TLS termination, STARTTLS upgrade, SNI/ALPN, mutual TLS, channel binding, pooled connections, real backpressure — and an optional Linux io_uring engine.
+- 📡 **UDP** — datagram servers with an optional per-packet AES-256-GCM or Noise-XX secure layer (mutual auth, forward secrecy, replay protection).
 - 🛡️ **Hardened** — schema validation, JWT, a native per-IP rate limiter, slowloris guard, configurable limits.
 - 🧪 **Testable** — `app.inject()` runs a real request in-process, no port needed.
 
@@ -360,9 +366,22 @@ streaming, and graceful shutdown.
 
 ## Scope
 
-Toki speaks HTTP/1.1, with optional direct TLS (HTTPS) termination in the engine.
-HTTP/2 is intentionally out of scope — put it behind a reverse proxy (nginx, Caddy) if
-you need it.
+Toki is a network framework, not only an HTTP one. The native engine covers, in one
+package and on a single libuv loop:
+
+- **HTTP/1.1 and HTTP/2** — routing, hooks, plugins, body parsing, static files,
+  compression, streaming/SSE.
+- **WebSockets** — full RFC 6455 in native code.
+- **Raw TCP** — `createTcpServer` + outbound `connectTcp`, with direct TLS 1.3 or
+  in-place STARTTLS, SNI/ALPN, mutual TLS, channel binding, and an optional Linux
+  io_uring backend.
+- **UDP** — `createUdpServer`, with an optional per-datagram AES-256-GCM or Noise-XX
+  secure layer.
+- **TLS 1.2/1.3** — terminated in the engine for HTTPS and raw TCP alike, no reverse
+  proxy required (no TLS session resumption yet).
+
+Build an HTTP API, a WebSocket service, or your own wire protocol (XMPP, SMTP, a binary
+RPC, a game server) on the same engine.
 
 ## License
 

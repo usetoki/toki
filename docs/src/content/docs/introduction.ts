@@ -7,7 +7,7 @@ export const introductionPage: DocPage = {
   blocks: [
     {
       kind: "paragraph",
-      text: "Toki is a blazing-fast HTTP framework for Node.js. It pairs a clean, fully-typed TypeScript API with a native HTTP engine written in [Zig](https://ziglang.org). Parsing, routing, static files, and compression run in native code; your handlers stay in JavaScript.",
+      text: "Toki is a blazing-fast network framework for Node.js — HTTP/1.1 and HTTP/2, WebSockets, raw TCP and UDP, and TLS 1.3, all in one package. It pairs a clean, fully-typed TypeScript API with a native engine written in [Zig](https://ziglang.org): parsing, routing, socket I/O, and the TLS handshake run in native code; your handlers stay in JavaScript.",
     },
     {
       kind: "paragraph",

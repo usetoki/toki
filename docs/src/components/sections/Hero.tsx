@@ -14,9 +14,9 @@ export function Hero(): ReactElement {
       <div className={styles.glow} aria-hidden="true" />
       <div className={cn("container", styles.inner)}>
         <div className={styles.copy}>
-          <Pill>⚡ Native HTTP engine in Zig</Pill>
+          <Pill>⚡ Native network engine in Zig</Pill>
           <h1 className={styles.title}>
-            A <span className={styles.grad}>blazing-fast</span> HTTP framework for Node.js
+            A <span className={styles.grad}>blazing-fast</span> network framework for Node.js
           </h1>
           <p className={styles.lede}>
             A clean, fully-typed TypeScript API on top of a native engine written in Zig. HTTP,

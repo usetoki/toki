@@ -13,7 +13,7 @@ export function Footer(): ReactElement {
       <div className={styles.inner}>
         <div className={styles.brand}>
           <Logo />
-          <p className={styles.tagline}>A blazing-fast HTTP framework for Node.js, powered by Zig.</p>
+          <p className={styles.tagline}>A blazing-fast network framework for Node.js, powered by Zig.</p>
         </div>
 
         <div className={styles.groups}>
