@@ -108,6 +108,27 @@ app.listen(3000);`,
       tone: "tip",
       text: "TLS reads are record-batched — many records decrypted per libuv read into one dispatch — so throughput is bound by the AES-GCM cipher, not by N-API crossings. There is no TLS session resumption yet: every connection runs a full TLS 1.3 handshake.",
     },
+    { kind: "heading", id: "vs-frameworks", text: "Compared to other frameworks" },
+    {
+      kind: "paragraph",
+      text: "Plaintext `GET /` → `Hello, World!`, identical across frameworks, on one Apple M2 Pro (12-core), Node 24.15 / Bun 1.3.12, `wrk -t8 -c256 -d10s`, 3s warmup, median of 6 trials — single instance, single thread. Loopback (the load generator shares the machine), so read these as relative, on one box, with a disclosed method.",
+    },
+    {
+      kind: "table",
+      headers: ["Framework", "Runtime", "Requests/sec", "p50", "p99"],
+      rows: [
+        ["uWebSockets.js 20.52", "Node", "~142,000", "1.8 ms", "2.9 ms"],
+        ["Elysia 1.4", "Bun", "~129,000", "2.0 ms", "3.4 ms"],
+        ["Bun.serve", "Bun", "~120,000", "2.2 ms", "3.4 ms"],
+        ["toki 0.9", "Node", "~90,000", "2.9 ms", "4.9 ms"],
+        ["Fastify 5.8", "Node", "~75,000", "3.4 ms", "4.5 ms"],
+        ["Express 5.2", "Node", "~51,000", "4.9 ms", "~70 ms"],
+      ],
+    },
+    {
+      kind: "paragraph",
+      text: "toki is the fastest **Node framework** here — about 20% over Fastify and 75% over Express. The faster entries are a different category: uWebSockets.js is a C++ HTTP library, not a framework (its handler is a raw `res.end`), and Bun.serve / Elysia run on the Bun runtime, not Node. toki's parser, router, and response writer are all native Zig — a CPU profile puts ~98% of per-request time in native code, leaving only your handler in JavaScript. Past a single core, a process per core with `reusePort` scales nearly linearly.",
+    },
     { kind: "heading", id: "what-runs-where", text: "What runs where" },
     {
       kind: "paragraph",

@@ -54,6 +54,31 @@ console.log("listening on http://127.0.0.1:3000");
 - 🛡️ **Hardened** — schema validation, JWT, a native per-IP rate limiter, slowloris guard, configurable limits.
 - 🧪 **Testable** — `app.inject()` runs a real request in-process, no port needed.
 
+## 📊 Benchmarks
+
+Plaintext `GET /` → `Hello, World!`, identical across frameworks. Apple M2 Pro (12-core),
+Node 24.15 / Bun 1.3.12, `wrk -t8 -c256 -d10s`, 3s warmup, median of 6 trials. Single
+instance, single thread. Loopback — the load generator shares the machine, so treat these
+as **relative**, on one box, with a disclosed method (reproduce with the script below).
+
+| Framework | Runtime | Requests/sec | p50 | p99 |
+| --- | --- | ---: | ---: | ---: |
+| uWebSockets.js 20.52 | Node | **~142,000** | 1.8 ms | 2.9 ms |
+| Elysia 1.4 | Bun | ~129,000 | 2.0 ms | 3.4 ms |
+| Bun.serve | Bun | ~120,000 | 2.2 ms | 3.4 ms |
+| **toki 0.9** | **Node** | **~90,000** | 2.9 ms | 4.9 ms |
+| Fastify 5.8 | Node | ~75,000 | 3.4 ms | 4.5 ms |
+| Express 5.2 | Node | ~51,000 | 4.9 ms | ~70 ms |
+
+**toki is the fastest Node framework here** — ~20% over Fastify and ~75% over Express.
+The faster entries aren't the same category: **uWebSockets.js is a C++ HTTP library**, not
+a framework (its "handler" is a raw `res.end`), and **Bun.serve / Elysia run on the Bun
+runtime**, not Node. toki's parser, router, and response writer all run in native Zig — a
+CPU profile puts ~98% of per-request time in native code; the only JavaScript on the hot
+path is your handler. To go past a single core, run a process per core with
+`reusePort: true` (kernel-balanced `SO_REUSEPORT`, Linux/BSD) — throughput scales nearly
+linearly with cores.
+
 ## 🚀 Install
 
 ```bash
